@@ -19,7 +19,7 @@ Eine statische Web-App (HTML, CSS und JavaScript in einer Datei, ohne Build-Schr
   - **Zielort:** Ortszeit, Datum, Wetter in °C, km/h, km und hPa
   - **Rundlauf:** wechselt die Bildschirme automatisch
 
-  Nach dem Start schaltet die App einmal pro Flug automatisch in den Passagier-Modus.
+  Zwischen Pilot und Passagier wird nur von Hand umgeschaltet.
 - **Tafel:** reine Flughafen-Anzeige (FIDS) mit Abflügen und Ankünften für einen beliebigen Flughafen (ICAO eingeben oder `?fids=EDDF`). Funktioniert auch ohne eigenen Flug.
 
 **Push aufs Handy** über ntfy.sh: bei Start-up-Fenster offen, neuer TSAT, bevorstehendem Frequenzwechsel und neuen CPDLC-Nachrichten.
@@ -154,6 +154,24 @@ Die Live-Geschwindigkeit kommt nur für den eigenen Flug aus dem VATSIM-Feed. Di
 
 CTOT-Toleranz in der Anzeige: −5 / +10 min. Start-up-Fenster: TSAT ± 5 min (Konstante `TSAT_WINDOW`).
 
+## 5-IF. Pilot-Modus im Flug (`renderEnroute()`, `renderPilotArr()`)
+
+Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT), zeigt der Pilot-Modus keine Slot-Daten mehr, sondern eine Im-Flug-Ansicht. Sie bleibt bis zum Gate am Ziel (unter 15 km vom Ziel). Mit dem Knopf „Slot“ geht es zurück zur Slot-Ansicht, mit „Im-Flug-Ansicht“ wieder hin (`S.forceSlot`).
+
+**Ankunftszeit**, groß, in UTC, deutscher Zeit (Europe/Berlin, `fmtDE()`) und Ortszeit am Ziel. Ist das Ziel in Deutschland, steht an dritter Stelle die Restflugzeit.
+- In der Luft: jetzt + Restentfernung ÷ Groundspeed
+- Sonst Plan: Abflugzeit (ATOT, TTOT oder SimBrief) + geplante Flugzeit, sonst ETA aus vIFF oder SimBrief
+
+**Weitere Inhalte:**
+- **Nächste Frequenz** (groß): aus dem Frequenz-Führer; eine CPDLC-Anweisung („CONTACT/MONITOR“) hat Vorrang. Darunter die aktuelle Station.
+- **Flugdaten:** Höhe (FL/ft und m, Steig- und Sinkrate), Groundspeed (kt und km/h), Entfernung zum Ziel (nm und km)
+- **ATIS des Zielflughafens:** Buchstabe, Frequenz, kompletter Text; dazu das METAR in Kurzform (Wind, Sicht, QNH, Temperatur, Wetterlage) und als Rohtext
+- **CPDLC:** die letzten drei Nachrichten
+- **Statt der Abflugtafel:** Ankünfte am Ziel mit der eigenen Position („Du bist #3 von 9 Ankünften“)
+- **Seitenkarten:** Wetter/ATIS und ATC online zeigen jetzt den Zielflughafen.
+
+**Oben in der Leiste:** UTC und deutsche Uhrzeit (Europe/Berlin), immer sichtbar.
+
 ## 5a. Frequenz-Führer (Pilot-Modus, `freqPlan()`, `renderFreq()`)
 
 Die Karte zeigt **Aktuell** (Station und Frequenz), **Als nächstes** (mit Auslöser, Minuten und km) und darunter alle weiteren Stationen bis zum Ziel.
@@ -227,7 +245,7 @@ Alle VATSIM-Flüge mit `arrival` = Zielflughafen:
 
 Der eigene Flug ist gelb markiert („Ihr Flug“).
 
-**Gespeicherte Ansicht:** `localStorage["vdgs.view"]` („slot“ = Pilot, „ife“ = Passagier, „fids“ = Tafel) und `localStorage["vdgs.pane"]` („map“, „conn“, „arr“, „dest“). Der automatische Wechsel nach dem Start passiert einmal pro Callsign (`localStorage["vdgs.autoIfe"]`).
+**Gespeicherte Ansicht:** `localStorage["vdgs.view"]` („slot“ = Pilot, „ife“ = Passagier, „fids“ = Tafel) und `localStorage["vdgs.pane"]` („map“, „conn“, „arr“, „dest“).
 
 ## 5c. Tafel (FIDS, `renderFids()`, `pollFids()`)
 
@@ -306,6 +324,8 @@ Der eigene Flug ist gelb markiert („Ihr Flug“).
 | `pollFids()`, `renderFids()` | Tafel (FIDS) |
 | `notifyPhone()` | Push über ntfy.sh |
 | `pollCpdlc()`, `renderCpdlc()` | CPDLC über Hoppie (peek) |
+| `renderEnroute()`, `renderPilotArr()` | Pilot-Modus im Flug: Ankunftszeit, nächste Frequenz, Ziel-ATIS, CPDLC, Ankünfte |
+| `fmtDE()` | Uhrzeit in deutscher Zeit (Europe/Berlin) |
 
 ## 8. Ideen für später
 

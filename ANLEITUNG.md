@@ -58,7 +58,17 @@ Oben links schaltest du um:
   - **Rundlauf:** wechselt die Bildschirme automatisch wie im Flugzeug
   - Außentemperatur und Wind sind Schätzwerte („ca.“), weil VATSIM sie nicht liefert
 
-Nach dem Start schaltet die App einmal automatisch auf „Passagier“. Du kannst jederzeit zurück auf „Pilot“.
+Umschalten geht nur von Hand.
+
+**Pilot im Flug:** Nach dem Start zeigt „Pilot“ keine TOBT/TSAT mehr. Stattdessen siehst du:
+- **Ankunftszeit**, groß, in UTC, deutscher Zeit und Ortszeit am Ziel
+- die **nächste Frequenz**, groß (oder die CPDLC-Anweisung)
+- Höhe, Geschwindigkeit und Entfernung
+- die komplette **ATIS des Zielflughafens** mit Wetter
+- die letzten **CPDLC-Nachrichten**
+- unten die **Ankünfte am Ziel**
+
+Mit „Slot“ kommst du zurück zur Slot-Ansicht. Oben neben der UTC-Uhr steht immer die deutsche Uhrzeit.
 
 ## Aktualisieren
 

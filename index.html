@@ -77,7 +77,52 @@ button { font: inherit; color: inherit; }
 .clocks { display: flex; gap: 18px; margin-left: auto; align-items: baseline; }
 .clock { display: grid; justify-items: end; gap: 2px; }
 .clock .t { font-size: 30px; font-weight: 700; line-height: 1; }
-.clock.sec .t { font-size: 20px; color: var(--dim); font-weight: 400; }
+.clock.sec .t { font-size: 26px; color: var(--fg); font-weight: 700; }
+
+/* Pilot in-flight view */
+.enr { display: grid; align-content: start; overflow: hidden; }
+.enr .vdgs-head .btn.sm, .vdgs .vdgs-head .btn.sm { margin-left: 4px; }
+.en-body { display: grid; gap: 14px; padding: 4px 22px 22px; }
+.en-eta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.en-eta > div { background: var(--panel); padding: 12px 16px; display: grid; gap: 6px; min-width: 0; }
+.en-eta .v { font-size: 46px; font-weight: 700; line-height: 1; }
+.en-eta .s { font-size: 12px; color: var(--dim); }
+.en-eta > div:first-child { background: color-mix(in srgb, var(--sign) 8%, var(--panel)); }
+.en-eta > div:first-child .lbl, .en-eta > div:first-child .v { color: var(--sign); }
+.en-next { border: 1px solid color-mix(in srgb, var(--sign) 55%, transparent); border-radius: 10px; padding: 16px 20px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 22px; align-items: center; background: var(--panel-2); }
+.en-next .lbl { grid-column: 1 / -1; color: var(--sign); }
+.en-mhz { font-size: 72px; font-weight: 700; line-height: 1; color: var(--sign); }
+.en-stn { font: 700 28px/1.1 var(--f-display); letter-spacing: .03em; min-width: 0; overflow-wrap: anywhere; }
+.en-stn small { display: block; font: 400 13px/1.3 var(--f-body); letter-spacing: 0; color: var(--dim); margin-top: 4px; }
+.en-when { grid-column: 1 / -1; font-size: 15px; }
+.en-next.soon { background: color-mix(in srgb, var(--sign) 16%, var(--panel)); border-color: var(--sign); animation: soon 2s ease-in-out infinite; }
+.en-next.cp { border-color: var(--info); }
+.en-next.cp .lbl, .en-next.cp .en-mhz { color: var(--info); }
+@media (prefers-reduced-motion: reduce) { .en-next.soon { animation: none; } }
+.en-cur { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; }
+.en-cur .lbl { grid-column: 1 / -1; }
+.en-cur .n { font: 700 18px/1.2 var(--f-display); letter-spacing: .03em; min-width: 0; overflow-wrap: anywhere; }
+.en-cur .n small { font: 400 12px var(--f-body); color: var(--dim); }
+.en-cur .num { font-size: 26px; font-weight: 700; }
+.en-cur.unicom .num { color: var(--dim); }
+.en-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.en-strip > div { background: var(--panel); padding: 12px 14px; display: grid; gap: 6px; min-width: 0; }
+.en-strip .v { font-size: 26px; font-weight: 700; line-height: 1; }
+.en-strip .s { font-size: 12px; color: var(--dim); }
+.en-atis { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 10px; }
+.en-atis-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.en-atis-f { font-size: 24px; font-weight: 700; }
+.en-atis-body { display: flex; gap: 14px; align-items: flex-start; }
+.en-atis-body .letter { width: 64px; height: 64px; border-radius: 8px; background: var(--sign); color: var(--sign-ink); display: grid; place-items: center; font: 700 44px/1 var(--f-display); flex: none; }
+.en-atis-body .txt { font-size: 14px; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+.en-wx { font: 700 17px/1.3 var(--f-display); letter-spacing: .04em; }
+.en-raw { font-size: 12px; color: var(--faint); overflow-wrap: anywhere; }
+.en-cp { display: grid; gap: 8px; }
+@media (max-width: 720px) {
+  .en-eta, .en-strip { grid-template-columns: minmax(0, 1fr); }
+  .en-mhz { font-size: 52px; }
+  .en-body { padding-inline: 14px; }
+}
 .tools { display: flex; gap: 8px; }
 .ibtn {
   height: 42px; min-width: 42px; padding: 0 12px; border-radius: 6px;
@@ -357,8 +402,7 @@ td.k { color: var(--sign); font-weight: 700; }
 
 /* ---------- Responsive: iPad portrait & phone ---------- */
 @media (max-width: 1280px) {
-  #btnWake span, #btnSetup span { display: none; }
-  .clock.sec { display: none; }
+  #btnWake span, #btnSetup span, #btnRefresh span { display: none; }
 }
 @media (max-width: 1100px) {
   .main, .dest { grid-template-columns: minmax(0, 1fr); }
@@ -397,7 +441,7 @@ td.k { color: var(--sign); font-weight: 700; }
     <span id="demoFlag" class="demo-flag" hidden>Demo-Daten</span>
     <div class="clocks">
       <div class="clock"><span class="lbl">UTC</span><span class="t num" id="clkUtc">--:--:--</span></div>
-      <div class="clock sec"><span class="lbl">Lokal</span><span class="t num" id="clkLoc">--:--</span></div>
+      <div class="clock sec"><span class="lbl" id="clkLocLbl">Deutschland</span><span class="t num" id="clkLoc">--:--</span></div>
     </div>
     <div class="tools">
       <button class="ibtn" id="btnRefresh" title="Jetzt aktualisieren">
@@ -507,11 +551,28 @@ td.k { color: var(--sign); font-weight: 700; }
 
   <div id="viewSlot" class="view-slot">
   <main class="main">
-    <section class="panel vdgs" aria-label="Slot">
+    <section class="panel enr" id="enroute" hidden aria-label="Im Flug">
+      <div class="vdgs-head">
+        <div class="cs" id="enCs">-----</div>
+        <div class="route" id="enRoute"></div>
+        <div class="chips" id="enChips"></div>
+        <button class="btn sm" id="btnShowSlot" title="Slot-Ansicht mit TOBT/TSAT zeigen">Slot</button>
+      </div>
+      <div class="en-body">
+        <div class="en-eta" id="enEta"></div>
+        <div id="enNext"></div>
+        <div class="en-strip" id="enStrip"></div>
+        <div class="en-atis" id="enAtis"></div>
+        <div class="en-cp" id="enCp"></div>
+      </div>
+    </section>
+
+    <section class="panel vdgs" id="vdgsSec" aria-label="Slot">
       <div class="vdgs-head">
         <div class="cs" id="cs">-----</div>
         <div class="route" id="route"></div>
         <div class="chips" id="chips"></div>
+        <button class="btn sm" id="btnBackFlight" hidden>Im-Flug-Ansicht</button>
       </div>
       <div class="banner" id="banner">
         <div><div class="state" id="bState">Lade…</div><div class="hint" id="bHint"></div></div>
@@ -552,7 +613,20 @@ td.k { color: var(--sign); font-weight: 700; }
     </aside>
   </main>
 
-  <section class="panel board" aria-label="Abflüge">
+  <section class="panel board" id="pArrBoardSec" hidden aria-label="Ankünfte am Ziel">
+    <div class="board-head">
+      <span class="ttl">Arrivals</span><span class="lbl" id="pArrApt"></span>
+      <span class="seq" id="pArrInfo"></span>
+    </div>
+    <div class="board-scroll">
+      <table class="conn">
+        <thead><tr><th>ETA</th><th>Flug</th><th>Von</th><th>Typ</th><th>Status</th></tr></thead>
+        <tbody id="pArrBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel board" id="depBoardSec" aria-label="Abflüge">
     <div class="board-head">
       <span class="ttl">Departures</span><span class="lbl" id="boardApt"></span>
       <span class="seq" id="seq"></span>
@@ -679,6 +753,10 @@ td.k { color: var(--sign); font-weight: 700; }
   }
   const p2 = (n) => String(n).padStart(2, "0");
   const hhmm = (t) => { if (t == null) return "--:--"; const d = new Date(t); return p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()); };
+  // German time (CET/CEST), whatever time zone the iPad is set to
+  let deFmt = null;
+  try { deFmt = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }); } catch {}
+  const fmtDE = (t) => { if (t == null) return "--:--"; if (deFmt) return deFmt.format(t); const d = new Date(t); return p2(d.getHours()) + ":" + p2(d.getMinutes()); };
   function dur(ms) {
     const neg = ms < 0; ms = Math.abs(ms);
     const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
@@ -878,7 +956,7 @@ td.k { color: var(--sign); font-weight: 700; }
   function renderClock(now) {
     const d = new Date(now);
     $("clkUtc").textContent = p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()) + ":" + p2(d.getUTCSeconds()) + "Z";
-    $("clkLoc").textContent = p2(d.getHours()) + ":" + p2(d.getMinutes());
+    $("clkLoc").textContent = fmtDE(now);
   }
 
   function renderLive() {
@@ -947,27 +1025,41 @@ td.k { color: var(--sign); font-weight: 700; }
     const cell = (lbl, t, sub, key) => `<div class="tcell${key ? " key" : ""}"><span class="lbl">${lbl}</span><span class="v num${t == null ? " none" : ""}">${hhmm(t)}</span><span class="s">${esc(sub || "")}</span></div>`;
     const rel = (t) => (t == null ? "" : (t > now ? "in " : "vor ") + dur(Math.abs(t - now)).replace(/^-/, ""));
     const eobtT = f?.eobt ?? toTime(fp?.deptime) ?? ofp?.out ?? null;
+    // planned arrival: take-off (actual, CDM target or SimBrief) + planned air time, else the CDM/SimBrief ETA
+    const offT = f?.atot || f?.ttot || ofp?.off || null;
+    const etaPlan = offT && ofp?.eteMs ? offT + ofp.eteMs : f?.eta || ofp?.on || null;
     $("times").innerHTML = [
       cell("EOBT", eobtT, f?.eobt || fp ? "Flugplan" : ofp ? "SimBrief STD" : "Flugplan"),
       cell("TOBT", f?.tobt, f?.tobt ? rel(f.tobt) : "Ziel Off-Block"),
       cell("TSAT", f?.tsat, f?.tsat ? "Fenster " + hhmm(f.tsat - TSAT_WINDOW) + "–" + hhmm(f.tsat + TSAT_WINDOW) : "Start-up", true),
       cell("TTOT", f?.ttot, f?.taxi ? "EXOT " + f.taxi + " min" : "Ziel Take-off"),
       cell("CTOT", f?.ctot, f?.ctot ? "Toleranz " + hhmm(f.ctot - 5 * 60e3) + "–" + hhmm(f.ctot + 10 * 60e3) : "Keine Regulierung"),
-      f?.atot ? cell("ATOT", f.atot, "Abgehoben") : f?.aobt ? cell("AOBT", f.aobt, "Off-Block") : cell("ETA", f?.eta, arr ? "Ankunft " + arr : "Ankunft"),
+      cell("ETA", etaPlan, etaPlan ? fmtDE(etaPlan) + " deutsche Zeit" + (arr ? " · " + arr : "") : "Ankunft"),
     ].join("");
 
     renderTimeline(f, now);
     renderFlight(f, fp, ofp);
-    renderWx(apt);
+
+    // after take-off the slot is history: the pilot view turns into an in-flight view
+    // (next frequency, CPDLC, destination ATIS) until the aircraft is at the gate at the destination
+    const live = settings.demo ? null : S.pilot;
+    if (live && !APTS) loadAirports();
+    const arrI = arrApt(), depI = depApt();
+    const arrP = aptInfo(arrI, ofp, "arr")?.pos, depP = aptInfo(depI, ofp, "dep")?.pos;
+    const livePt = live && live.latitude != null ? [live.latitude, live.longitude] : null;
+    const flying = (live && live.groundspeed > 60) || (ph === "airborne" && !!live);
+    const landed = !!(livePt && live.groundspeed <= 60 && arrP && distKm(livePt, arrP) < 15 && !(depP && distKm(livePt, depP) < 15));
+    const inFlight = (flying || landed) && !S.forceSlot;
+    $("vdgsSec").hidden = inFlight; $("enroute").hidden = !inFlight;
+    $("depBoardSec").hidden = inFlight; $("pArrBoardSec").hidden = !inFlight;
+    $("btnBackFlight").hidden = !(S.forceSlot && (flying || landed));
+    if (inFlight) { renderEnroute(now, ofp, landed, etaPlan); renderPilotArr(now, ofp); }
+    renderWx(inFlight ? arrI : apt, inFlight);
     renderBoard(f, now, apt);
     renderLive();
     if (view === "slot") { renderFreq(now); renderCpdlc(now); }
     if (view === "fids") renderFids(now);
 
-    // after take-off switch to the flight-info view once per flight; the pilot can switch back
-    if (ph === "airborne" && !settings.demo && S.callsign && store.raw("vdgs.autoIfe") !== S.callsign) {
-      store.rawSet("vdgs.autoIfe", S.callsign); setView("ife");
-    }
     if (view === "ife") {
       renderIfe(now, f, fp, ofp);
       $("paxCs").textContent = [S.callsign, acName(fp?.aircraft_short || f?.type || ofp?.type), f?.arr || fp?.arrival || ofp?.arr ? "nach " + (S.pax?.arr?.city || arrApt()) : ""].filter(Boolean).join(" · ");
@@ -1213,7 +1305,7 @@ td.k { color: var(--sign); font-weight: 700; }
   }
 
   async function pollArrWx() {
-    if (settings.demo || view !== "ife") return;
+    if (settings.demo) return;
     const apt = arrApt(); if (!apt) return;
     try {
       const txt = (await (await fetch(API.metar + encodeURIComponent(apt) + "?_=" + Date.now(), { cache: "no-store" })).text()).trim();
@@ -1777,6 +1869,8 @@ td.k { color: var(--sign); font-weight: 700; }
   $("tabSlot").addEventListener("click", () => setView("slot"));
   $("tabIfe").addEventListener("click", () => setView("ife"));
   $("tabFids").addEventListener("click", () => setView("fids"));
+  $("btnShowSlot").addEventListener("click", () => { S.forceSlot = true; render(); });
+  $("btnBackFlight").addEventListener("click", () => { S.forceSlot = false; render(); });
   $("btnFollow").addEventListener("click", () => { follow = !follow; syncFollow(); if (follow) render(); });
   // iPad rotation or window resize: let Leaflet measure again, then re-fit the route
   let resizeT = 0;
@@ -1859,20 +1953,101 @@ td.k { color: var(--sign); font-weight: 700; }
     if ($("btnSbReload")) $("btnSbReload").onclick = () => { S.sbOk = null; S.sbErr = ""; render(); pollSimbrief(); };
   }
 
-  function renderWx(apt) {
-    $("wxApt").textContent = apt ? "· " + apt : "";
-    const a = S.atis[0];
-    if (a) {
-      const txt = (a.text_atis || []).join(" ");
-      $("atis").innerHTML = `<div class="letter">${esc(a.atis_code || "?")}</div><div class="txt">${esc(txt || a.callsign)}<br><span class="num">${esc(a.frequency)}</span></div>`;
-    } else {
-      $("atis").innerHTML = `<div class="empty">Kein ATIS online${apt ? " für " + esc(apt) : ""}.</div>`;
-    }
-    $("metar").textContent = S.metar && S.metarApt === apt ? S.metar : (apt ? "METAR wird geladen…" : "—");
+  // weather and ATC card: departure airport before take-off, destination once airborne
+  function renderWx(apt, dest) {
+    $("wxApt").textContent = apt ? "· " + apt + (dest ? " (Ziel)" : "") : "";
+    const a = dest ? aptStations(apt).atis : S.atis[0];
+    const atis = a ? `<div class="letter">${esc(a.atis_code || "?")}</div><div class="txt">${esc((a.text_atis || []).join(" ") || a.callsign)}<br><span class="num">${esc(a.frequency)}</span></div>`
+      : `<div class="empty">Kein ATIS online${apt ? " für " + esc(apt) : ""}.</div>`;
+    setHtml("atis", atis);
+    const met = dest ? (S.arrMetarApt === apt ? S.arrMetar : "") : (S.metarApt === apt ? S.metar : "");
+    $("metar").textContent = met || (apt ? "METAR wird geladen…" : "—");
     const names = { 2: "DEL", 3: "GND", 4: "TWR", 5: "APP" };
-    $("atc").innerHTML = S.atc.length
-      ? `<div class="atc">${S.atc.map((c) => `<div><span class="pos">${names[c.facility]}</span><span class="cs2">${esc(c.callsign)}</span><span class="fq num">${esc(c.frequency)}</span></div>`).join("")}</div>`
-      : `<div class="empty">Kein DEL/GND/TWR/APP online${apt ? " an " + esc(apt) : ""}. Ohne ATC gibt es meist keine TSAT.</div>`;
+    const atc = dest ? (S.feed?.controllers || []).filter((c) => c.callsign.startsWith(apt + "_") && c.facility >= 2 && c.facility <= 5).sort((x, y) => y.facility - x.facility) : S.atc;
+    setHtml("atc", atc.length
+      ? `<div class="atc">${atc.map((c) => `<div><span class="pos">${names[c.facility]}</span><span class="cs2">${esc(c.callsign)}</span><span class="fq num">${esc(c.frequency)}</span></div>`).join("")}</div>`
+      : `<div class="empty">Kein DEL/GND/TWR/APP online${apt ? " an " + esc(apt) : ""}.${dest ? " Dann gilt das Center oder UNICOM." : " Ohne ATC gibt es meist keine TSAT."}</div>`);
+  }
+
+  // ---------- pilot: in-flight view ----------
+  function renderEnroute(now, ofp, landed, etaPlan) {
+    const pl = S.pilot, arrI = arrApt();
+    const arr = aptInfo(arrI, ofp, "arr");
+    const pos = livePos(pl, now);
+    const gs = pl.groundspeed || 0, alt = pl.altitude || 0;
+    const remain = pos && arr?.pos ? distKm(pos, arr.pos) : null;
+    const etaLive = remain != null && gs > 100 ? now + (remain / (gs * KT_KMH)) * 3600e3 : null;
+    const eta = landed ? null : etaLive || etaPlan;
+
+    // arrival time, big: UTC, German time, local time at the destination
+    const left = eta ? eta - now : null;
+    const hm = (ms) => Math.floor(ms / 3600e3) + ":" + p2(Math.round((ms % 3600e3) / 60e3));
+    const sameAsDe = arr?.tz === "Europe/Berlin";
+    const e = (l, v, s) => `<div><span class="lbl">${l}</span><span class="v num">${v}</span><span class="s">${esc(s || "")}</span></div>`;
+    setHtml("enEta", landed
+      ? e("Gelandet", hhmm(now) + "Z", "jetzt " + fmtDE(now) + " deutsche Zeit") + e("Ortszeit " + (arr?.city || arrI || ""), fmtAt(now, arr), "") + e("Deutsche Zeit", fmtDE(now), "")
+      : e("Ankunft UTC", eta ? hhmm(eta) + "Z" : "--:--", eta ? (etaLive ? "aus aktueller Geschwindigkeit" : "Plan (SimBrief/CDM)") : "noch keine Schätzung")
+        + e("Ankunft deutsche Zeit", eta ? fmtDE(eta) : "--:--", left ? "in " + hm(left) + " h" : "")
+        + (sameAsDe || !arr?.tz
+          ? e("Restflugzeit", left ? hm(left) : "--:--", remain != null ? nf(remain / 1.852) + " nm · " + nf(remain) + " km" : "")
+          : e("Ankunft Ortszeit", eta ? fmtAt(eta, arr) : "--:--", arr?.city || arrI)));
+    const vs = vSpeed();
+    const phaseTxt = landed ? (gs < 3 ? "Angekommen" : "Gelandet · Rollen") : vs < -400 ? (remain != null && remain < 80 ? "Landeanflug" : "Sinkflug") : vs > 400 ? "Steigflug" : "Reiseflug";
+
+    $("enCs").textContent = S.callsign;
+    $("enRoute").innerHTML = $("route").innerHTML;
+    const sq = pl.flight_plan?.assigned_transponder && pl.flight_plan.assigned_transponder !== "0000" ? pl.flight_plan.assigned_transponder : pl.transponder;
+    setHtml("enChips", `<span class="chip y">${esc(phaseTxt)}</span>${sq ? `<span class="chip">SQ ${esc(sq)}</span>` : ""}`);
+
+    // next frequency, big; a CPDLC instruction beats the estimate
+    const p = freqPlan(now);
+    const cf = S.cpFreq && now - S.cpFreq.at < 15 * 60e3 ? S.cpFreq : null;
+    const nx = p.next;
+    const soon = nx && ((nx.min != null && nx.min <= 3) || (nx.km != null && nx.km <= 25));
+    const when = nx ? [nx.when !== "jetzt" ? nx.when : "", nx.km != null && nx.km > 0.5 ? (nx.min != null ? "in ca. " + nx.min + " min · " : "") + "noch " + nf(nx.km) + " km" : ""].filter(Boolean).join(" · ") : "";
+    let hero;
+    if (cf) hero = `<div class="en-next cp"><span class="lbl">Per CPDLC · ${esc(cf.verb)} · ${esc(hhmm(cf.at))}Z</span><div class="en-mhz num">${esc(cf.mhz)}</div><div class="en-stn">${esc(cf.station)}<small>von ${esc(cf.from)}</small></div></div>`;
+    else if (nx) hero = `<div class="en-next${soon ? " soon" : ""}"><span class="lbl">${soon ? "Bald wechseln" : "Nächste Frequenz"} · ${esc(nx.role)}</span><div class="en-mhz num">${esc(nx.st.mhz)}</div><div class="en-stn">${esc(nx.st.name)}<small>${esc(nx.st.cs)}</small></div><div class="en-when">${esc(when)}</div></div>`;
+    else hero = `<div class="en-next"><span class="lbl">Nächste Frequenz</span><div class="en-stn">Kein weiterer Wechsel bis zum Gate</div></div>`;
+    const cur = p.cur ? `<div class="en-cur${p.cur.st.unicom ? " unicom" : ""}"><span class="lbl">Aktuell · ${esc(p.cur.role)}</span><span class="n">${esc(p.cur.st.name)} <small>${esc(p.cur.st.cs)}</small></span><span class="num">${esc(p.cur.st.mhz)}</span></div>` : "";
+    setHtml("enNext", hero + cur);
+
+    // flight data strip
+    const fl = alt >= 10000 ? "FL" + String(Math.round(alt / 100)).padStart(3, "0") : nf(alt) + " ft";
+    const t = (l, v, s) => `<div><span class="lbl">${l}</span><span class="v num">${v}</span><span class="s">${esc(s || "")}</span></div>`;
+    setHtml("enStrip", [
+      t("Höhe", fl, nf(alt * FT_M) + " m" + (Math.abs(vs) > 200 ? (vs > 0 ? " · ↑ " : " · ↓ ") + nf(Math.abs(vs)) + " ft/min" : "")),
+      t("Geschwindigkeit", gs + " kt", nf(gs * KT_KMH) + " km/h über Grund"),
+      t("Bis " + (arrI || "Ziel"), remain != null ? nf(remain / 1.852) + " nm" : "—", remain != null ? nf(remain) + " km Luftlinie" : ""),
+    ].join(""));
+
+    // destination ATIS and weather
+    const A = aptStations(arrI);
+    const raw = S.arrMetarApt === arrI ? S.arrMetar : "";
+    const w = raw ? decodeMetar(raw) : null;
+    const wx = w ? [w.wdir != null ? (w.wdir === "VRB" ? "VRB" : w.wdir + "°") + " " + Math.round(w.wspd / KT_KMH) + (w.gust ? "G" + Math.round(w.gust / KT_KMH) : "") + " kt" : "", w.visKm != null ? (w.visKm >= 10 ? "Sicht 10 km+" : "Sicht " + nf(w.visKm, 1) + " km") : "", w.qnh ? "QNH " + w.qnh : "", w.temp != null ? w.temp + " °C" : "", w.cond].filter(Boolean).join(" · ") : "";
+    setHtml("enAtis", `
+      <div class="en-atis-head"><span class="lbl">ATIS ${esc(arrI || "Ziel")}${arr?.city ? " · " + esc(arr.city) : ""}</span>${A.atis ? `<span class="num en-atis-f">${esc(A.atis.frequency)}</span>` : ""}</div>
+      ${A.atis ? `<div class="en-atis-body"><div class="letter">${esc(A.atis.atis_code || "?")}</div><div class="txt">${esc((A.atis.text_atis || []).join(" ") || A.atis.callsign)}</div></div>`
+        : `<div class="empty">Kein ATIS online für ${esc(arrI || "das Ziel")}. Wetter laut METAR:</div>`}
+      ${wx ? `<div class="en-wx">${esc(wx)}</div>` : ""}
+      <div class="en-raw num">${esc(raw || "METAR wird geladen…")}</div>`);
+
+    // latest CPDLC messages
+    const msgs = S.cpMsgs || [];
+    setHtml("enCp", !settings.hoppie ? `<div class="empty">CPDLC: unter „Flug“ den Hoppie-Code eintragen, dann erscheinen hier die Nachrichten.</div>`
+      : S.cpErr ? `<div class="err">${esc(S.cpErr)}</div>`
+      : `<span class="lbl">CPDLC · letzte Nachrichten</span>` + (msgs.length ? `<div class="cp-list">${msgs.slice(0, 3).map((x) => { const ts = S.cpSeen.get(x.id); return `<div class="${ts && now - ts < 5 * 60e3 ? "new" : ""}"><span class="tm">${ts ? hhmm(ts) + "Z" : "älter"}</span><span class="tx">${esc(x.text)}</span><span class="fr">${esc(x.from)}</span></div>`; }).join("")}</div>` : `<div class="empty">Noch keine Nachrichten.</div>`));
+  }
+
+  // arrivals at the destination, shown in the pilot view instead of the departure board once airborne
+  function renderPilotArr(now, ofp) {
+    const arrI = arrApt(), arr = aptInfo(arrI, ofp, "arr");
+    $("pArrApt").textContent = arrI + (arr?.city ? " · " + arr.city : "");
+    const rows = buildArrs(arrI, arr?.pos, now, S.callsign);
+    const mine = rows.findIndex((r) => r.me);
+    $("pArrInfo").innerHTML = mine >= 0 ? `Du bist <b>#${mine + 1}</b> von ${rows.filter((r) => r.time).length} Ankünften` : rows.length + " Ankünfte";
+    setHtml("pArrBody", boardRows(rows, arr, "arr", S.feed ? "Keine weiteren Ankünfte im VATSIM-Netz." : "Lade VATSIM-Daten…"));
   }
 
   function renderBoard(me, now, apt) {
@@ -2036,7 +2211,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const now = Date.now();
     if (!force && now - lastRefreshAll < 5000) return;
     lastRefreshAll = now;
-    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); pollCpdlc(); if (view === "fids") pollFids(); });
+    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); pollArrWx(); pollCpdlc(); if (view === "fids") pollFids(); });
   }
   function start() {
     running = false;
