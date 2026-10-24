@@ -1,1 +1,3 @@
 .omc/
+bridge/app/
+__pycache__/

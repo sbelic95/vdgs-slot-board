@@ -89,6 +89,17 @@ button { font: inherit; color: inherit; }
 .en-eta .s { font-size: 12px; color: var(--dim); }
 .en-eta > div:first-child { background: color-mix(in srgb, var(--sign) 8%, var(--panel)); }
 .en-eta > div:first-child .lbl, .en-eta > div:first-child .v { color: var(--sign); }
+/* tablet -> simulator controls (bridge) */
+.btn.sm.tune { height: 40px; color: var(--fg); background: var(--panel); border-color: var(--sign); }
+.btn.sm.tune.ok { border-color: var(--ok); color: var(--ok); }
+.btn.sm.tune.bad { border-color: var(--bad); color: var(--bad); }
+.en-tune { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.fq-tune { grid-column: 1 / -1; display: flex; gap: 8px; }
+.en-radio { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding: 8px 14px; border: 1px dashed var(--line); border-radius: 8px; }
+.en-radio .num { font-size: 20px; font-weight: 700; color: var(--dim); }
+.en-radio .num.ok { color: var(--ok); }
+.tune-row { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; font-size: 13px; color: var(--dim); }
+.tune-row b { color: var(--fg); font-size: 16px; }
 .en-gate { border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; }
 .en-gate:empty { display: none; }
 .en-gate .lbl { grid-column: 1 / -1; }
@@ -722,7 +733,7 @@ td.k { color: var(--sign); font-weight: 700; }
     metar: "https://metar.vatsim.net/",
     simbrief: "https://www.simbrief.com/api/xml.fetcher.php",
   };
-  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3, fids: 60e3, cpdlc: 60e3, stands: 60e3, ukcp: 120e3 };
+  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3, fids: 60e3, cpdlc: 60e3, stands: 60e3, ukcp: 120e3, sim: 1000 };
   const TSAT_WINDOW = 5 * 60e3;          // start-up window TSAT ±5 min
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -853,7 +864,9 @@ td.k { color: var(--sign); font-weight: 700; }
     "Gate / Stand": ["Gate / stand", "Izlaz / stajanka"], "Prognose": ["Forecast", "Prognoza"], "Gate-Info ca. 30 min vor Ankunft": ["Gate info approx. 30 min before arrival", "Info o izlazu oko 30 min pre dolaska"],
     "Lade Stand-Daten…": ["Loading stand data…", "Učitavanje podataka o stajankama…"], "Ihr Stand": ["Your stand", "Vaša stajanka"], "Geparkt": ["Parked", "Parkiran"],
     "Außenposition, Bus": ["Remote stand, bus", "Udaljena pozicija, autobus"], "zugeteilt": ["assigned", "dodeljeno"], "Schengen": ["Schengen", "Šengen"], "Non-Schengen": ["Non-Schengen", "Van Šengena"],
-    "von VATSIM UK zugeteilt": ["assigned by VATSIM UK", "dodelio VATSIM UK"], "Cargo": ["Cargo", "Kargo"], "General Aviation": ["General aviation", "Generalna avijacija"],
+    "von VATSIM UK zugeteilt": ["assigned by VATSIM UK", "dodelio VATSIM UK"],
+    "COM1 AKTIV": ["COM1 ACTIVE", "COM1 AKTIVNO"], "✓ gesetzt": ["✓ set", "✓ postavljeno"], "COM1 im Simulator": ["COM1 in the simulator", "COM1 u simulatoru"],
+    "Simulator (MSFS)": ["Simulator (MSFS)", "Simulator (MSFS)"], "Transponder im Simulator:": ["Transponder in the simulator:", "Transponder u simulatoru:"], "Cargo": ["Cargo", "Kargo"], "General Aviation": ["General aviation", "Generalna avijacija"],
   };
   // dynamic texts: [pattern, English, Serbian] ($1… = captured parts, translated again where they are words)
   const TXP = [
@@ -886,7 +899,7 @@ td.k { color: var(--sign); font-weight: 700; }
     [/^(-?\d+) °C, (.+)$/, "$1 °C, $2", "$1 °C, $2"], [/^OFP erstellt (.+)$/, "OFP created $1", "OFP napravljen $1"], [/^Aktualisiert: (.+)$/, "Updated: $1", "Ažurirano: $1"],
     [/^Daten: (.+)$/, "Data: $1", "Podaci: $1"], [/^Flughäfen: (.+)$/, "Airports: $1", "Aerodromi: $1"], [/^Bis (.+)$/, "To $1", "Do $1"], [/^von (\S+)$/, "from $1", "od $1"],
     [/^Per CPDLC$/, "By CPDLC", "Preko CPDLC"],
-    [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"],
+    [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Squawk (\d{4}) setzen$/, "Set squawk $1", "Postavi squawk $1"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"],
     [/^Zeiten in Ortszeit (.+)\. Grau: Abflug vor Ihrer voraussichtlichen Ankunft\. Quelle: VATSIM-Flugpläne und vIFF-CDM, Aktualisierung jede Minute\.$/,
       "Times in local time $1. Grey: departs before your estimated arrival. Source: VATSIM flight plans and vIFF CDM, updated every minute.",
       "Vremena u lokalnom vremenu $1. Sivo: polazi pre vašeg očekivanog dolaska. Izvor: VATSIM planovi leta i vIFF CDM, osvežava se svakog minuta."], [/^Gate (\S+)$/, "Gate $1", "Izlaz $1"], [/^Stand (\S+)$/, "Stand $1", "Stajanka $1"],
@@ -1067,6 +1080,8 @@ td.k { color: var(--sign); font-weight: 700; }
     const d = S.feed; if (!d) return;
     const cs = S.callsign;
     S.pilot = cs ? d.pilots.find((p) => p.callsign === cs) || null : null;
+    S.pilotSrc = S.pilot ? "vatsim" : "";
+    if (!S.pilot && S.sim?.connected) { S.pilot = simPilot(); S.pilotSrc = "sim"; } // not on VATSIM: use the simulator
     S.prefile = cs && !S.pilot ? d.prefiles.find((p) => p.callsign === cs) || null : null;
     if (S.pilot) recordTrack(S.pilot);
     const apt = depApt();
@@ -1377,6 +1392,7 @@ td.k { color: var(--sign); font-weight: 700; }
   }
   // vertical speed in ft/min from the last two track samples
   function vSpeed() {
+    if (S.pilotSrc === "sim" && S.sim?.connected) return S.sim.vs; // the simulator knows it exactly
     const p = S.track?.pts; if (!p || p.length < 2) return 0;
     const [a, b] = [p.at(-2), p.at(-1)], min = (b[3] - a[3]) / 60e3;
     return min > 0.1 && min < 5 ? (b[2] - a[2]) / min : 0;
@@ -1861,6 +1877,7 @@ td.k { color: var(--sign); font-weight: 700; }
       pts = [from, ...(i >= 0 ? nl.slice(i) : []), arrPos];
     }
     const seq = []; let km = 0, last;
+    if (pts.length === 1) seq.push({ x: ctrAt(from), km: 0 }); // no destination known: at least the station here
     for (let s = 0; s < pts.length - 1; s++) {
       const d = distKm(pts[s], pts[s + 1]);
       const n = Math.max(1, Math.min(200, Math.ceil(d / 15)));
@@ -1987,7 +2004,8 @@ td.k { color: var(--sign); font-weight: 700; }
     const cf = S.cpFreq && now - S.cpFreq.at < 15 * 60e3 ? S.cpFreq : null;
     if (cf) html += `<div class="fq-row cpdlc"><span class="lbl role">CPDLC · ${esc(cf.verb)} · ${esc(hhmm(cf.at))}Z</span><span class="stn">${esc(cf.station)}<small>von ${esc(cf.from)}</small></span><span class="mhz num">${esc(cf.mhz)}</span></div>`;
     html += row(p.cur, "", "Aktuell", "");
-    if (p.next) html += row(p.next, "next" + (soon ? " soon" : ""), soon ? "Bald wechseln" : "Als nächstes", [p.next.when !== "jetzt" ? p.next.when : "", dist(p.next)].filter(Boolean).join(" · "));
+    if (p.next) html += row(p.next, "next" + (soon ? " soon" : ""), soon ? "Bald wechseln" : "Als nächstes", [p.next.when !== "jetzt" ? p.next.when : "", dist(p.next)].filter(Boolean).join(" · "))
+      .replace(/<\/div>$/, simReady() ? `<span class="fq-tune">${tuneBtn("standby", p.next.st.mhz, "COM1 STBY")}</span></div>` : "</div>");
     const later = p.later.map((s) => `<div><span class="n"><b>${esc(s.role)}</b>${esc(s.st.name)}</span><span class="t">${esc(s.km != null && s.km >= 1 ? (s.min != null ? s.min + " min" : nf(s.km) + " km") : "")}</span><span class="f">${esc(s.st.mhz)}</span></div>`);
     if (p.atisArr) later.unshift(`<div><span class="n"><b>ATIS ${esc(arrApt())}</b>Information ${esc(p.atisArr.atis_code || "")} vor dem Anflug hören</span><span class="t"></span><span class="f">${esc(p.atisArr.frequency)}</span></div>`);
     if (later.length) html += `<div class="fq-later">${later.join("")}</div>`;
@@ -2022,6 +2040,46 @@ td.k { color: var(--sign); font-weight: 700; }
     $("ntfyStatus").textContent = "Sende…";
     const ok = await fetch("https://ntfy.sh/", { method: "POST", body: JSON.stringify({ topic: t, title: "VDGS Slot Board", message: "Test: Push funktioniert.", tags: ["white_check_mark"] }) }).then((r) => r.ok).catch(() => false);
     $("ntfyStatus").textContent = ok ? "Gesendet. Kam die Meldung auf dem Handy an?" : "Senden fehlgeschlagen. Internetverbindung prüfen.";
+  });
+
+  // ---------- simulator bridge (MSFS via SimConnect, bridge/vdgs_bridge.py on the sim PC) ----------
+  // The bridge serves this page over http in the home network and answers /sim with live aircraft data.
+  // On GitHub Pages (https) there is no bridge: Safari forbids https pages to call http devices.
+  const BRIDGE = location.protocol === "http:";
+  const simReady = () => !!(S.bridge && S.sim?.connected && !settings.demo);
+  async function pollSim() {
+    if (!BRIDGE || settings.demo) return;
+    try {
+      const d = await getJSON("sim", 4000);
+      if (!d?.vdgsBridge) return;
+      S.bridge = true; S.sim = d;
+      if (d.connected && (!S.pilot || S.pilotSrc === "sim")) {
+        S.pilot = simPilot(); S.pilotSrc = "sim"; recordTrack(S.pilot);
+      } else if (!d.connected && S.pilotSrc === "sim") { S.pilot = null; S.pilotSrc = ""; }
+    } catch (e) { if (S.sim) S.sim = { ...S.sim, connected: false }; }
+  }
+  // simulator data shaped like a VATSIM pilot, so every view works without a network connection
+  function simPilot() {
+    const s = S.sim, cs = S.callsign || s.atcId || "SIM";
+    return {
+      callsign: cs, latitude: s.lat, longitude: s.lon, altitude: s.alt, groundspeed: s.gs, heading: s.hdg,
+      transponder: s.squawk, last_updated: new Date().toISOString(), sim: true,
+      flight_plan: S.prefile?.flight_plan || null,
+    };
+  }
+  // buttons that tune COM1 / set the squawk in the simulator
+  function tuneBtn(kind, value, label) {
+    const k = kind + ":" + value, m = S.tuneMsg?.k === k && Date.now() - S.tuneMsg.t < 4000 ? S.tuneMsg : null;
+    return `<button type="button" class="btn sm tune${m ? (m.ok ? " ok" : " bad") : ""}" data-tune="${esc(kind)}" data-v="${esc(value)}">${esc(m ? (m.ok ? "✓ gesetzt" : "Fehler") : label)}</button>`;
+  }
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-tune]"); if (!b || !S.bridge) return;
+    const kind = b.dataset.tune, v = b.dataset.v;
+    const body = kind === "squawk" ? { code: v } : { mhz: v, target: kind };
+    let ok = false;
+    try { const r = await fetch(kind === "squawk" ? "sim/squawk" : "sim/com1", { method: "POST", body: JSON.stringify(body) }); ok = (await r.json()).ok; } catch {}
+    S.tuneMsg = { k: kind + ":" + v, ok, t: Date.now() };
+    pollSim(); render();
   });
 
   // ---------- CPDLC via Hoppie ACARS (read-only "peek") ----------
@@ -2151,6 +2209,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const p = S.pilot;
     const conn = $("conn");
     if (settings.demo) { conn.textContent = "Demo"; conn.className = "chip"; }
+    else if (p && S.pilotSrc === "sim") { conn.textContent = "Simulator (MSFS)"; conn.className = "chip y"; }
     else if (p) { conn.textContent = "VATSIM verbunden"; conn.className = "chip g"; }
     else if (S.prefile) { conn.textContent = "Prefile"; conn.className = "chip y"; }
     else { conn.textContent = "Nicht verbunden"; conn.className = "chip"; }
@@ -2159,11 +2218,15 @@ td.k { color: var(--sign); font-weight: 700; }
     const alt = fp?.altitude || ofp?.fl;
     const fl = alt ? "FL" + String(Math.round(+alt / 100)).padStart(3, "0") : "";
     const kv = (l, v) => `<div><span class="lbl">${l}</span><span class="v num">${esc(v || "—")}</span></div>`;
-    $("fpl").innerHTML = [
+    const assigned = p?.flight_plan?.assigned_transponder && p.flight_plan.assigned_transponder !== "0000" ? p.flight_plan.assigned_transponder : "";
+    // assigned squawk differs from the simulator's transponder: offer to set it from the tablet
+    const sqBtn = simReady() && assigned && S.sim.squawk !== assigned
+      ? `<div class="tune-row"><span>Transponder im Simulator: <b class="num">${esc(S.sim.squawk || "----")}</b></span>${tuneBtn("squawk", assigned, "Squawk " + assigned + " setzen")}</div>` : "";
+    setHtml("fpl", [
       kv("Typ", ac), kv("Reg", ofp?.reg), kv("Reiseflug", fl),
-      kv("Squawk", p?.flight_plan?.assigned_transponder && p.flight_plan.assigned_transponder !== "0000" ? p.flight_plan.assigned_transponder : p?.transponder),
+      kv("Squawk", assigned || p?.transponder),
       kv("GS", p ? p.groundspeed + " kt" : ""), kv("Höhe", p ? p.altitude + " ft" : ""),
-    ].join("");
+    ].join("") + sqBtn);
     $("rte").textContent = fp?.route || ofp?.route || "Keine Route – Flugplan noch nicht aufgegeben.";
 
     // SimBrief OFP block
@@ -2256,11 +2319,14 @@ td.k { color: var(--sign); font-weight: 700; }
     const soon = nx && ((nx.min != null && nx.min <= 3) || (nx.km != null && nx.km <= 25));
     const when = nx ? [nx.when !== "jetzt" ? nx.when : "", nx.km != null && nx.km > 0.5 ? (nx.min != null ? "in ca. " + nx.min + " min · " : "") + "noch " + nf(nx.km) + " km" : ""].filter(Boolean).join(" · ") : "";
     let hero;
-    if (cf) hero = `<div class="en-next cp"><span class="lbl">Per CPDLC · ${esc(cf.verb)} · ${esc(hhmm(cf.at))}Z</span><div class="en-mhz num">${esc(cf.mhz)}</div><div class="en-stn">${esc(cf.station)}<small>von ${esc(cf.from)}</small></div></div>`;
-    else if (nx) hero = `<div class="en-next${soon ? " soon" : ""}"><span class="lbl">${soon ? "Bald wechseln" : "Nächste Frequenz"} · ${esc(nx.role)}</span><div class="en-mhz num">${esc(nx.st.mhz)}</div><div class="en-stn">${esc(nx.st.name)}<small>${esc(nx.st.cs)}</small></div><div class="en-when">${esc(when)}</div></div>`;
+    const tune = (mhz) => (simReady() ? `<div class="en-tune">${tuneBtn("standby", mhz, "COM1 STBY")}${tuneBtn("active", mhz, "COM1 AKTIV")}</div>` : "");
+    if (cf) hero = `<div class="en-next cp"><span class="lbl">Per CPDLC · ${esc(cf.verb)} · ${esc(hhmm(cf.at))}Z</span><div class="en-mhz num">${esc(cf.mhz)}</div><div class="en-stn">${esc(cf.station)}<small>von ${esc(cf.from)}</small></div>${tune(cf.mhz)}</div>`;
+    else if (nx) hero = `<div class="en-next${soon ? " soon" : ""}"><span class="lbl">${soon ? "Bald wechseln" : "Nächste Frequenz"} · ${esc(nx.role)}</span><div class="en-mhz num">${esc(nx.st.mhz)}</div><div class="en-stn">${esc(nx.st.name)}<small>${esc(nx.st.cs)}</small></div><div class="en-when">${esc(when)}</div>${tune(nx.st.mhz)}</div>`;
     else hero = `<div class="en-next"><span class="lbl">Nächste Frequenz</span><div class="en-stn">Kein weiterer Wechsel bis zum Gate</div></div>`;
     const cur = p.cur ? `<div class="en-cur${p.cur.st.unicom ? " unicom" : ""}"><span class="lbl">Aktuell · ${esc(p.cur.role)}</span><span class="n">${esc(p.cur.st.name)} <small>${esc(p.cur.st.cs)}</small></span><span class="num">${esc(p.cur.st.mhz)}</span></div>` : "";
-    setHtml("enNext", hero + cur);
+    // what is set in the simulator right now; green when it matches the current station
+    const radio = simReady() ? `<div class="en-radio"><span class="lbl">COM1 im Simulator</span><span class="num${Math.abs(S.sim.com1 - +(p.cur?.st.mhz || 0)) < 0.003 ? " ok" : ""}">${S.sim.com1.toFixed(3)}</span><span class="lbl">STBY</span><span class="num${nx && Math.abs(S.sim.com1sb - +nx.st.mhz) < 0.003 ? " ok" : ""}">${S.sim.com1sb.toFixed(3)}</span></div>` : "";
+    setHtml("enNext", hero + cur + radio);
 
     // flight data strip
     const fl = alt >= 10000 ? "FL" + String(Math.round(alt / 100)).padStart(3, "0") : nf(alt) + " ft";
@@ -2712,9 +2778,9 @@ td.k { color: var(--sign); font-weight: 700; }
   pollFeed = guard("feed", pollFeed); pollFlight = guard("flight", pollFlight); pollBoard = guard("board", pollBoard);
   pollMetar = guard("metar", pollMetar); pollSimbrief = guard("simbrief", pollSimbrief);
   pollConn = guard("conn", pollConn); pollArrWx = guard("arrwx", pollArrWx); pollFir = guard("fir", pollFir);
-  pollFids = guard("fids", pollFids); pollCpdlc = guard("cpdlc", pollCpdlc); pollStands = guard("stands", pollStands); pollUkcp = guard("ukcp", pollUkcp);
+  pollFids = guard("fids", pollFids); pollCpdlc = guard("cpdlc", pollCpdlc); pollStands = guard("stands", pollStands); pollUkcp = guard("ukcp", pollUkcp); pollSim = guard("sim", pollSim);
   const JOBS = { feed: () => pollFeed(), flight: () => pollFlight(), board: () => pollBoard(), metar: () => pollMetar(), simbrief: () => pollSimbrief(),
-    conn: () => pollConn(), arrwx: () => pollArrWx(), fids: () => pollFids(), cpdlc: () => pollCpdlc(), stands: () => { if (S.pilot) pollStands(); }, ukcp: () => pollUkcp() };
+    conn: () => pollConn(), arrwx: () => pollArrWx(), fids: () => pollFids(), cpdlc: () => pollCpdlc(), stands: () => { if (S.pilot) pollStands(); }, ukcp: () => pollUkcp(), sim: () => pollSim() };
   let running = false, lastRefreshAll = 0, booted = false;
   function syncRefreshBtn() { $("btnRefresh").classList.toggle("busy", Object.values(busy).some(Boolean)); }
 
@@ -2724,7 +2790,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const now = Date.now();
     if (!force && now - lastRefreshAll < 5000) return;
     lastRefreshAll = now;
-    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); pollArrWx(); pollCpdlc(); if (S.pilot) pollStands(); pollUkcp(); if (view === "fids") pollFids(); });
+    Promise.all([pollSimbrief(), pollFeed(), pollSim()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); pollArrWx(); pollCpdlc(); if (S.pilot) pollStands(); pollUkcp(); if (view === "fids") pollFids(); });
   }
   function start() {
     running = false;

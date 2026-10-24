@@ -83,6 +83,10 @@ In **Großbritannien** zeigt die App den **echten** Stand, den das VATSIM-UK-Sys
 
 Nach dem Parken zeigt die App deinen tatsächlichen Stand.
 
+## Ohne VATSIM: direkt mit dem Simulator (MSFS)
+
+Mit der kleinen **Bridge** auf deinem Simulator-PC zeigt die App die Daten direkt aus MSFS an. Du kannst dann vom iPad aus **COM1 einstellen** und den **Squawk setzen**. Einrichtung: siehe `bridge/ANLEITUNG-BRIDGE.md`.
+
 ## Sprache
 
 Oben rechts **DE / EN / SR** antippen: Deutsch, Englisch oder Serbisch (lateinisch). Die Wahl wird gespeichert.

@@ -42,6 +42,8 @@ Live-Adresse: https://sbelic95.github.io/vdgs-slot-board/ · Code: https://githu
 | `icon.svg` | App-Icon als Vektor (Favicon, Manifest) |
 | `icon-180.png` | Apple-Touch-Icon fürs iPad (180×180) |
 | `icon-512.png` | Manifest-Icon (512×512) |
+| `bridge/vdgs_bridge.py`, `bridge/ANLEITUNG-BRIDGE.md`, `bridge/requirements.txt` | Simulator-Bridge für MSFS (Python) und ihre Anleitung |
+| `.github/workflows/ukcp-stands.yml`, `.github/workflows/stands.yml`, `.github/scripts/stands.py` | GitHub-Jobs: VATSIM-UK-Stands (5 min), Stand-Daten (wöchentlich) |
 | `ANLEITUNG.md` | Bedienungsanleitung für den Piloten (Online stellen, iPad, Status) |
 | `UEBERGABE.md` | Diese Datei |
 
@@ -236,6 +238,33 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 - **Speicher:** Jeder Lauf schreibt genau einen Commit in seinen Branch (Force-Push), der Branch wächst also nicht.
 - **Hinweis:** GitHub kann zeitgesteuerte Jobs abschalten, wenn im Repository 60 Tage lang nichts passiert. Dann unter „Actions“ wieder einschalten.
 
+## 5-S. Simulator-Bridge (`bridge/vdgs_bridge.py`, in der App `pollSim()`, `simPilot()`, `tuneBtn()`)
+
+**Zweck:** Daten direkt aus MSFS 2020/2024 (SimConnect), auch ohne VATSIM-Verbindung, und Steuerung vom Tablet (COM1, Squawk).
+
+**Bridge (Python, läuft auf dem Simulator-PC):**
+- Liest per `SimConnect` (PyPI-Paket `SimConnect`) jede Sekunde:
+  - Position, Höhe, Groundspeed, IAS
+  - Kurs (die Bibliothek liefert Bogenmaß; wird in Grad umgerechnet)
+  - Vertikalgeschwindigkeit (ft/min), am Boden ja/nein
+  - COM1 aktiv und Standby (MHz), Transponder (BCD → „7000“), TITLE, ATC_ID
+- Liefert die App selbst aus, weil Safari einer `https`-Seite den Zugriff auf `http`-Geräte im Heimnetz verbietet: `http://<PC-IP>:8770/`.
+  - Die App-Dateien lädt sie beim Start von GitHub Pages nach `bridge/app/`.
+  - `--app-dir` nimmt stattdessen einen lokalen Ordner.
+- **Schnittstelle:**
+  - `GET /sim` → JSON mit `vdgsBridge: true`, `connected`, `lat`, `lon`, `alt`, `gs`, `ias`, `hdg`, `vs`, `onGround`, `com1`, `com1sb`, `squawk`, `title`, `atcId`, `age`
+  - `POST /sim/com1` `{mhz, target: "standby"|"active"}` → MSFS-Events `COM_STBY_RADIO_SET_HZ` / `COM_RADIO_SET_HZ` (Hz, auch 8,33 kHz). Erlaubt sind 118,000 bis 136,990 MHz.
+  - `POST /sim/squawk` `{code: "2341"}` → `XPNDR_SET` (BCD), nur Ziffern 0–7
+- `--test`: Test-Flugzeug ohne Simulator; die Befehle ändern dann nur die Testwerte.
+- Ist MSFS nicht gestartet, versucht die Bridge alle 4 s eine neue Verbindung, und `/sim` meldet `connected: false`.
+
+**App:**
+- Unter `http:` fragt die App jede Sekunde `sim` ab.
+- Findet sie den eigenen Flug nicht im VATSIM-Feed, baut sie aus den Simulator-Daten einen Ersatz-Piloten (`simPilot()`, `S.pilotSrc = "sim"`). So funktionieren Karte, Phase, ETA, Frequenz-Führer, Gate und Passagier-Ansicht.
+- Die Vertikalgeschwindigkeit kommt dann direkt aus dem Simulator. Der Status-Chip zeigt „Simulator (MSFS)“.
+- **Knöpfe:** „COM1 STBY“ / „COM1 AKTIV“ bei der nächsten Frequenz und bei der CPDLC-Anweisung. Darunter steht, was im Simulator in COM1 eingestellt ist (grün = passt). „Squawk XXXX setzen“ erscheint, wenn VATSIM einen Squawk zugeteilt hat und der Simulator anders steht.
+- **Grenzen:** Die Bridge wurde nur im Testmodus geprüft, nicht mit laufendem MSFS. MSFS 2024 ist nicht getestet. Wake Lock und Service Worker gibt es unter `http` nicht.
+
 ## 5-L. Sprachen (`tr()`, `setLang()`)
 
 Oben rechts gibt es die Auswahl **DE / EN / SR** (Serbisch in lateinischer Schrift), gespeichert in `localStorage["vdgs.lang"]`.
@@ -406,6 +435,7 @@ Der eigene Flug ist gelb markiert („Ihr Flug“).
 | `fmtDE()` | Uhrzeit in deutscher Zeit (Europe/Berlin) |
 | `loadStands()`, `pollStands()`, `predictStand()`, `gateInfo()`, `gateHtml()`, `announceGate()` | Gate / Stand am Ziel |
 | `tr()`, `trTree()`, `setLang()`, `compass()` | Sprachen |
+| `pollSim()`, `simPilot()`, `simReady()`, `tuneBtn()` | Simulator-Bridge, COM1/Squawk vom Tablet |
 
 ## 8. Ideen für später
 
