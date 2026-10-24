@@ -25,7 +25,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 APP_URL = "https://sbelic95.github.io/vdgs-slot-board/"
 APP_FILES = ["index.html", "airports.json", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-512.png"]
-HERE = os.path.dirname(os.path.abspath(__file__))
+# next to the .exe when packaged (PyInstaller unpacks the script into a temporary folder)
+HERE = os.path.dirname(sys.executable if getattr(sys, "frozen", False) else os.path.abspath(__file__))
 APP_DIR = os.path.join(HERE, "app")
 
 state = {"vdgsBridge": True, "sim": "MSFS", "connected": False, "error": "", "t": 0}
@@ -45,7 +46,9 @@ def update_app(url):
         except Exception as e:
             print(f"  could not update {name}: {e} (using the saved copy)")
     if not os.path.exists(os.path.join(APP_DIR, "index.html")):
-        sys.exit("No app files. Check the internet connection and start again.")
+        print("No app files. Check the internet connection and start again.")
+        input("Press Enter to close.")  # keep the window open when started by double-click
+        sys.exit(1)
 
 
 def connect():
@@ -214,7 +217,12 @@ def main():
         state["sim"] = "TEST"
         print("Test mode: pretend aircraft, no simulator needed.")
     threading.Thread(target=test_loop if TEST else read_loop, daemon=True).start()
-    srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
+    try:
+        srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
+    except OSError as e:
+        print(f"Port {args.port} is busy ({e}). Is the bridge already running?")
+        input("Press Enter to close.")
+        sys.exit(1)
     print()
     print("  Open on the iPad (same Wi-Fi):  http://%s:%d" % (lan_ip(), args.port))
     print("  If Windows asks: allow access for private networks.")

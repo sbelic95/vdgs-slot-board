@@ -2,7 +2,25 @@
 
 Mit der Bridge zeigt die App deine Position, Höhe und Geschwindigkeit direkt aus dem Simulator an, auch wenn du **nicht mit VATSIM verbunden** bist. Außerdem kannst du vom iPad aus **COM1 einstellen** und den **Squawk setzen**.
 
-## Einmal einrichten (auf dem Simulator-PC)
+## Am einfachsten: VDGS-Bridge.exe
+
+1. `VDGS-Bridge.exe` in einen festen Ordner legen, z. B. `C:\VDGS`. Daneben legt sie beim Start den Unterordner `app` an.
+2. **Doppelklick.** Python oder SimConnect musst du nicht installieren, beides ist enthalten.
+3. Beim ersten Start warnt Windows eventuell („Der Computer wurde durch Windows geschützt“), weil die Datei nicht signiert ist: **„Weitere Informationen“ → „Trotzdem ausführen“**. Fragt die Firewall, **private Netzwerke erlauben**.
+4. Im Fenster erscheint die Adresse für das iPad, z. B. `http://192.168.178.22:8770`.
+5. Testmodus ohne Simulator: Eingabeaufforderung im Ordner öffnen und `VDGS-Bridge.exe --test` eingeben.
+
+Die exe wird mit PyInstaller aus `vdgs_bridge.py` gebaut:
+
+```bash
+py -m pip install SimConnect pyinstaller
+```
+
+```bash
+py -m PyInstaller --onefile --console --name VDGS-Bridge --collect-all SimConnect vdgs_bridge.py
+```
+
+## Alternativ als Python-Skript (auf dem Simulator-PC)
 
 1. **Python** installieren, die 64-Bit-Version: https://www.python.org/downloads/ (bei der Installation „Add python.exe to PATH“ anhaken).
 2. Eingabeaufforderung öffnen (Windows-Taste, `cmd`, Enter) und eingeben:
