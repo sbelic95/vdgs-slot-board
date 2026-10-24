@@ -1,0 +1,53 @@
+# Copies the VATSIM UK stand assignments (ukcp.vatsim.uk only allows its own website to read them)
+# into ukcp.json on the "data" branch, which the app reads via raw.githubusercontent.com.
+# Runs every 5 minutes (GitHub's minimum; runs can start a few minutes late).
+name: VATSIM UK stand assignments
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ukcp
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch and publish ukcp.json
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          curl -sSf --max-time 30 https://ukcp.vatsim.uk/api/stand/assignment -o assignment.json
+          curl -sSf --max-time 30 https://ukcp.vatsim.uk/api/stand/dependency -o stands.json
+          mkdir pub
+          python3 - <<'PY'
+          import datetime, json
+          assignments = json.load(open("assignment.json"))
+          stands = json.load(open("stands.json"))
+          by_id = {s["id"]: (apt, s["identifier"]) for apt, items in stands.items() for s in items}
+          out = {}
+          for a in assignments:
+              if a.get("stand_id") in by_id:
+                  apt, ident = by_id[a["stand_id"]]
+                  out[a["callsign"]] = {"apt": apt, "stand": ident, "src": a.get("assignment_source", "")}
+          now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+          json.dump({"updated": now, "assignments": out}, open("pub/ukcp.json", "w"), separators=(",", ":"))
+          print(len(out), "assignments")
+          PY
+          cd pub
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ukcp.json
+          git commit -qm "VATSIM UK stand assignments"
+          # one orphan commit, force-pushed: the data branch never grows
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" data
