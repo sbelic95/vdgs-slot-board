@@ -172,6 +172,37 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 
 **Oben in der Leiste:** UTC und deutsche Uhrzeit (Europe/Berlin), immer sichtbar.
 
+## 5-G. Gate / Stand am Ziel (`loadStands()`, `predictStand()`, `gateInfo()`, `announceGate()`)
+
+VATSIM hat keine weltweite Stand-Zuteilung. Die App erstellt deshalb eine **realistische Prognose** und kennzeichnet sie als „Prognose“.
+
+- **Daten:** Stands und Gates aus OpenStreetMap über die Overpass-API.
+  - Abfrage: `aeroway=parking_position|gate` im Umkreis von 4,5 km um den Zielflughafen (`https://overpass-api.de/api/interpreter`)
+  - Zwischenspeicher: 7 Tage in `localStorage["vdgs.stands.<ICAO>"]`
+  - Stands mit gleichnamigem Gate heißen „Gate X“, sonst „Stand X“.
+- **Regeln** (`GATE_RULES`, pro Flughafen in Reihenfolge, die erste passende gilt):
+
+  | Flughafen | Zuteilung |
+  |---|---|
+  | EDDF | Star Alliance/Lufthansa: Schengen → A, Non-Schengen → B/C (Terminal 1). Andere: Schengen → D, Non-Schengen → E (Terminal 2) |
+  | EGLL | British Airways (und Iberia) → 5xx (T5). Star Alliance → 2xx (T2). oneworld außer BA sowie Emirates, Virgin, Delta → 3xx (T3). Andere → 4xx (T4) |
+  | OMDB | Emirates → A/B/C (T3). flydubai → F/G (T2). Andere → D (T1) |
+  | LSZH | Schengen → A/B, Non-Schengen → E/D |
+  | EHAM | Low-Cost Schengen → M. Schengen → B/C/D. Non-Schengen → E/F/G/D |
+
+  - Allianz und Airline werden über die ersten drei Buchstaben des Callsigns erkannt (`ALLIANCE`).
+  - Schengen: Abflug- und Zielflughafen im Schengen-Raum (ICAO-Präfixe in `SCHENGEN`).
+- **Belegt:** Stands mit einem VATSIM-Flugzeug am Boden (unter 5 kt) im Umkreis von 60 m werden übersprungen.
+- **Gleichbleibend:** Die Wahl ist pro Callsign fest (Hash) und wird bei der Bekanntgabe eingefroren (`S.gateFix`).
+- **Rückfall:** Ohne Regeln für den Flughafen nimmt die App Kontaktstände (mit Gate), sonst beliebige freie Stände. Außenpositionen (V, W, P …) kommen nur, wenn sonst nichts frei ist („Außenposition, Bus“).
+- **Ablauf wie im echten Flug:**
+  1. Bis ca. 30 min vor Ankunft steht da: „Gate-Info ca. 30 min vor Ankunft“ (mit Uhrzeit).
+  2. Dann wird das Gate bekannt gegeben: Gong, gelbes Blinken für 20 s und Push aufs Handy (wenn eingeschaltet, `settings.pushGate`).
+  3. Nach dem Parken zeigt die App den **tatsächlichen** Stand (nächster Stand unter 80 m).
+- **Anzeige:** Pilot-Modus im Flug (Kasten unter der Ankunftszeit), Passagier-Flugkarte (in der Ankunftskachel) und Zielort.
+- **Navigraph:** Die Navigationsdaten enthalten Gates. Nach den Navigraph-Unterlagen brauchen Webseiten dafür aber eine Partnerschaft mit Navigraph (Entwickler-Zugang beantragen), einen eigenen Server und ein Abo der Nutzer. Das ist nicht eingebunden.
+- **VATSIM UK** (`ukcp.vatsim.uk/api/stand/assignment`) hat echte Zuteilungen für UK-Flughäfen. Die Schnittstelle erlaubt aber nur Aufrufe von `docs.vatsim.uk` (CORS), deshalb ist sie nicht eingebunden. Möglich wäre es über einen kleinen eigenen Server.
+
 ## 5-L. Sprachen (`tr()`, `setLang()`)
 
 Oben rechts gibt es die Auswahl **DE / EN / SR** (Serbisch in lateinischer Schrift), gespeichert in `localStorage["vdgs.lang"]`.
@@ -340,6 +371,8 @@ Der eigene Flug ist gelb markiert („Ihr Flug“).
 | `pollCpdlc()`, `renderCpdlc()` | CPDLC über Hoppie (peek) |
 | `renderEnroute()`, `renderPilotArr()` | Pilot-Modus im Flug: Ankunftszeit, nächste Frequenz, Ziel-ATIS, CPDLC, Ankünfte |
 | `fmtDE()` | Uhrzeit in deutscher Zeit (Europe/Berlin) |
+| `loadStands()`, `pollStands()`, `predictStand()`, `gateInfo()`, `gateHtml()`, `announceGate()` | Gate / Stand am Ziel |
+| `tr()`, `trTree()`, `setLang()`, `compass()` | Sprachen |
 
 ## 8. Ideen für später
 

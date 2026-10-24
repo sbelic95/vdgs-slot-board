@@ -70,6 +70,17 @@ Umschalten geht nur von Hand.
 
 Mit „Slot“ kommst du zurück zur Slot-Ansicht. Oben neben der UTC-Uhr steht immer die deutsche Uhrzeit.
 
+## Gate / Stand am Ziel
+
+Etwa 30 Minuten vor der Ankunft gibt die App dein Gate oder deinen Stand bekannt. Dazu ertönt ein Gong, das Feld blinkt gelb, und mit eingerichtetem ntfy kommt ein Push aufs Handy.
+
+Die Zuteilung ist eine realistische **Prognose**:
+- nach Airline und Allianz (z. B. Emirates in Dubai → Terminal 3, British Airways in Heathrow → Terminal 5)
+- nach Schengen oder Non-Schengen (z. B. Frankfurt A = Schengen, B/C = Non-Schengen)
+- ohne Stände, auf denen gerade ein anderes VATSIM-Flugzeug steht
+
+Nach dem Parken zeigt die App deinen tatsächlichen Stand.
+
 ## Sprache
 
 Oben rechts **DE / EN / SR** antippen: Deutsch, Englisch oder Serbisch (lateinisch). Die Wahl wird gespeichert.

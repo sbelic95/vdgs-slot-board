@@ -89,6 +89,14 @@ button { font: inherit; color: inherit; }
 .en-eta .s { font-size: 12px; color: var(--dim); }
 .en-eta > div:first-child { background: color-mix(in srgb, var(--sign) 8%, var(--panel)); }
 .en-eta > div:first-child .lbl, .en-eta > div:first-child .v { color: var(--sign); }
+.en-gate { border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; }
+.en-gate:empty { display: none; }
+.en-gate .lbl { grid-column: 1 / -1; }
+.en-gate .gt-v { font-size: 40px; font-weight: 700; line-height: 1; color: var(--sign); grid-row: 2; }
+.en-gate .gt-v.gt-wait { color: var(--faint); }
+.en-gate .gt-s { font-size: 14px; color: var(--dim); grid-row: 2; justify-self: end; text-align: right; }
+.en-gate.flash { border-color: var(--sign); background: color-mix(in srgb, var(--sign) 14%, var(--panel)); animation: soon 2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .en-gate.flash { animation: none; } }
 .en-next { border: 1px solid color-mix(in srgb, var(--sign) 55%, transparent); border-radius: 10px; padding: 16px 20px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 22px; align-items: center; background: var(--panel-2); }
 .en-next .lbl { grid-column: 1 / -1; color: var(--sign); }
 .en-mhz { font-size: 72px; font-weight: 700; line-height: 1; color: var(--sign); }
@@ -567,6 +575,7 @@ td.k { color: var(--sign); font-weight: 700; }
       </div>
       <div class="en-body">
         <div class="en-eta" id="enEta"></div>
+        <div class="en-gate" id="enGate"></div>
         <div id="enNext"></div>
         <div class="en-strip" id="enStrip"></div>
         <div class="en-atis" id="enAtis"></div>
@@ -693,6 +702,7 @@ td.k { color: var(--sign); font-weight: 700; }
       <label class="check"><input type="checkbox" id="inPushStart" checked> Push: Start-up-Fenster öffnet / neue TSAT</label>
       <label class="check"><input type="checkbox" id="inPushFreq" checked> Push: Frequenzwechsel steht bald an</label>
       <label class="check"><input type="checkbox" id="inPushCpdlc" checked> Push: neue CPDLC-Nachricht</label>
+      <label class="check"><input type="checkbox" id="inPushGate" checked> Push: Gate / Stand 30 min vor Ankunft</label>
     </details>
     <div class="err" id="setupErr" hidden></div>
     <div class="row">
@@ -712,7 +722,7 @@ td.k { color: var(--sign); font-weight: 700; }
     metar: "https://metar.vatsim.net/",
     simbrief: "https://www.simbrief.com/api/xml.fetcher.php",
   };
-  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3, fids: 60e3, cpdlc: 60e3 };
+  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3, fids: 60e3, cpdlc: 60e3, stands: 60e3 };
   const TSAT_WINDOW = 5 * 60e3;          // start-up window TSAT ±5 min
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -839,6 +849,10 @@ td.k { color: var(--sign); font-weight: 700; }
     // footer
     "TOBT setzen:": ["Set TOBT:", "Postavi TOBT:"], "Nur für Flugsimulation – nicht für echte Luftfahrt.": ["Flight simulation only – not for real-world aviation.", "Samo za simulaciju leta – ne za stvarno vazduhoplovstvo."],
     "Karte © Esri": ["Map © Esri", "Mapa © Esri"],
+    // gate / stand
+    "Gate / Stand": ["Gate / stand", "Izlaz / stajanka"], "Prognose": ["Forecast", "Prognoza"], "Gate-Info ca. 30 min vor Ankunft": ["Gate info approx. 30 min before arrival", "Info o izlazu oko 30 min pre dolaska"],
+    "Lade Stand-Daten…": ["Loading stand data…", "Učitavanje podataka o stajankama…"], "Ihr Stand": ["Your stand", "Vaša stajanka"], "Geparkt": ["Parked", "Parkiran"],
+    "Außenposition, Bus": ["Remote stand, bus", "Udaljena pozicija, autobus"], "zugeteilt": ["assigned", "dodeljeno"], "Schengen": ["Schengen", "Šengen"], "Non-Schengen": ["Non-Schengen", "Van Šengena"],
   };
   // dynamic texts: [pattern, English, Serbian] ($1… = captured parts, translated again where they are words)
   const TXP = [
@@ -871,6 +885,7 @@ td.k { color: var(--sign); font-weight: 700; }
     [/^(-?\d+) °C, (.+)$/, "$1 °C, $2", "$1 °C, $2"], [/^OFP erstellt (.+)$/, "OFP created $1", "OFP napravljen $1"], [/^Aktualisiert: (.+)$/, "Updated: $1", "Ažurirano: $1"],
     [/^Daten: (.+)$/, "Data: $1", "Podaci: $1"], [/^Flughäfen: (.+)$/, "Airports: $1", "Aerodromi: $1"], [/^Bis (.+)$/, "To $1", "Do $1"], [/^von (\S+)$/, "from $1", "od $1"],
     [/^Per CPDLC$/, "By CPDLC", "Preko CPDLC"],
+    [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"],
     [/^Zeiten in Ortszeit (.+)\. Grau: Abflug vor Ihrer voraussichtlichen Ankunft\. Quelle: VATSIM-Flugpläne und vIFF-CDM, Aktualisierung jede Minute\.$/,
       "Times in local time $1. Grey: departs before your estimated arrival. Source: VATSIM flight plans and vIFF CDM, updated every minute.",
       "Vremena u lokalnom vremenu $1. Sivo: polazi pre vašeg očekivanog dolaska. Izvor: VATSIM planovi leta i vIFF CDM, osvežava se svakog minuta."], [/^Gate (\S+)$/, "Gate $1", "Izlaz $1"], [/^Stand (\S+)$/, "Stand $1", "Stajanka $1"],
@@ -1450,10 +1465,14 @@ td.k { color: var(--sign); font-weight: 700; }
     const oat = airborne ? Math.round(alt < 36089 ? 15 - 0.0019812 * alt : -56.5) : depW?.temp ?? null;
     const tas = +(fp?.cruise_tas || 0);
     const windKmh = phaseTxt === "Reiseflug" && tas > 100 ? Math.round((gs - tas) * KT_KMH) : null;
+    const g = demo ? null : gateInfo(now, eta, phaseTxt === "Angekommen" || phaseTxt === "Gelandet · Rollen");
+    const paxGate = g && (g.state === "assigned" || g.state === "parked") ? gateLabel(g) : "";
+    if (g) announceGate(g, arrIcao);
+    S.paxGate = paxGate;
     const dwRaw = demo ? S.metar.replace("EDDF", arrIcao || "") : S.arrMetarApt === arrIcao ? S.arrMetar : "";
     const dw = dwRaw ? decodeMetar(dwRaw) : null;
     $("ifeGrid").innerHTML = [
-      tile("Voraussichtliche Ankunft · Ortszeit", fmtAt(eta, arr), "", eta ? [arr?.city, hhmm(eta) + " UTC", ofp?.in ? "Plan " + fmtAt(ofp.in, arr) : "", etaSrc].filter(Boolean).join(" · ") : "Noch keine Schätzung", "wide"),
+      tile("Voraussichtliche Ankunft · Ortszeit", fmtAt(eta, arr), "", eta ? [arr?.city, hhmm(eta) + " UTC", paxGate, ofp?.in ? "Plan " + fmtAt(ofp.in, arr) : "", etaSrc].filter(Boolean).join(" · ") : "Noch keine Schätzung", "wide"),
       tile("Geschwindigkeit", pl ? nf(gs * KT_KMH) : "—", pl ? "km/h" : "", pl ? nf(gs) + " kt über Grund" : ""),
       tile("Flughöhe", pl ? nf(alt * FT_M) : "—", pl ? "m" : "", pl ? nf(alt) + " ft" + vsTxt : ""),
       tile("Entfernung zum Ziel", remain != null ? nf(remain) : total != null ? nf(total) : "—", remain != null || total != null ? "km" : "", remain != null ? nf(remain / 1.852) + " nm Luftlinie" : "Luftlinie"),
@@ -1733,7 +1752,7 @@ td.k { color: var(--sign); font-weight: 700; }
         <div class="time num">${fmtAt(now, arr)}</div>
         <div class="date">${esc(date)}</div>
         <div class="kv" style="margin-top:16px">
-          ${kv("Ankunft", eta ? fmtAt(eta, arr) : "—")}${kv("Entfernung", S.pax?.remain != null ? nf(S.pax.remain) + " km" : "—")}${kv("Restflugzeit", S.pax?.remain != null && (S.demoAir || S.pilot)?.groundspeed > 100 ? (() => { const mm = Math.round(S.pax.remain / ((S.demoAir || S.pilot).groundspeed * KT_KMH) * 60); return Math.floor(mm / 60) + ":" + p2(mm % 60) + " h"; })() : "—")}
+          ${kv("Ankunft", eta ? fmtAt(eta, arr) : "—")}${kv("Gate / Stand", S.paxGate || "—")}${kv("Entfernung", S.pax?.remain != null ? nf(S.pax.remain) + " km" : "—")}${kv("Restflugzeit", S.pax?.remain != null && (S.demoAir || S.pilot)?.groundspeed > 100 ? (() => { const mm = Math.round(S.pax.remain / ((S.demoAir || S.pilot).groundspeed * KT_KMH) * 60); return Math.floor(mm / 60) + ":" + p2(mm % 60) + " h"; })() : "—")}
         </div>
       </div>
       <div class="panel wx">
@@ -2214,6 +2233,12 @@ td.k { color: var(--sign); font-weight: 700; }
     const vs = vSpeed();
     const phaseTxt = landed ? (gs < 3 ? "Angekommen" : "Gelandet · Rollen") : vs < -400 ? (remain != null && remain < 80 ? "Landeanflug" : "Sinkflug") : vs > 400 ? "Steigflug" : "Reiseflug";
 
+    // gate / stand (prediction), announced ~30 min before arrival
+    const g = gateInfo(now, eta, landed);
+    setHtml("enGate", gateHtml(g, arrI));
+    $("enGate").classList.toggle("flash", (S.gateToastUntil || 0) > now);
+    announceGate(g, arrI);
+
     $("enCs").textContent = S.callsign;
     $("enRoute").innerHTML = $("route").innerHTML;
     const sq = pl.flight_plan?.assigned_transponder && pl.flight_plan.assigned_transponder !== "0000" ? pl.flight_plan.assigned_transponder : pl.transponder;
@@ -2258,6 +2283,138 @@ td.k { color: var(--sign); font-weight: 700; }
     setHtml("enCp", !settings.hoppie ? `<div class="empty">CPDLC: unter „Flug“ den Hoppie-Code eintragen, dann erscheinen hier die Nachrichten.</div>`
       : S.cpErr ? `<div class="err">${esc(S.cpErr)}</div>`
       : `<span class="lbl">CPDLC · letzte Nachrichten</span>` + (msgs.length ? `<div class="cp-list">${msgs.slice(0, 3).map((x) => { const ts = S.cpSeen.get(x.id); return `<div class="${ts && now - ts < 5 * 60e3 ? "new" : ""}"><span class="tm">${ts ? hhmm(ts) + "Z" : "älter"}</span><span class="tx">${esc(x.text)}</span><span class="fr">${esc(x.from)}</span></div>`; }).join("")}</div>` : `<div class="empty">Noch keine Nachrichten.</div>`));
+  }
+
+  // ---------- gate / stand at the destination ----------
+  // Stands and gates come from OpenStreetMap; the choice follows how airports really split traffic
+  // (terminal by airline/alliance, Schengen vs. non-Schengen), avoids stands occupied on VATSIM and
+  // is stable per flight. It is a prediction: VATSIM has no network-wide stand assignment.
+  const SCHENGEN = /^(LO|EB|LB|LD|LK|EK|EE|EF|LF|ED|LG|LH|BI|LI|EV|EY|EL|LM|EH|EN|EP|LP|LR|LZ|LJ|LE|GC|ES|LS)/;
+  const ALLIANCE = {
+    star: "DLH CLH DLA EWG GEC UAL ACA SIA ANA SWR AUA BEL TAP THY LOT SAS AEE ETH AIC SAA CCA ANZ AAR EVA AVA CMP CSZ MSR CTN THA".split(" "),
+    oneworld: "BAW SHT AAL CPA JAL QFA QTR IBE IBS FIN MAS RJA ALK ASA FJI".split(" "),
+    skyteam: "AFR HOP KLM DAL KAL CES SVA ITY VIR MEA ROT KQA AEA GIA VNA CAL AMX ARG".split(" "),
+    lowcost: "RYR RUK EZY EJU EZS WZZ WMT VLG TRA TVF NOZ NAX SXS PGT TUI TFL CFG BCS".split(" "),
+  };
+  const allianceOf = (cs) => Object.keys(ALLIANCE).find((k) => ALLIANCE[k].includes(String(cs).slice(0, 3))) || "";
+  // per airport: ordered rules; the first that matches gives the stand prefixes and the terminal
+  const GATE_RULES = {
+    EDDF: [
+      { star: true, schengen: true, pre: ["A"], term: "Terminal 1" },
+      { star: true, schengen: false, pre: ["B", "C"], term: "Terminal 1" },
+      { schengen: true, pre: ["D"], term: "Terminal 2" },
+      { schengen: false, pre: ["E"], term: "Terminal 2" },
+    ],
+    EGLL: [
+      { airlines: ["BAW", "SHT", "IBE"], pre: ["5"], term: "Terminal 5" },
+      { alliance: "star", pre: ["2"], term: "Terminal 2" },
+      { airlines: ["AAL", "CPA", "JAL", "QFA", "FIN", "MAS", "RJA", "ALK", "UAE", "VIR", "DAL"], pre: ["3"], term: "Terminal 3" },
+      { pre: ["4"], term: "Terminal 4" },
+    ],
+    OMDB: [
+      { airlines: ["UAE"], pre: ["A", "B", "C"], term: "Terminal 3" },
+      { airlines: ["FDB"], pre: ["F", "G"], term: "Terminal 2" },
+      { pre: ["D"], term: "Terminal 1" },
+    ],
+    LSZH: [
+      { schengen: true, pre: ["A", "B"], term: "Terminal A/B" },
+      { schengen: false, pre: ["E", "D"], term: "Dock E / D" },
+    ],
+    EHAM: [
+      { alliance: "lowcost", schengen: true, pre: ["M"], term: "Pier M" },
+      { schengen: true, pre: ["B", "C", "D"], term: "Schengen" },
+      { schengen: false, pre: ["E", "F", "G", "D"], term: "Non-Schengen" },
+    ],
+  };
+  const REMOTE = /^(V|W|NV|P|S|Q|BAY|TA|TB|TE|6|7)/; // apron / remote stands, used only if nothing else is free
+
+  function loadStands(icao, pos) {
+    const key = "vdgs.stands." + icao;
+    try { const c = JSON.parse(localStorage.getItem(key) || "null"); if (c && Date.now() - c.t < 7 * 864e5) return Promise.resolve(c.list); } catch {}
+    if (!pos) return Promise.resolve(null);
+    const q = `[out:json][timeout:25];(node(around:4500,${pos[0]},${pos[1]})["aeroway"~"^(parking_position|gate)$"];way(around:4500,${pos[0]},${pos[1]})["aeroway"="parking_position"];);out tags center;`;
+    return fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: new URLSearchParams({ data: q }) })
+      .then((r) => r.json()).then((d) => {
+        const gates = new Set(d.elements.filter((e) => e.tags.aeroway === "gate" && e.tags.ref).map((e) => e.tags.ref.split(/[\s/]/)[0]));
+        const list = d.elements.filter((e) => e.tags.aeroway === "parking_position" && e.tags.ref).map((e) => {
+          const ref = e.tags.ref.split(/[\s/;]/)[0];
+          return { ref, lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon, gate: gates.has(ref) };
+        }).filter((s) => s.lat != null);
+        try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), list })); } catch {}
+        return list;
+      });
+  }
+  async function pollStands() {
+    const arrI = arrApt(); if (!arrI || settings.demo || S.standsApt === arrI) return;
+    const ofp = S.ofp?.callsign === S.callsign ? S.ofp : null;
+    const pos = aptInfo(arrI, ofp, "arr")?.pos;
+    if (!pos) return;
+    try { const list = await loadStands(arrI, pos); if (list) { S.stands = list; S.standsApt = arrI; } } catch (e) {}
+    render();
+  }
+
+  // pick a stand: rule-based area, free on VATSIM, stable per callsign
+  function predictStand(arrI, depI, cs) {
+    if (!S.stands || S.standsApt !== arrI || !S.stands.length) return null;
+    const schengenFlight = SCHENGEN.test(arrI) ? SCHENGEN.test(depI || "") : null;
+    const al = allianceOf(cs), code = String(cs).slice(0, 3);
+    const rule = (GATE_RULES[arrI] || []).find((r) =>
+      (r.airlines ? r.airlines.includes(code) : true) && (r.alliance ? r.alliance === al : true) &&
+      (r.star !== undefined ? (al === "star") === r.star : true) && (r.schengen !== undefined ? r.schengen === schengenFlight : true));
+    const taken = (S.feed?.pilots || []).filter((p) => p.groundspeed < 5 && p.callsign !== cs).map((p) => [p.latitude, p.longitude]);
+    const free = (s) => !taken.some((t) => distKm(t, [s.lat, s.lon]) < 0.06);
+    const sorted = [...S.stands].sort((a, b) => a.ref.localeCompare(b.ref, "en", { numeric: true }));
+    const inRule = rule ? sorted.filter((s) => rule.pre.some((p) => s.ref.startsWith(p))) : [];
+    const contact = sorted.filter((s) => !REMOTE.test(s.ref));
+    let pool = inRule.filter(free);
+    if (!pool.length) pool = (rule ? inRule : contact.filter((s) => s.gate)).filter(free);
+    if (!pool.length) pool = contact.filter(free);
+    if (!pool.length) pool = sorted.filter(free);
+    if (!pool.length) return null;
+    let h = 0; for (const ch of cs + arrI) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const s = pool[h % pool.length];
+    return { ref: s.ref, gate: s.gate, term: rule?.term || "", schengen: schengenFlight, remote: REMOTE.test(s.ref), pos: [s.lat, s.lon] };
+  }
+
+  // gate info for the own flight: hidden until ~30 min before arrival (like a real airline), actual stand once parked
+  function gateInfo(now, eta, landed) {
+    const arrI = arrApt(), pl = settings.demo ? null : S.pilot;
+    if (!arrI) return null;
+    if (landed && pl && pl.groundspeed < 3 && S.stands && S.standsApt === arrI) {
+      let best = null, bd = 1;
+      for (const s of S.stands) { const d = distKm([pl.latitude, pl.longitude], [s.lat, s.lon]); if (d < bd) { bd = d; best = s; } }
+      if (best && bd < 0.08) return { state: "parked", ref: best.ref, gate: best.gate };
+    }
+    const due = landed || (eta && eta - now <= 30 * 60e3);
+    if (!due) return { state: "later", at: eta ? eta - 30 * 60e3 : null };
+    if (!S.stands || S.standsApt !== arrI) {
+      if (now - (S.standsTry || 0) > 15e3) { S.standsTry = now; pollStands(); } // retry soon, e.g. once airport coordinates are loaded
+      return { state: "loading" };
+    }
+    if (!S.gateFix || S.gateFix.key !== S.callsign + arrI) {
+      const p = predictStand(arrI, depApt(), S.callsign);
+      if (!p) return { state: "none" };
+      S.gateFix = { key: S.callsign + arrI, ...p, at: now };
+    }
+    return { state: "assigned", ...S.gateFix };
+  }
+  const gateLabel = (g) => (g.gate ? "Gate " : "Stand ") + g.ref;
+  function gateHtml(g, arrI) {
+    if (!g) return "";
+    if (g.state === "later") return `<span class="lbl">Gate / Stand ${esc(arrI)}</span><div class="gt-v gt-wait">—</div><div class="gt-s">Gate-Info ca. 30 min vor Ankunft${g.at ? " · " + hhmm(g.at) + "Z" : ""}</div>`;
+    if (g.state === "loading") return `<span class="lbl">Gate / Stand ${esc(arrI)}</span><div class="gt-s">Lade Stand-Daten…</div>`;
+    if (g.state === "none") return `<span class="lbl">Gate / Stand ${esc(arrI)}</span><div class="gt-s">Keine Stand-Daten für ${esc(arrI)}</div>`;
+    if (g.state === "parked") return `<span class="lbl">Ihr Stand</span><div class="gt-v num">${esc(gateLabel(g))}</div><div class="gt-s">Geparkt</div>`;
+    const tags = [g.term, g.schengen === true ? "Schengen" : g.schengen === false ? "Non-Schengen" : "", g.remote ? "Außenposition, Bus" : ""].filter(Boolean).join(" · ");
+    return `<span class="lbl">Gate / Stand ${esc(arrI)} · Prognose</span><div class="gt-v num">${esc(gateLabel(g))}</div><div class="gt-s">${esc(tags || "zugeteilt")}</div>`;
+  }
+  // announce once per flight, like the cabin crew does ~30 min before arrival
+  function announceGate(g, arrI) {
+    if (!g || g.state !== "assigned" || S.gateAnnounced === g.key) return;
+    S.gateAnnounced = g.key;
+    if (settings.chime) chime();
+    S.gateToastUntil = Date.now() + 20e3;
+    if (settings.pushGate !== false) notifyPhone("Gate " + S.callsign, `${gateLabel(g)} in ${arrI}${g.term ? ", " + g.term : ""}${g.schengen === true ? ", Schengen" : g.schengen === false ? ", Non-Schengen" : ""} (Prognose).`, "door");
   }
 
   // arrivals at the destination, shown in the pilot view instead of the departure board once airborne
@@ -2337,7 +2494,7 @@ td.k { color: var(--sign); font-weight: 700; }
   function openSetup() {
     $("inSb").value = settings.simbrief; $("inCs").value = settings.callsign; $("inCid").value = settings.cid; $("inChime").checked = settings.chime;
     $("inHoppie").value = settings.hoppie || ""; $("inNtfy").value = settings.ntfy || ""; $("ntfyStatus").textContent = "";
-    $("inPushStart").checked = settings.pushStart !== false; $("inPushFreq").checked = settings.pushFreq !== false; $("inPushCpdlc").checked = settings.pushCpdlc !== false;
+    $("inPushStart").checked = settings.pushStart !== false; $("inPushFreq").checked = settings.pushFreq !== false; $("inPushCpdlc").checked = settings.pushCpdlc !== false; $("inPushGate").checked = settings.pushGate !== false;
     $("setupErr").hidden = true; $("sheet").hidden = false; $("inSb").focus();
   }
   $("btnSetup").addEventListener("click", openSetup);
@@ -2350,7 +2507,7 @@ td.k { color: var(--sign); font-weight: 700; }
     if (!cs && !cid && !sb) { const er = $("setupErr"); er.textContent = "Bitte SimBrief-Name, CID oder Callsign eingeben."; er.hidden = false; return; }
     settings = { simbrief: sb, callsign: cs, cid, chime: $("inChime").checked, demo: false,
       hoppie: $("inHoppie").value.trim(), ntfy: $("inNtfy").value.trim().replace(/[^A-Za-z0-9_-]/g, ""),
-      pushStart: $("inPushStart").checked, pushFreq: $("inPushFreq").checked, pushCpdlc: $("inPushCpdlc").checked };
+      pushStart: $("inPushStart").checked, pushFreq: $("inPushFreq").checked, pushCpdlc: $("inPushCpdlc").checked, pushGate: $("inPushGate").checked };
     store.set(settings); $("sheet").hidden = true; unlockAudio(); start();
   });
   $("btnDemo").addEventListener("click", () => { settings.demo = true; store.set(settings); $("sheet").hidden = true; start(); });
@@ -2419,9 +2576,9 @@ td.k { color: var(--sign); font-weight: 700; }
   pollFeed = guard("feed", pollFeed); pollFlight = guard("flight", pollFlight); pollBoard = guard("board", pollBoard);
   pollMetar = guard("metar", pollMetar); pollSimbrief = guard("simbrief", pollSimbrief);
   pollConn = guard("conn", pollConn); pollArrWx = guard("arrwx", pollArrWx); pollFir = guard("fir", pollFir);
-  pollFids = guard("fids", pollFids); pollCpdlc = guard("cpdlc", pollCpdlc);
+  pollFids = guard("fids", pollFids); pollCpdlc = guard("cpdlc", pollCpdlc); pollStands = guard("stands", pollStands);
   const JOBS = { feed: () => pollFeed(), flight: () => pollFlight(), board: () => pollBoard(), metar: () => pollMetar(), simbrief: () => pollSimbrief(),
-    conn: () => pollConn(), arrwx: () => pollArrWx(), fids: () => pollFids(), cpdlc: () => pollCpdlc() };
+    conn: () => pollConn(), arrwx: () => pollArrWx(), fids: () => pollFids(), cpdlc: () => pollCpdlc(), stands: () => { if (S.pilot) pollStands(); } };
   let running = false, lastRefreshAll = 0, booted = false;
   function syncRefreshBtn() { $("btnRefresh").classList.toggle("busy", Object.values(busy).some(Boolean)); }
 
@@ -2431,7 +2588,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const now = Date.now();
     if (!force && now - lastRefreshAll < 5000) return;
     lastRefreshAll = now;
-    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); pollArrWx(); pollCpdlc(); if (view === "fids") pollFids(); });
+    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); pollArrWx(); pollCpdlc(); if (S.pilot) pollStands(); if (view === "fids") pollFids(); });
   }
   function start() {
     running = false;
@@ -2439,7 +2596,7 @@ td.k { color: var(--sign); font-weight: 700; }
       feedOk: null, cdmOk: null, sbOk: null, sbErr: "", feed: null, cidCallsign: "", ofp: null, track: null, demoAir: null,
       conn: null, connApt: "", arrMetar: "", arrMetarApt: "", pax: null, demoConn: null, ctrIdx: null, ctrIdxFor: 0, seq: null, seqKey: "",
       demoArr: null, fidsCdm: null, fidsCdmApt: "", cpMsgs: null, cpMaxId: null, cpErr: "", cpFreq: null, cpSeen: new Map(),
-      pushedFreq: "", pushedGo: "", lastTsat: null });
+      pushedFreq: "", pushedGo: "", lastTsat: null, stands: null, standsApt: "", gateFix: null, gateAnnounced: "", gateToastUntil: 0, paxGate: "" });
     $("connBody").dataset.html = ""; $("paneDest").dataset.html = ""; $("freqBody").dataset.html = "";
     $("ofp").dataset.html = ""; routeKey = ""; mapFitted = false;
     if (settings.demo) { loadDemo(); render(); return; }
