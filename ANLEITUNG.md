@@ -70,6 +70,10 @@ Umschalten geht nur von Hand.
 
 Mit „Slot“ kommst du zurück zur Slot-Ansicht. Oben neben der UTC-Uhr steht immer die deutsche Uhrzeit.
 
+## Sprache
+
+Oben rechts **DE / EN / SR** antippen: Deutsch, Englisch oder Serbisch (lateinisch). Die Wahl wird gespeichert.
+
 ## Aktualisieren
 
 Die App lädt alle Daten automatisch nach: VATSIM alle 15 s, Slot alle 20 s, Abflugtafel alle 45 s. Wenn das iPad aufwacht, lädt sie sofort alles neu. Oben steht, wie alt die Daten sind („Live · vor 8 s“). Wird der Punkt gelb, tippe auf **Aktualisieren**. Neue App-Versionen werden automatisch geladen.

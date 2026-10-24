@@ -172,6 +172,20 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 
 **Oben in der Leiste:** UTC und deutsche Uhrzeit (Europe/Berlin), immer sichtbar.
 
+## 5-L. Sprachen (`tr()`, `setLang()`)
+
+Oben rechts gibt es die Auswahl **DE / EN / SR** (Serbisch in lateinischer Schrift), gespeichert in `localStorage["vdgs.lang"]`.
+
+- Die App erzeugt alle Texte auf Deutsch. Ein `MutationObserver` übersetzt jeden neuen oder geänderten Text im DOM sowie die Attribute `placeholder`, `title` und `aria-label`.
+- **Reihenfolge:**
+  1. ganzer Text in der Tabelle `TX` (Deutsch → [Englisch, Serbisch])
+  2. sonst jedes Stück getrennt an „ · “
+  3. sonst Muster in `TXP` (reguläre Ausdrücke mit `$1`, z. B. „in ca. 12 min“ → „in approx. 12 min“)
+- Der deutsche Ursprungstext wird pro Textknoten gemerkt (`WeakMap`), damit das Umschalten in jede Richtung funktioniert.
+- **Nicht übersetzt:** ATIS-, METAR-, CPDLC-Texte, Routen und Callsigns (Klassen `.txt`, `.en-raw`, `.metar`, `.rte`, `.tx`, `.raw`, `.letter`, `.cs`, `.cs3`).
+- **Formate:** Zahlen und Datum über `LOC()` (de-DE, en-GB, sr-Latn-RS); Himmelsrichtungen über `compass()`.
+- **Neue Texte:** Einen deutschen Text im Code hinzufügen und in `TX` (fester Text) oder `TXP` (Text mit Zahlen/Namen) eintragen.
+
 ## 5a. Frequenz-Führer (Pilot-Modus, `freqPlan()`, `renderFreq()`)
 
 Die Karte zeigt **Aktuell** (Station und Frequenz), **Als nächstes** (mit Auslöser, Minuten und km) und darunter alle weiteren Stationen bis zum Ziel.

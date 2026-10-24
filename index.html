@@ -143,6 +143,8 @@ button { font: inherit; color: inherit; }
 .seg button { border: 0; background: transparent; padding: 0 16px; cursor: pointer; font: 700 15px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
 .seg button[aria-selected="true"] { background: var(--sign); color: var(--sign-ink); }
 .dot.warn { background: var(--warn); }
+.seg.lang button { padding: 0 10px; font-size: 14px; }
+.seg.lang button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
 #btnRefresh.busy svg { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #btnRefresh.busy svg { animation: none; } }
@@ -444,6 +446,11 @@ td.k { color: var(--sign); font-weight: 700; }
       <div class="clock sec"><span class="lbl" id="clkLocLbl">Deutschland</span><span class="t num" id="clkLoc">--:--</span></div>
     </div>
     <div class="tools">
+      <div class="seg lang" role="group" aria-label="Sprache / Language / Jezik">
+        <button data-lang="de" aria-pressed="true">DE</button>
+        <button data-lang="en" aria-pressed="false">EN</button>
+        <button data-lang="sr" aria-pressed="false">SR</button>
+      </div>
       <button class="ibtn" id="btnRefresh" title="Jetzt aktualisieren">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
         <span>Aktualisieren</span>
@@ -717,6 +724,219 @@ td.k { color: var(--sign); font-weight: 700; }
     raw(k) { try { return localStorage.getItem(k); } catch { return null; } },
     rawSet(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
+
+  // ---------- languages: German source, English and Serbian (Latin) ----------
+  // The app renders German; a DOM pass swaps each text (or each " · " segment) for its translation.
+  const LANGS = ["de", "en", "sr"];
+  let lang = LANGS.includes(store.raw("vdgs.lang")) ? store.raw("vdgs.lang") : "de";
+  const LOC = () => ({ de: "de-DE", en: "en-GB", sr: "sr-Latn-RS" })[lang];
+  const TX = {
+    // header, views, buttons
+    "Pilot": ["Pilot", "Pilot"], "Passagier": ["Passenger", "Putnik"], "Tafel": ["Board", "Tabla"],
+    "Aktualisieren": ["Refresh", "Osveži"], "Jetzt aktualisieren": ["Refresh now", "Osveži sada"], "Wach": ["Awake", "Budan"],
+    "Bildschirm wach halten": ["Keep screen awake", "Drži ekran uključen"], "Vollbild": ["Full screen", "Ceo ekran"],
+    "Flug": ["Flight", "Let"], "Flug einstellen": ["Set flight", "Podesi let"], "Deutschland": ["Germany", "Nemačka"],
+    "Verbinde…": ["Connecting…", "Povezivanje…"], "Live": ["Live", "Uživo"], "Demo": ["Demo", "Demo"], "Demo-Daten": ["Demo data", "Demo podaci"],
+    "VATSIM-Feed nicht erreichbar": ["VATSIM feed unreachable", "VATSIM feed nedostupan"], "CDM-Server nicht erreichbar": ["CDM server unreachable", "CDM server nedostupan"],
+    "Wach halten wird von diesem Browser nicht unterstützt – in den iPad-Einstellungen Automatische Sperre auf „Nie“ stellen.": ["This browser cannot keep the screen awake – set Auto-Lock to “Never” in the iPad settings.", "Ovaj pregledač ne može da drži ekran uključenim – u podešavanjima iPada postavite Automatsko zaključavanje na „Nikad“."],
+    // slot view
+    "Ablauf (UTC)": ["Timeline (UTC)", "Tok (UTC)"], "Bitte warten": ["Please wait", "Molimo sačekajte"],
+    "Start-up erst zur TSAT anfragen. Fenster öffnet 5 Minuten vorher.": ["Request start-up at TSAT only. The window opens 5 minutes before.", "Start-up tražite tek u TSAT. Prozor se otvara 5 minuta ranije."],
+    "Fenster öffnet in": ["Window opens in", "Prozor se otvara za"], "Start-up-Fenster offen": ["Start-up window open", "Prozor za start-up otvoren"],
+    "Jetzt Start-up / Pushback bei DEL oder GND anfragen.": ["Request start-up / pushback from DEL or GND now.", "Sada tražite start-up / pushback od DEL ili GND."],
+    "Fenster schließt in": ["Window closes in", "Prozor se zatvara za"], "TSAT abgelaufen": ["TSAT expired", "TSAT istekao"],
+    "Fenster verpasst. Neue TOBT auf vats.im/vdgs setzen oder ATC kontaktieren.": ["Window missed. Set a new TOBT at vats.im/vdgs or contact ATC.", "Prozor propušten. Postavite novi TOBT na vats.im/vdgs ili kontaktirajte ATC."],
+    "Überfällig seit": ["Overdue for", "Kasni"], "Off-Block · Rollen": ["Off-block · Taxi", "Off-block · Rulanje"], "Rollzeit bis zur Startbahn läuft.": ["Taxi time to the runway is running.", "Teče vreme rulanja do piste."],
+    "Bis TTOT": ["Until TTOT", "Do TTOT"], "Abgeflogen": ["Departed", "Poleteo"], "Guten Flug!": ["Have a good flight!", "Srećan let!"], "Airborne seit": ["Airborne for", "U vazduhu"],
+    "Noch keine TSAT": ["No TSAT yet", "Još nema TSAT"], "Dein Flug ist im System, aber eine TSAT wird erst vergeben, wenn DEL/CDM aktiv ist oder du eine TOBT gesetzt hast.": ["Your flight is in the system, but a TSAT is only issued once DEL/CDM is active or you have set a TOBT.", "Vaš let je u sistemu, ali TSAT se dodeljuje tek kada je DEL/CDM aktivan ili kada postavite TOBT."],
+    "Bis TOBT": ["Until TOBT", "Do TOBT"], "Kein Slot gefunden": ["No slot found", "Slot nije pronađen"],
+    "Flugplan bei VATSIM aufgeben (Button „Prefile“ rechts) und auf vats.im/vdgs eine TOBT setzen. Die Anzeige aktualisiert sich automatisch.": ["File a flight plan on VATSIM (button “Prefile” on the right) and set a TOBT at vats.im/vdgs. The display updates automatically.", "Predajte plan leta na VATSIM-u (dugme „Prefile“ desno) i postavite TOBT na vats.im/vdgs. Prikaz se sam osvežava."],
+    "Kein Flug eingestellt": ["No flight set", "Let nije podešen"], "Tippe oben rechts auf „Flug“ und gib deinen SimBrief-Namen, dein Callsign oder deine CID ein.": ["Tap “Flight” at the top right and enter your SimBrief name, callsign or CID.", "Dodirnite „Let“ gore desno i unesite SimBrief ime, pozivni znak ili CID."],
+    "Suche Flug…": ["Searching flight…", "Traženje leta…"], "Lade SimBrief-OFP und VATSIM-Daten.": ["Loading SimBrief OFP and VATSIM data.", "Učitavanje SimBrief OFP-a i VATSIM podataka."],
+    "Flugplan": ["Flight plan", "Plan leta"], "Ziel Off-Block": ["Target off-block", "Ciljni off-block"], "Start-up": ["Start-up", "Start-up"],
+    "Ziel Take-off": ["Target take-off", "Ciljno poletanje"], "Keine Regulierung": ["No regulation", "Bez regulacije"], "Ankunft": ["Arrival", "Dolazak"],
+    "Zeiten erscheinen, sobald dein Flug im CDM-System ist.": ["Times appear once your flight is in the CDM system.", "Vremena se pojavljuju kada je vaš let u CDM sistemu."],
+    "TOBT bestätigt": ["TOBT confirmed", "TOBT potvrđen"], "Slot": ["Slot", "Slot"], "Im-Flug-Ansicht": ["In-flight view", "Prikaz u letu"],
+    "Slot-Ansicht mit TOBT/TSAT zeigen": ["Show slot view with TOBT/TSAT", "Prikaži slot sa TOBT/TSAT"],
+    // frequencies
+    "Frequenzen": ["Frequencies", "Frekvencije"], "Aktuell": ["Current", "Trenutno"], "Als nächstes": ["Next", "Sledeće"], "Bald wechseln": ["Change soon", "Uskoro promena"],
+    "Vorschau": ["Preview", "Pregled"], "Streckenfreigabe": ["Clearance", "Odobrenje rute"], "Pushback & Rollen": ["Pushback & taxi", "Pushback i rulanje"],
+    "Start": ["Take-off", "Poletanje"], "Abflug": ["Departure", "Odlazak"], "Strecke": ["En route", "Ruta"], "Landung": ["Landing", "Sletanje"],
+    "Rollen zum Gate": ["Taxi to gate", "Rulanje do izlaza"], "jetzt": ["now", "sada"], "nach der Freigabe": ["after clearance", "posle odobrenja"],
+    "am Rollhalt vor der Piste": ["at the holding point", "na tački čekanja"], "nach dem Start, auf Anweisung vom Tower": ["after take-off, when Tower hands you off", "posle poletanja, po uputstvu tornja"],
+    "an der Luftraumgrenze": ["at the airspace boundary", "na granici vazdušnog prostora"], "im Endanflug": ["on final approach", "na završnom prilazu"],
+    "nach dem Verlassen der Piste": ["after vacating the runway", "posle napuštanja piste"], "Kein Lotse online": ["No controller online", "Nema kontrolora"],
+    "Ohne Lotsen: UNICOM 122.800. Zuständigkeit nach VATSIM-Regel „top-down“. Entfernungen sind Schätzungen entlang deiner Route.": ["No controller: UNICOM 122.800. Coverage follows the VATSIM top-down rule. Distances are estimates along your route.", "Bez kontrolora: UNICOM 122.800. Nadležnost po VATSIM pravilu „top-down“. Udaljenosti su procene duž vaše rute."],
+    "Lade Lotsen und Lufträume…": ["Loading controllers and airspaces…", "Učitavanje kontrolora i vazdušnih prostora…"], "Lade VATSIM-Lotsen…": ["Loading VATSIM controllers…", "Učitavanje VATSIM kontrolora…"],
+    "Flug einstellen, dann erscheinen hier die Funkfrequenzen.": ["Set your flight to see the radio frequencies here.", "Podesite let da biste ovde videli radio frekvencije."], "Keine Daten.": ["No data.", "Nema podataka."],
+    // flight plan / SimBrief
+    "Flugplan · VATSIM": ["Flight plan · VATSIM", "Plan leta · VATSIM"], "SimBrief (noch nicht bei VATSIM)": ["SimBrief (not yet on VATSIM)", "SimBrief (još nije na VATSIM-u)"],
+    "VATSIM verbunden": ["VATSIM connected", "Povezan na VATSIM"], "Prefile": ["Prefile", "Prefile"], "Nicht verbunden": ["Not connected", "Nije povezan"], "Offline": ["Offline", "Offline"],
+    "Typ": ["Type", "Tip"], "Reiseflug": ["Cruise", "Krstarenje"], "Höhe": ["Altitude", "Visina"], "Keine Route – Flugplan noch nicht aufgegeben.": ["No route – flight plan not filed yet.", "Nema rute – plan leta još nije predat."],
+    "SimBrief nicht verknüpft. Unter „Flug“ deinen SimBrief-Namen eintragen, dann kommen Fuel, Gewichte und Zeiten automatisch.": ["SimBrief not linked. Enter your SimBrief name under “Flight” to get fuel, weights and times automatically.", "SimBrief nije povezan. Unesite SimBrief ime pod „Let“ i gorivo, težine i vremena stižu automatski."],
+    "Lade SimBrief-OFP…": ["Loading SimBrief OFP…", "Učitavanje SimBrief OFP-a…"], "SimBrief-Benutzer nicht gefunden": ["SimBrief user not found", "SimBrief korisnik nije pronađen"],
+    "Kein OFP bei SimBrief gefunden": ["No OFP found on SimBrief", "Nema OFP-a na SimBrief-u"], "SimBrief nicht erreichbar": ["SimBrief unreachable", "SimBrief nedostupan"],
+    "Prefile auf VATSIM": ["Prefile on VATSIM", "Prefile na VATSIM-u"], "TOBT setzen": ["Set TOBT", "Postavi TOBT"], "OFP neu laden": ["Reload OFP", "Ponovo učitaj OFP"],
+    "AIRAC-Daten von SimBrief": ["AIRAC data from SimBrief", "AIRAC podaci sa SimBrief-a"], "Distanz": ["Distance", "Udaljenost"],
+    // weather / ATC
+    "Kein ATIS online.": ["No ATIS online.", "Nema ATIS-a."], "METAR wird geladen…": ["Loading METAR…", "Učitavanje METAR-a…"], "ATC online": ["ATC online", "ATC na mreži"],
+    "Gewitter": ["Thunderstorm", "Grmljavina"], "Schnee": ["Snow", "Sneg"], "Regenschauer": ["Rain showers", "Pljuskovi"], "Starker Regen": ["Heavy rain", "Jaka kiša"], "Regen": ["Rain", "Kiša"],
+    "Nieselregen": ["Drizzle", "Rosulja"], "Nebel": ["Fog", "Magla"], "Dunst": ["Mist", "Sumaglica"], "Diesig": ["Haze", "Izmaglica"], "Bedeckt": ["Overcast", "Oblačno"],
+    "Stark bewölkt": ["Mostly cloudy", "Pretežno oblačno"], "Wolkig": ["Partly cloudy", "Umereno oblačno"], "Leicht bewölkt": ["Few clouds", "Malo oblaka"], "Klar": ["Clear", "Vedro"],
+    "Windstill": ["Calm", "Bez vetra"], "über 10 km": ["over 10 km", "preko 10 km"], "Sicht 10 km+": ["Visibility 10 km+", "Vidljivost 10 km+"], "keine": ["none", "nema"],
+    // boards
+    "Departures": ["Departures", "Polasci"], "Arrivals": ["Arrivals", "Dolasci"], "Abflüge": ["Departures", "Polasci"], "Ankünfte": ["Arrivals", "Dolasci"],
+    "Zeit": ["Time", "Vreme"], "Nach": ["To", "Za"], "Von": ["From", "Iz"], "Flugzeug": ["Aircraft", "Avion"], "Status": ["Status", "Status"], "RWY / SID": ["RWY / SID", "RWY / SID"],
+    "Wait": ["Wait", "Čekanje"], "Expired": ["Expired", "Isteklo"], "Taxi": ["Taxi", "Rulanje"], "Airborne": ["Airborne", "Poleteo"], "Filed": ["Filed", "Predat"],
+    "Gestartet": ["Departed", "Poleteo"], "Rollt": ["Taxiing", "Rula"], "Gate geschlossen": ["Gate closed", "Izlaz zatvoren"], "Boarding": ["Boarding", "Ukrcavanje"],
+    "Planmäßig": ["Scheduled", "Po planu"], "Verspätet": ["Delayed", "Kasni"], "Ihr Flug": ["Your flight", "Vaš let"], "Gelandet": ["Landed", "Sleteo"], "Am Gate": ["At gate", "Na izlazu"],
+    "Im Anflug": ["On approach", "U prilazu"], "Unterwegs": ["En route", "Na putu"], "Geplant": ["Planned", "Planirano"], "Du bist": ["You are", "Vi ste"],
+    "Flughafen": ["Airport", "Aerodrom"], "Anzeigen": ["Show", "Prikaži"], "Ortszeit": ["Local time", "Lokalno vreme"], "Flughafen oben eingeben.": ["Enter an airport above.", "Unesite aerodrom gore."],
+    "Lade VATSIM-Daten…": ["Loading VATSIM data…", "Učitavanje VATSIM podataka…"], "Keine Abflüge im VATSIM-Netz.": ["No departures on the VATSIM network.", "Nema polazaka na VATSIM mreži."],
+    "Keine Ankünfte im VATSIM-Netz.": ["No arrivals on the VATSIM network.", "Nema dolazaka na VATSIM mreži."], "Keine weiteren Ankünfte im VATSIM-Netz.": ["No other arrivals on the VATSIM network.", "Nema drugih dolazaka na VATSIM mreži."],
+    "Live aus VATSIM (Flugpläne und Positionen) und vIFF-CDM. Abflugzeit: TSAT, TOBT oder Flugplan. Ankunftszeit: geschätzt aus Entfernung und Geschwindigkeit. Ortszeit des Flughafens.": ["Live from VATSIM (flight plans and positions) and vIFF CDM. Departure time: TSAT, TOBT or flight plan. Arrival time: estimated from distance and speed. Airport local time.", "Uživo sa VATSIM-a (planovi leta i pozicije) i vIFF CDM-a. Vreme polaska: TSAT, TOBT ili plan leta. Vreme dolaska: procena iz udaljenosti i brzine. Lokalno vreme aerodroma."],
+    // passenger
+    "Flugkarte": ["Flight map", "Mapa leta"], "Anschlussflüge": ["Connections", "Konekcije"], "Zielort": ["Destination", "Odredište"], "Rundlauf": ["Auto cycle", "Automatski"],
+    "Bildschirme automatisch wechseln wie im Flugzeug": ["Cycle screens automatically like on board", "Automatski menjaj ekrane kao u avionu"], "Folgen": ["Follow", "Prati"],
+    "Karte folgt dem Flugzeug": ["Map follows the aircraft", "Mapa prati avion"], "Flugphase": ["Flight phase", "Faza leta"], "Am Gate": ["At gate", "Na izlazu"],
+    "Rollen": ["Taxiing", "Rulanje"], "Steigflug": ["Climb", "Penjanje"], "Sinkflug": ["Descent", "Spuštanje"], "Landeanflug": ["Approach", "Prilaz"], "Angekommen": ["Arrived", "Stigao"],
+    "Gelandet · Rollen": ["Landed · Taxiing", "Sleteo · Rulanje"], "Voraussichtliche Ankunft": ["Estimated arrival", "Očekivani dolazak"], "Noch keine Schätzung": ["No estimate yet", "Još nema procene"],
+    "Geschwindigkeit": ["Speed", "Brzina"], "Flughöhe": ["Altitude", "Visina leta"], "Entfernung zum Ziel": ["Distance to destination", "Udaljenost do odredišta"], "Luftlinie": ["direct", "vazdušnom linijom"],
+    "Restflugzeit": ["Time to destination", "Preostalo vreme leta"], "Außentemperatur": ["Outside temperature", "Spoljna temperatura"], "ca., Standardatmosphäre": ["approx., standard atmosphere", "oko, standardna atmosfera"],
+    "Wind": ["Wind", "Vetar"], "Rückenwind, ca.": ["Tailwind, approx.", "Vetar u leđa, oko"], "Gegenwind, ca.": ["Headwind, approx.", "Čeoni vetar, oko"], "im Reiseflug": ["in cruise", "u krstarenju"],
+    "wird geladen": ["loading", "učitava se"], "Kurs": ["Heading", "Kurs"], "aus aktueller Geschwindigkeit": ["from current speed", "iz trenutne brzine"], "TTOT + geplante Flugzeit": ["TTOT + planned flight time", "TTOT + planirano vreme leta"],
+    "SimBrief-Plan": ["SimBrief plan", "SimBrief plan"], "CDM-Plan": ["CDM plan", "CDM plan"], "Willkommen an Bord": ["Welcome on board", "Dobrodošli na brod"],
+    "Deine Position erscheint, sobald du mit VATSIM verbunden bist.": ["Your position appears once you are connected to VATSIM.", "Vaša pozicija se pojavljuje kada se povežete na VATSIM."],
+    "Karte konnte nicht geladen werden. Internetverbindung prüfen und „Aktualisieren“ tippen.": ["The map could not be loaded. Check the internet connection and tap “Refresh”.", "Mapa nije učitana. Proverite internet vezu i dodirnite „Osveži“."],
+    "Zeiten in Ortszeit": ["Times in local time", "Vremena u lokalnom vremenu"], "Ihre Ankunft": ["Your arrival", "Vaš dolazak"],
+    "Das Ziel ist noch nicht bekannt.": ["The destination is not known yet.", "Odredište još nije poznato."], "Das Ziel ist noch nicht bekannt. Flugplan aufgeben oder SimBrief verknüpfen.": ["The destination is not known yet. File a flight plan or link SimBrief.", "Odredište još nije poznato. Predajte plan leta ili povežite SimBrief."],
+    "Wer gleichzeitig mit Ihnen landet. Zeiten in Ortszeit, geschätzt aus Entfernung und Geschwindigkeit (in der Luft) oder aus dem Flugplan. Quelle: VATSIM.": ["Who lands at the same time as you. Local times, estimated from distance and speed (airborne) or from the flight plan. Source: VATSIM.", "Ko sleće u isto vreme kad i vi. Lokalno vreme, procenjeno iz udaljenosti i brzine (u vazduhu) ili iz plana leta. Izvor: VATSIM."],
+    "Ihr Ziel": ["Your destination", "Vaše odredište"], "Entfernung": ["Distance", "Udaljenost"], "Sicht": ["Visibility", "Vidljivost"], "Luftdruck": ["Pressure", "Pritisak"],
+    "Taupunkt": ["Dew point", "Tačka rose"], "Wolkenuntergrenze": ["Cloud base", "Baza oblaka"], "Luftfeuchte": ["Humidity", "Vlažnost"],
+    // in-flight pilot view
+    "Ankunft UTC": ["Arrival UTC", "Dolazak UTC"], "Ankunft deutsche Zeit": ["Arrival German time", "Dolazak nemačko vreme"], "Ankunft Ortszeit": ["Arrival local time", "Dolazak lokalno vreme"],
+    "Plan (SimBrief/CDM)": ["Plan (SimBrief/CDM)", "Plan (SimBrief/CDM)"], "noch keine Schätzung": ["no estimate yet", "još nema procene"], "Deutsche Zeit": ["German time", "Nemačko vreme"],
+    "Nächste Frequenz": ["Next frequency", "Sledeća frekvencija"], "Kein weiterer Wechsel bis zum Gate": ["No further change until the gate", "Nema daljih promena do izlaza"],
+    "CPDLC · letzte Nachrichten": ["CPDLC · latest messages", "CPDLC · poslednje poruke"], "Noch keine Nachrichten.": ["No messages yet.", "Još nema poruka."],
+    "CPDLC: unter „Flug“ den Hoppie-Code eintragen, dann erscheinen hier die Nachrichten.": ["CPDLC: enter your Hoppie code under “Flight” to see messages here.", "CPDLC: unesite Hoppie kod pod „Let“ da biste ovde videli poruke."],
+    "Verbinde mit Hoppie…": ["Connecting to Hoppie…", "Povezivanje sa Hoppie…"], "Fehler": ["Error", "Greška"], "älter": ["older", "starije"],
+    "Hoppie-Logon-Code ungültig": ["Hoppie logon code invalid", "Hoppie logon kod nije ispravan"], "Hoppie nicht erreichbar": ["Hoppie unreachable", "Hoppie nedostupan"],
+    // setup sheet
+    "Dein Flug": ["Your flight", "Vaš let"], "Am einfachsten: SimBrief-Name und VATSIM-CID eintragen. Dann holt die App dein neuestes OFP automatisch und erkennt deinen Flug, sobald du mit VATSIM verbunden bist.": ["Easiest: enter your SimBrief name and VATSIM CID. The app then loads your latest OFP and recognises your flight as soon as you connect to VATSIM.", "Najlakše: unesite SimBrief ime i VATSIM CID. Aplikacija tada učitava vaš najnoviji OFP i prepoznaje let čim se povežete na VATSIM."],
+    "SimBrief Benutzername oder Pilot-ID": ["SimBrief username or pilot ID", "SimBrief korisničko ime ili pilot ID"], "VATSIM CID": ["VATSIM CID", "VATSIM CID"],
+    "Callsign (optional, überschreibt alles)": ["Callsign (optional, overrides everything)", "Pozivni znak (opciono, ima prednost)"], "leer lassen = automatisch": ["leave empty = automatic", "prazno = automatski"],
+    "Gong, wenn das Start-up-Fenster öffnet": ["Chime when the start-up window opens", "Zvuk kada se otvori prozor za start-up"], "CPDLC (Hoppie) und Push aufs Handy": ["CPDLC (Hoppie) and push to phone", "CPDLC (Hoppie) i obaveštenja na telefon"],
+    "Hoppie-Logon-Code (optional)": ["Hoppie logon code (optional)", "Hoppie logon kod (opciono)"], "aus hoppie.nl/acars": ["from hoppie.nl/acars", "sa hoppie.nl/acars"],
+    "Damit zeigt die App deine CPDLC-Nachrichten, z. B. „CONTACT … 127.925“. Sie liest nur mit (peek) und nimmt deinem Flugzeug keine Nachricht weg. Der Code bleibt nur auf diesem Gerät.": ["Lets the app show your CPDLC messages, e.g. “CONTACT … 127.925”. It only reads along (peek) and never takes a message away from your aircraft. The code stays on this device.", "Aplikacija tada prikazuje vaše CPDLC poruke, npr. „CONTACT … 127.925“. Samo čita (peek) i ne uzima poruke vašem avionu. Kod ostaje samo na ovom uređaju."],
+    "ntfy-Thema für Push (optional)": ["ntfy topic for push (optional)", "ntfy tema za obaveštenja (opciono)"], "Neu": ["New", "Novo"], "Test": ["Test", "Test"],
+    "ntfy-App aufs Handy laden und dasselbe Thema abonnieren. Das iPad schickt die Meldung, solange die App offen ist. Das Thema wie ein Passwort behandeln: wer es kennt, kann mitlesen.": ["Install the ntfy app on your phone and subscribe to the same topic. The iPad sends the message while the app is open. Treat the topic like a password: anyone who knows it can read along.", "Instalirajte ntfy aplikaciju na telefon i pretplatite se na istu temu. iPad šalje poruku dok je aplikacija otvorena. Čuvajte temu kao lozinku: ko je zna, može da čita."],
+    "Push: Start-up-Fenster öffnet / neue TSAT": ["Push: start-up window opens / new TSAT", "Obaveštenje: otvara se prozor za start-up / novi TSAT"], "Push: Frequenzwechsel steht bald an": ["Push: frequency change coming up", "Obaveštenje: uskoro promena frekvencije"],
+    "Push: neue CPDLC-Nachricht": ["Push: new CPDLC message", "Obaveštenje: nova CPDLC poruka"], "Push: Gate / Stand 30 min vor Ankunft": ["Push: gate / stand 30 min before arrival", "Obaveštenje: izlaz / stajanka 30 min pre dolaska"],
+    "Schließen": ["Close", "Zatvori"], "Bitte SimBrief-Name, CID oder Callsign eingeben.": ["Please enter a SimBrief name, CID or callsign.", "Unesite SimBrief ime, CID ili pozivni znak."],
+    "Neues Thema. Im Handy in der ntfy-App abonnieren, dann „Test“ tippen.": ["New topic. Subscribe to it in the ntfy app on your phone, then tap “Test”.", "Nova tema. Pretplatite se u ntfy aplikaciji na telefonu, pa dodirnite „Test“."],
+    "Zuerst ein Thema eintragen oder „Neu“ tippen.": ["Enter a topic first or tap “New”.", "Prvo unesite temu ili dodirnite „Novo“."], "Sende…": ["Sending…", "Slanje…"],
+    "Gesendet. Kam die Meldung auf dem Handy an?": ["Sent. Did it arrive on your phone?", "Poslato. Da li je stiglo na telefon?"], "Senden fehlgeschlagen. Internetverbindung prüfen.": ["Sending failed. Check the internet connection.", "Slanje nije uspelo. Proverite internet vezu."],
+    // footer
+    "TOBT setzen:": ["Set TOBT:", "Postavi TOBT:"], "Nur für Flugsimulation – nicht für echte Luftfahrt.": ["Flight simulation only – not for real-world aviation.", "Samo za simulaciju leta – ne za stvarno vazduhoplovstvo."],
+    "Karte © Esri": ["Map © Esri", "Mapa © Esri"],
+  };
+  // dynamic texts: [pattern, English, Serbian] ($1… = captured parts, translated again where they are words)
+  const TXP = [
+    [/^in ca\. (\d+) min$/, "in approx. $1 min", "za oko $1 min"], [/^noch ([\d.,]+) km$/, "$1 km to go", "još $1 km"],
+    [/^vor (\d+) s$/, "$1 s ago", "pre $1 s"], [/^Veraltet \((\d+) min\)$/, "Outdated ($1 min)", "Zastarelo ($1 min)"],
+    [/^(\d+) Flüge nach (.+)$/, "$1 flights to $2", "$1 letova za $2"], [/^(\d+) Flüge$/, "$1 flights", "$1 letova"],
+    [/^(\d+) Abflüge im CDM$/, "$1 departures in CDM", "$1 polazaka u CDM-u"], [/^(\d+) Abflüge$/, "$1 departures", "$1 polazaka"],
+    [/^(\d+) Ankünfte$/, "$1 arrivals", "$1 dolazaka"], [/^(\d+) Nachrichten$/, "$1 messages", "$1 poruka"],
+    [/^von (\d+) in der Start-up-Sequenz$/, "of $1 in the start-up sequence", "od $1 u redosledu za start-up"], [/^von (\d+) Ankünften$/, "of $1 arrivals", "od $1 dolazaka"],
+    [/^([\d.,]+) km geflogen$/, "$1 km flown", "$1 km preleteno"], [/^Strecke ([\d.,]+) km$/, "Route $1 km", "Ruta $1 km"], [/^von ([\d.,]+) km$/, "of $1 km", "od $1 km"],
+    [/^([\d.,]+) (nm|km) Luftlinie$/, "$1 $2 direct", "$1 $2 vazdušnom linijom"], [/^([\d.,]+) (kt|km\/h) über Grund$/, "$1 $2 ground speed", "$1 $2 brzina nad tlom"],
+    [/^geplant ([\d:]+ h)$/, "planned $1", "planirano $1"], [/^in ([\d:]+ h)$/, "in $1", "za $1"], [/^in ([\d:]+)$/, "in $1", "za $1"], [/^vor ([\d:]+)$/, "$1 ago", "pre $1"],
+    [/^([\d:]+Z?) Ortszeit$/, "$1 local time", "$1 lokalno vreme"], [/^([\d:]+) deutsche Zeit$/, "$1 German time", "$1 nemačko vreme"], [/^jetzt ([\d:]+) deutsche Zeit$/, "now $1 German time", "sada $1 nemačko vreme"],
+    [/^Fenster ([\d:]+–[\d:]+)$/, "Window $1", "Prozor $1"], [/^Toleranz ([\d:]+–[\d:]+)$/, "Tolerance $1", "Tolerancija $1"],
+    [/^Ankunft (\S+)$/, "Arrival $1", "Dolazak $1"], [/^Anflug (\S+)$/, "Approach $1", "Prilaz $1"], [/^ab (\S+)$/, "from $1", "iz $1"],
+    [/^ca\. (\d+) km vor dem Ziel$/, "approx. $1 km before destination", "oko $1 km pre odredišta"], [/^Information (\S+) vor dem Anflug hören$/, "Listen to information $1 before the approach", "Preslušajte informaciju $1 pre prilaza"],
+    [/^Kein ATIS online für (.+)\. Wetter laut METAR:$/, "No ATIS online for $1. Weather per METAR:", "Nema ATIS-a za $1. Vreme prema METAR-u:"], [/^Kein ATIS online für (.+)\.$/, "No ATIS online for $1.", "Nema ATIS-a za $1."],
+    [/^Kein DEL\/GND\/TWR\/APP online an (\S+)\. Dann gilt das Center oder UNICOM\.$/, "No DEL/GND/TWR/APP online at $1. Center or UNICOM applies.", "Nema DEL/GND/TWR/APP na $1. Važi centar ili UNICOM."],
+    [/^Kein DEL\/GND\/TWR\/APP online an (\S+)\. Ohne ATC gibt es meist keine TSAT\.$/, "No DEL/GND/TWR/APP online at $1. Without ATC there is usually no TSAT.", "Nema DEL/GND/TWR/APP na $1. Bez ATC-a obično nema TSAT-a."],
+    [/^Keine CDM-Abflüge für (\S+) gefunden\.$/, "No CDM departures found for $1.", "Nema CDM polazaka za $1."], [/^Zurzeit keine Abflüge ab (\S+) im VATSIM-Netz\.$/, "No departures from $1 on the VATSIM network right now.", "Trenutno nema polazaka iz $1 na VATSIM mreži."],
+    [/^Zurzeit keine weiteren Flüge nach (\S+) im VATSIM-Netz\.$/, "No other flights to $1 on the VATSIM network right now.", "Trenutno nema drugih letova za $1 na VATSIM mreži."],
+    [/^Die Abflugtafel erscheint, sobald dein Abflughafen bekannt ist\.$/, "The departure board appears once your departure airport is known.", "Tabla polazaka se pojavljuje kada je poznat aerodrom polaska."],
+    [/^Das SimBrief-OFP \((\S+)\) passt nicht zum aktuellen Callsign (\S+)\.$/, "The SimBrief OFP ($1) does not match the current callsign $2.", "SimBrief OFP ($1) ne odgovara trenutnom pozivnom znaku $2."],
+    [/^Noch keine Nachrichten für (\S+)\. Die App prüft jede Minute\.$/, "No messages for $1 yet. The app checks every minute.", "Još nema poruka za $1. Aplikacija proverava svakog minuta."],
+    [/^Wetterdaten für (\S+) werden geladen…$/, "Loading weather for $1…", "Učitavanje vremena za $1…"], [/^Wetter in (.+)$/, "Weather in $1", "Vreme u $1"], [/^Wetter (.+)$/, "Weather $1", "Vreme $1"],
+    [/^Ortszeit (.+)$/, "Local time $1", "Lokalno vreme $1"], [/^Willkommen in (.+)$/, "Welcome to $1", "Dobrodošli u $1"], [/^Flug (\S+) nach (.+)$/, "Flight $1 to $2", "Let $1 za $2"],
+    [/^Flugzeit ca\. (.+)$/, "Flight time approx. $1", "Vreme leta oko $1"], [/^nach (.+)$/, "to $1", "za $1"], [/^Plan ([\d:]+)$/, "Planned $1", "Plan $1"],
+    [/^am Boden, (\S*)$/, "on the ground, $1", "na zemlji, $1"], [/^steigt ([\d.,]+ m\/s)$/, "climbing $1", "penje se $1"], [/^sinkt ([\d.,]+ m\/s)$/, "descending $1", "spušta se $1"],
+    [/^wechselnd (.+)$/, "variable $1", "promenljiv $1"], [/^(.+), Böen (\d+)$/, "$1, gusts $2", "$1, udari $2"], [/^Sicht ([\d.,]+ km)$/, "Visibility $1", "Vidljivost $1"],
+    [/^(-?\d+) °C, (.+)$/, "$1 °C, $2", "$1 °C, $2"], [/^OFP erstellt (.+)$/, "OFP created $1", "OFP napravljen $1"], [/^Aktualisiert: (.+)$/, "Updated: $1", "Ažurirano: $1"],
+    [/^Daten: (.+)$/, "Data: $1", "Podaci: $1"], [/^Flughäfen: (.+)$/, "Airports: $1", "Aerodromi: $1"], [/^Bis (.+)$/, "To $1", "Do $1"], [/^von (\S+)$/, "from $1", "od $1"],
+    [/^Per CPDLC$/, "By CPDLC", "Preko CPDLC"],
+    [/^Zeiten in Ortszeit (.+)\. Grau: Abflug vor Ihrer voraussichtlichen Ankunft\. Quelle: VATSIM-Flugpläne und vIFF-CDM, Aktualisierung jede Minute\.$/,
+      "Times in local time $1. Grey: departs before your estimated arrival. Source: VATSIM flight plans and vIFF CDM, updated every minute.",
+      "Vremena u lokalnom vremenu $1. Sivo: polazi pre vašeg očekivanog dolaska. Izvor: VATSIM planovi leta i vIFF CDM, osvežava se svakog minuta."], [/^Gate (\S+)$/, "Gate $1", "Izlaz $1"], [/^Stand (\S+)$/, "Stand $1", "Stajanka $1"],
+  ];
+  function tr(src) {
+    if (lang === "de" || !src) return src;
+    const i = lang === "en" ? 0 : 1;
+    const one = (x) => {
+      const k = x.trim(); if (!k) return null;
+      let out = TX[k]?.[i];
+      if (out == null) for (const [re, en, sr] of TXP) if (re.test(k)) { out = k.replace(re, i ? sr : en); break; }
+      return out == null ? null : x.replace(k, out);
+    };
+    // whole text first if it is a known phrase, then " · " segments, then patterns on the whole text
+    const k = src.trim();
+    if (TX[k]) return src.replace(k, TX[k][i]);
+    if (src.includes(" · ")) return src.split(" · ").map((p) => one(p) ?? p).join(" · ");
+    return one(src) ?? src;
+  }
+  // per-node memory of the German source, so switching back to German or to another language works
+  const trMem = new WeakMap();
+  const SKIP = /^(SCRIPT|STYLE|TEXTAREA)$/;
+  function trNode(n) {
+    const p = n.parentElement;
+    if (!p || SKIP.test(p.tagName) || p.closest(".txt, .en-raw, .metar, .rte, .tx, .raw, .letter, .cs, .cs3")) return;
+    const m = trMem.get(n);
+    const src = m && n.nodeValue === m.out ? m.src : n.nodeValue;
+    const out = tr(src);
+    trMem.set(n, { src, out });
+    if (out !== n.nodeValue) n.nodeValue = out;
+  }
+  function trAttrs(el) {
+    for (const a of ["placeholder", "title", "aria-label"]) {
+      if (!el.hasAttribute(a)) continue;
+      const k = "i18n" + a.replace("-", ""), ko = k + "out";
+      const cur = el.getAttribute(a);
+      // the attribute still holds what we wrote last time -> keep the German source; otherwise the app set a new text
+      const src = el.dataset[ko] === cur && el.dataset[k] != null ? el.dataset[k] : cur;
+      const out = tr(src);
+      el.dataset[k] = src; el.dataset[ko] = out;
+      if (cur !== out) el.setAttribute(a, out);
+    }
+  }
+  function trTree(root) {
+    if (root.nodeType === 3) { trNode(root); return; }
+    if (root.nodeType !== 1) return;
+    trAttrs(root);
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) n.nodeType === 3 ? trNode(n) : trAttrs(n);
+  }
+  new MutationObserver((list) => {
+    if (lang === "de" && !trDirty) return;
+    for (const r of list) {
+      if (r.type === "characterData") trNode(r.target);
+      else r.addedNodes.forEach(trTree);
+    }
+  }).observe(document.body, { subtree: true, childList: true, characterData: true });
+  let trDirty = false; // true after a non-German language was used, so German sources get restored
+  function setLang(l) {
+    lang = LANGS.includes(l) ? l : "de";
+    store.rawSet("vdgs.lang", lang);
+    if (lang !== "de") trDirty = true;
+    document.documentElement.lang = lang === "sr" ? "sr-Latn" : lang;
+    document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+    trTree(document.body);
+  }
   let settings = Object.assign({ simbrief: "", callsign: "", cid: "", chime: true, demo: false,
     hoppie: "", ntfy: "", pushStart: true, pushFreq: true, pushCpdlc: true }, store.get());
 
@@ -1097,8 +1317,8 @@ td.k { color: var(--sign); font-weight: 700; }
     }
     return pts;
   }
-  const nf = (v, d = 0) => Number(v).toLocaleString("de-DE", { maximumFractionDigits: d, minimumFractionDigits: d });
-  const COMPASS = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
+  const nf = (v, d = 0) => Number(v).toLocaleString(LOC(), { maximumFractionDigits: d, minimumFractionDigits: d });
+  const compass = (deg) => ({ de: ["N", "NO", "O", "SO", "S", "SW", "W", "NW"], en: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"], sr: ["S", "SI", "I", "JI", "J", "JZ", "Z", "SZ"] })[lang][Math.round(deg / 45) % 8];
 
   // Airport coordinates, city and time zone (compact copy of github.com/mwgg/Airports, loaded on demand)
   let APTS = null, aptsReq = null;
@@ -1241,7 +1461,7 @@ td.k { color: var(--sign); font-weight: 700; }
       tile("Außentemperatur", oat != null ? oat : "—", oat != null ? "°C" : "", oat != null ? (airborne ? "ca., Standardatmosphäre" : "am Boden, " + (depIcao || "")) : ""),
       tile("Wind", windKmh != null ? nf(Math.abs(windKmh)) : "—", windKmh != null ? "km/h" : "", windKmh != null ? (windKmh >= 0 ? "Rückenwind" : "Gegenwind") + ", ca." : "im Reiseflug"),
       tile("Wetter " + (arr?.city || "am Ziel"), dw?.temp != null ? dw.temp : "—", dw?.temp != null ? "°C" : "", dw ? dw.cond : "wird geladen"),
-      tile("Kurs", pl ? p2(Math.round(hdg) % 360).padStart(3, "0") + "°" : "—", pl ? COMPASS[Math.round(hdg / 45) % 8] : "", flown != null ? nf(flown) + " km geflogen" : ""),
+      tile("Kurs", pl ? p2(Math.round(hdg) % 360).padStart(3, "0") + "°" : "—", pl ? compass(hdg) : "", flown != null ? nf(flown) + " km geflogen" : ""),
     ].join("");
 
     S.pax = { dep, arr, eta, etaSrc, remain };
@@ -1493,7 +1713,7 @@ td.k { color: var(--sign); font-weight: 700; }
     let date = "", zone = "";
     try {
       if (arr?.tz) {
-        date = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", timeZone: arr.tz }).format(now);
+        date = new Intl.DateTimeFormat(LOC(), { weekday: "long", day: "numeric", month: "long", timeZone: arr.tz }).format(now);
         zone = new Intl.DateTimeFormat("de-DE", { timeZone: arr.tz, timeZoneName: "shortOffset" }).formatToParts(now).find((p) => p.type === "timeZoneName")?.value || "";
       }
     } catch {}
@@ -1502,7 +1722,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const raw = settings.demo ? S.metar.replace("EDDF", apt) : S.arrMetarApt === apt ? S.arrMetar : "";
     const w = raw ? decodeMetar(raw) : null;
     const kv = (l, v) => `<div><span class="lbl">${l}</span><span class="v num">${v}</span></div>`;
-    const wind = w?.wspd != null ? (w.wspd < 2 ? "Windstill" : (w.wdir === "VRB" ? "wechselnd " : COMPASS[Math.round(+w.wdir / 45) % 8] + " ") + w.wspd + " km/h" + (w.gust ? ", Böen " + w.gust : "")) : "—";
+    const wind = w?.wspd != null ? (w.wspd < 2 ? "Windstill" : (w.wdir === "VRB" ? "wechselnd " : compass(+w.wdir) + " ") + w.wspd + " km/h" + (w.gust ? ", Böen " + w.gust : "")) : "—";
     const base = w?.clouds?.find((c) => ["BKN", "OVC", "VV"].includes(c.cov));
     setHtml("paneDest", `
       <div class="panel dest-hero">
@@ -1930,7 +2150,7 @@ td.k { color: var(--sign); font-weight: 700; }
     if (!settings.simbrief && !settings.demo) return msg("SimBrief nicht verknüpft. Unter „Flug“ deinen SimBrief-Namen eintragen, dann kommen Fuel, Gewichte und Zeiten automatisch.");
     if (!ofp) return msg(S.sbErr || (S.ofp ? "Das SimBrief-OFP (" + S.ofp.callsign + ") passt nicht zum aktuellen Callsign " + S.callsign + "." : "Lade SimBrief-OFP…"));
     const u = ofp.units === "lbs" ? "lb" : "kg";
-    const wt = (v) => (v ? Number(v).toLocaleString("de-DE") + " " + u : "");
+    const wt = (v) => (v ? Number(v).toLocaleString(LOC()) + " " + u : "");
     const over = (v, max) => v && max && +v > +max;
     const kw = (l, v, warn) => `<div><span class="lbl">${l}</span><span class="v num"${warn ? ' style="color:var(--bad)"' : ""}>${esc(v || "—")}</span></div>`;
     const html = `
@@ -2254,6 +2474,8 @@ td.k { color: var(--sign); font-weight: 700; }
   if (q.get("cid")) { settings = { ...settings, cid: q.get("cid").replace(/\D/g, ""), callsign: "", demo: false }; store.set(settings); }
   start();
   booted = true;
+  document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => { setLang(b.dataset.lang); render(); }));
+  setLang(lang);
 
   // App updates: always check the server for a new version (no HTTP cache) and reload once it is active
   let swReg = null;
