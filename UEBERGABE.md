@@ -172,36 +172,69 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 
 **Oben in der Leiste:** UTC und deutsche Uhrzeit (Europe/Berlin), immer sichtbar.
 
-## 5-G. Gate / Stand am Ziel (`loadStands()`, `predictStand()`, `gateInfo()`, `announceGate()`)
+## 5-G. Gate / Stand am Ziel (`loadStands()`, `buildStands()`, `predictStand()`, `gateInfo()`, `announceGate()`)
 
-VATSIM hat keine weltweite Stand-Zuteilung. Die App erstellt deshalb eine **realistische Prognose** und kennzeichnet sie als „Prognose“.
+**Quellen, in dieser Reihenfolge:**
+1. **Echte Zuteilung von VATSIM UK** für britische Flughäfen. Die Daten stehen im Branch `data` als Datei `ukcp.json`.
+   - Ein GitHub-Job (`.github/workflows/ukcp-stands.yml`) holt sie alle 5 Minuten von `ukcp.vatsim.uk/api/stand/assignment` und `/stand/dependency`.
+   - Die App liest sie über `raw.githubusercontent.com` (CORS offen) alle 2 min, sobald das Ziel mit „EG“ beginnt.
+   - Angezeigt wird die Zuteilung sofort, gekennzeichnet als „von VATSIM UK zugeteilt“.
+2. **Prognose** für alle anderen Flughäfen.
 
-- **Daten:** Stands und Gates aus OpenStreetMap über die Overpass-API.
-  - Abfrage: `aeroway=parking_position|gate` im Umkreis von 4,5 km um den Zielflughafen (`https://overpass-api.de/api/interpreter`)
-  - Zwischenspeicher: 7 Tage in `localStorage["vdgs.stands.<ICAO>"]`
-  - Stands mit gleichnamigem Gate heißen „Gate X“, sonst „Stand X“.
-- **Regeln** (`GATE_RULES`, pro Flughafen in Reihenfolge, die erste passende gilt):
+**Stand-Daten** (Stands, Gates, Terminals, Fracht- und GA-Vorfelder aus OpenStreetMap):
+- Für ~250 große Flughäfen baut ein wöchentlicher GitHub-Job sie vor (`.github/workflows/stands.yml` und `.github/scripts/stands.py`). Ergebnis: eine Datei `<ICAO>.json` pro Flughafen im Branch `stands`.
+- Für andere Flughäfen fragt die App live bei Overpass an: zuerst `overpass-api.de`, sonst `maps.mail.ru`. Zwischen Fehlversuchen wartet sie doppelt so lange, höchstens 5 min.
+- Zwischenspeicher: 7 Tage in `localStorage["vdgs.stands4.<ICAO>"]`.
+- **Felder pro Stand:**
+  - `ref`, `lat`, `lon`
+  - `gate`: Gate mit gleicher Nummer
+  - `c`: Kontaktstand, d. h. Gate gleichen Namens oder Gate unter 120 m entfernt
+  - `t`: nächstes Terminal bis 1,5 km, Name vereinheitlicht zu „Terminal 1“
+  - `cargo`, `ga`: Lage in einem benannten Fracht- oder GA-Vorfeld oder neben einem Fracht- bzw. Business-Aviation-Terminal
+- `buildStands()` (JavaScript) und `build()` (Python) müssen gleich bleiben.
 
-  | Flughafen | Zuteilung |
-  |---|---|
-  | EDDF | Star Alliance/Lufthansa: Schengen → A, Non-Schengen → B/C (Terminal 1). Andere: Schengen → D, Non-Schengen → E (Terminal 2) |
-  | EGLL | British Airways (und Iberia) → 5xx (T5). Star Alliance → 2xx (T2). oneworld außer BA sowie Emirates, Virgin, Delta → 3xx (T3). Andere → 4xx (T4) |
-  | OMDB | Emirates → A/B/C (T3). flydubai → F/G (T2). Andere → D (T1) |
-  | LSZH | Schengen → A/B, Non-Schengen → E/D |
-  | EHAM | Low-Cost Schengen → M. Schengen → B/C/D. Non-Schengen → E/F/G/D |
+**Prognose** (`predictStand()`), Ebenen in dieser Reihenfolge:
+1. **Art des Flugs:**
+   - Fracht (Callsign-Präfix in `CARGO`) → Fracht-Vorfeld
+   - Privat/GA (Callsign ohne Airline-Code, z. B. DEHBH, N123AB) → GA-Vorfeld
+   - sonst Außenpositionen
+2. **Feste Flughafen-Regeln** (`GATE_RULES`): nach Airline, Allianz und Schengen, entweder über Stand-Präfix (`pre`) oder OSM-Terminalnamen (`tn`).
 
-  - Allianz und Airline werden über die ersten drei Buchstaben des Callsigns erkannt (`ALLIANCE`).
-  - Schengen: Abflug- und Zielflughafen im Schengen-Raum (ICAO-Präfixe in `SCHENGEN`).
-- **Belegt:** Stands mit einem VATSIM-Flugzeug am Boden (unter 5 kt) im Umkreis von 60 m werden übersprungen.
-- **Gleichbleibend:** Die Wahl ist pro Callsign fest (Hash) und wird bei der Bekanntgabe eingefroren (`S.gateFix`).
-- **Rückfall:** Ohne Regeln für den Flughafen nimmt die App Kontaktstände (mit Gate), sonst beliebige freie Stände. Außenpositionen (V, W, P …) kommen nur, wenn sonst nichts frei ist („Außenposition, Bus“).
-- **Ablauf wie im echten Flug:**
-  1. Bis ca. 30 min vor Ankunft steht da: „Gate-Info ca. 30 min vor Ankunft“ (mit Uhrzeit).
-  2. Dann wird das Gate bekannt gegeben: Gong, gelbes Blinken für 20 s und Push aufs Handy (wenn eingeschaltet, `settings.pushGate`).
-  3. Nach dem Parken zeigt die App den **tatsächlichen** Stand (nächster Stand unter 80 m).
-- **Anzeige:** Pilot-Modus im Flug (Kasten unter der Ankunftszeit), Passagier-Flugkarte (in der Ankunftskachel) und Zielort.
-- **Navigraph:** Die Navigationsdaten enthalten Gates. Nach den Navigraph-Unterlagen brauchen Webseiten dafür aber eine Partnerschaft mit Navigraph (Entwickler-Zugang beantragen), einen eigenen Server und ein Abo der Nutzer. Das ist nicht eingebunden.
-- **VATSIM UK** (`ukcp.vatsim.uk/api/stand/assignment`) hat echte Zuteilungen für UK-Flughäfen. Die Schnittstelle erlaubt aber nur Aufrufe von `docs.vatsim.uk` (CORS), deshalb ist sie nicht eingebunden. Möglich wäre es über einen kleinen eigenen Server.
+   | Flughafen | Regel |
+   |---|---|
+   | EDDF | A / B,C (Terminal 1, Star) · D / E (Terminal 2) |
+   | EGLL | 5xx BA · 2xx Star · 3xx oneworld u. a. · 4xx Rest |
+   | OMDB | Emirates A/B/C · flydubai F/G · Rest D |
+   | LSZH | Schengen A/B · Non-Schengen E/D |
+   | EHAM | Low-Cost M · Schengen B/C/D · Non-Schengen E/F/G/D |
+   | EDDM | Star → Terminal 2 · Rest → Terminal 1 |
+   | LEMD | oneworld, Iberia Express, Air Europa, Vueling → T4 · Rest → T1–3 |
+   | LIRF | SkyTeam/ITA Schengen → T1 · Rest → T3 |
+   | LPPT | Low-Cost → T2 · Rest → T1 |
+   | EIDW | Aer Lingus und Langstrecke → T2 · Rest → T1 |
+   | LEBL | easyJet → T2 · Rest → T1 |
+   | EBBR | Schengen → Pier A · Non-Schengen → Pier B |
+   | LFPG | SkyTeam → 2E/2F/2G · Star → T1 · Low-Cost → 2B/2D/3 · Rest → 2A/2C/1 |
+
+3. **Allgemeine Regeln für alle Flughäfen:**
+   - Heimat-Airline (`HUBS`) → Kontaktstände im Hauptterminal (das Terminal mit den meisten Kontaktständen)
+   - Low-Cost und Turboprops (`PROP`), außer Großraumflugzeugen (`WIDE`) → Außenpositionen
+   - andere Airlines → Kontaktstände in den übrigen Terminals
+   - sonst beliebige Kontaktstände
+4. **Belegung:** Stands mit einem VATSIM-Flugzeug am Boden (< 5 kt, < 60 m) werden übersprungen.
+5. **Wahl:** fest pro Callsign (Hash) und bei der Bekanntgabe eingefroren.
+
+**Ablauf:**
+- Bekanntgabe ca. 30 min vor Ankunft mit Gong, gelbem Blinken und Push (`settings.pushGate`).
+- Echte VATSIM-UK-Zuteilungen erscheinen, sobald sie da sind; Gong und Push kommen auch hier erst 30 min vor Ankunft.
+- Nach dem Parken zeigt die App den tatsächlichen Stand.
+
+**Navigraph:** Für Webseiten verlangt Navigraph eine Partnerschaft (Entwickler-Zugang beantragen), einen eigenen Server und ein Abo der Nutzer. Nicht eingebunden.
+
+**GitHub-Jobs:**
+- **Zeitplan:** `*/5 * * * *` (UK) und montags 03:17 UTC (Stand-Daten). Beide lassen sich unter „Actions“ von Hand starten („Run workflow“).
+- **Speicher:** Jeder Lauf schreibt genau einen Commit in seinen Branch (Force-Push), der Branch wächst also nicht.
+- **Hinweis:** GitHub kann zeitgesteuerte Jobs abschalten, wenn im Repository 60 Tage lang nichts passiert. Dann unter „Actions“ wieder einschalten.
 
 ## 5-L. Sprachen (`tr()`, `setLang()`)
 

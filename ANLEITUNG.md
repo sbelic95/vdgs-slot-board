@@ -74,9 +74,11 @@ Mit „Slot“ kommst du zurück zur Slot-Ansicht. Oben neben der UTC-Uhr steht 
 
 Etwa 30 Minuten vor der Ankunft gibt die App dein Gate oder deinen Stand bekannt. Dazu ertönt ein Gong, das Feld blinkt gelb, und mit eingerichtetem ntfy kommt ein Push aufs Handy.
 
-Die Zuteilung ist eine realistische **Prognose**:
+In **Großbritannien** zeigt die App den **echten** Stand, den das VATSIM-UK-System zugeteilt hat („von VATSIM UK zugeteilt“). Überall sonst ist es eine realistische **Prognose**, für jeden Flughafen der Welt:
 - nach Airline und Allianz (z. B. Emirates in Dubai → Terminal 3, British Airways in Heathrow → Terminal 5)
 - nach Schengen oder Non-Schengen (z. B. Frankfurt A = Schengen, B/C = Non-Schengen)
+- Fracht → Fracht-Vorfeld, Privatflieger → GA-Vorfeld
+- Heimat-Airline → Hauptterminal, Low-Cost und Turboprops eher Außenposition (Bus)
 - ohne Stände, auf denen gerade ein anderes VATSIM-Flugzeug steht
 
 Nach dem Parken zeigt die App deinen tatsächlichen Stand.
