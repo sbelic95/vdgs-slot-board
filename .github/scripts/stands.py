@@ -16,8 +16,15 @@ import urllib.request
 
 SERVERS = [
     "https://overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
 ]
+
+# GitHub runners have no IPv6 route; resolve IPv4 only ("Network is unreachable" otherwise)
+import socket  # noqa: E402
+_getaddrinfo = socket.getaddrinfo
+socket.getaddrinfo = lambda *a, **kw: [x for x in _getaddrinfo(*a, **kw) if x[0] == socket.AF_INET] or _getaddrinfo(*a, **kw)
 
 # Busy airports on VATSIM and in the real world: hubs, events, holiday traffic
 AIRPORTS = """
@@ -50,7 +57,7 @@ def overpass(lat, lon):
          f'(way{a}["aeroway"="terminal"];relation{a}["aeroway"="terminal"];);out tags center;'
          f'way{a}["aeroway"="apron"]["name"~"cargo|fracht|fret|frêt|carga|general aviation|^GA|GAT|business|executive",i];out tags geom;')
     body = urllib.parse.urlencode({"data": q}).encode()
-    for attempt in range(3):
+    for attempt in range(4):
         url = SERVERS[attempt % len(SERVERS)]
         try:
             req = urllib.request.Request(url, data=body, headers={"User-Agent": "vdgs-slot-board stand builder (GitHub Actions)"})
