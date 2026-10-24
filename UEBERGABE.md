@@ -5,15 +5,24 @@ Stand: 24.10.2026.
 
 ## 1. Was die App ist
 
-Eine statische Web-App (HTML, CSS und JavaScript in einer Datei, ohne Build-Schritt und ohne Server-Code) als Dauerbildschirm fürs iPad. Oben in der Leiste schaltet man zwischen zwei Modi um:
+Eine statische Web-App (HTML, CSS und JavaScript in einer Datei, ohne Build-Schritt und ohne Server-Code) als Dauerbildschirm fürs iPad. Oben in der Leiste schaltet man zwischen drei Modi um:
 
-- **Pilot:** CDM-Slot (EOBT, TOBT, TSAT, TTOT, CTOT), Runway/SID, Status mit Countdown, **Frequenz-Führer** (aktuelle und nächste Funkstation mit Frequenz und Zeit bis zum Wechsel), SimBrief-OFP-Daten, VATSIM-Flugplan, ATIS, METAR, ATC online und eine Abflugtafel des Abflughafens.
-- **Passagier:** Wie ein echtes Bordunterhaltungssystem, mit drei Bereichen:
-  - **Flugkarte:** Satellitenkarte mit Route, Track und Flugzeug; Geschwindigkeit in km/h, Höhe in m, Entfernung in km, Restflugzeit, Ankunft in Ortszeit, Kurs, Flugphase
-  - **Anschlussflüge:** nächste Abflüge am Zielflughafen aus VATSIM und vIFF
+- **Pilot:**
+  - CDM-Slot (EOBT, TOBT, TSAT, TTOT, CTOT), Runway/SID, Status mit Countdown
+  - **Frequenz-Führer:** aktuelle und nächste Funkstation mit Frequenz und Zeit bis zum Wechsel
+  - **CPDLC (Hoppie):** mitgelesene Nachrichten, z. B. „CONTACT … 127.925“
+  - SimBrief-OFP, VATSIM-Flugplan, ATIS, METAR, ATC online, Abflugtafel des Abflughafens
+- **Passagier:** wie ein echtes Bordunterhaltungssystem
+  - **Flugkarte:** Satellitenkarte mit Route, Track und Flugzeug; Geschwindigkeit in km/h, Höhe in m, Außentemperatur, Wind, Entfernung in km, Restflugzeit, Ankunft in Ortszeit, Wetter am Ziel, Kurs, Flugphase
+  - **Anschlussflüge:** die nächsten Abflüge am Zielflughafen
+  - **Ankünfte:** wer gleichzeitig am Ziel landet
   - **Zielort:** Ortszeit, Datum, Wetter in °C, km/h, km und hPa
+  - **Rundlauf:** wechselt die Bildschirme automatisch
 
   Nach dem Start schaltet die App einmal pro Flug automatisch in den Passagier-Modus.
+- **Tafel:** reine Flughafen-Anzeige (FIDS) mit Abflügen und Ankünften für einen beliebigen Flughafen (ICAO eingeben oder `?fids=EDDF`). Funktioniert auch ohne eigenen Flug.
+
+**Push aufs Handy** über ntfy.sh: bei Start-up-Fenster offen, neuer TSAT, bevorstehendem Frequenzwechsel und neuen CPDLC-Nachrichten.
 
 Live-Adresse: https://sbelic95.github.io/vdgs-slot-board/ · Code: https://github.com/sbelic95/vdgs-slot-board
 
@@ -49,6 +58,8 @@ Zum Hosten werden nur `index.html`, `manifest.webmanifest`, `sw.js` und die drei
 | E | `https://metar.vatsim.net/<ICAO>` | METAR als Klartext (Abflughafen; im Passagier-Modus auch Zielflughafen) | 5 min |
 | B2 | wie B, aber für den **Zielflughafen** | Anschlussflüge (nur im Passagier-Modus) | 60 s |
 | G | `https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson` und `…/VATSpy.dat` | Luftraumgrenzen (FIR, 1.219 Flächen) und Zuordnung Center-Rufzeichen → FIR/UIR. Dieselben Daten wie die VATSIM-Karten. | einmal beim Start (ca. 3 MB) |
+| H | `https://www.hoppie.nl/acars/system/connect.html` (POST: `logon`, `from` = Callsign, `to=SERVER`, `type=peek`) | CPDLC- und Telex-Nachrichten des eigenen Callsigns. **peek** liest nur und markiert nichts als abgeholt; das ACARS im Flugzeug bekommt weiterhin alles. CORS ist offen. | 60 s |
+| I | `https://ntfy.sh/` (POST JSON `{topic, title, message, tags, priority}`) | Push-Nachricht aufs Handy (ntfy-App, Thema abonnieren) | bei Ereignissen |
 | F | `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}` und `…/Reference/World_Boundaries_and_Places/…` | Kartenkacheln (Satellit, Grenzen, Ortsnamen), ohne Schlüssel. Hinweis: CARTO-Kacheln verlangen inzwischen einen API-Schlüssel. | beim Zoomen |
 
 **Aktualisierung:**
@@ -203,11 +214,53 @@ Die Karte zeigt **Aktuell** (Station und Frequenz), **Als nächstes** (mit Ausl�
 - Ortszeit, Datum und Zeitzone über `Intl.DateTimeFormat`
 - METAR des Zielflughafens übersetzt in Temperatur (°C), Wetterlage (Gewitter, Schnee, Regen, Nebel, bewölkt, klar …), Wind (km/h, Himmelsrichtung, Böen), Sicht (km), Luftdruck (hPa), Taupunkt, Wolkenuntergrenze (m) und Luftfeuchte (Magnus-Formel)
 
-**Gespeicherte Ansicht:** `localStorage["vdgs.view"]` („slot“ = Pilot, „ife“ = Passagier) und `localStorage["vdgs.pane"]` („map“, „conn“, „dest“). Der automatische Wechsel nach dem Start passiert einmal pro Callsign (`localStorage["vdgs.autoIfe"]`).
+**Ankünfte** (`buildArrs()`, `renderArr()`)
+
+Alle VATSIM-Flüge mit `arrival` = Zielflughafen:
+
+| Status | Zeit | Bedingung |
+|---|---|---|
+| Unterwegs / Im Anflug | jetzt + Entfernung ÷ Groundspeed | in der Luft; „Im Anflug“ unter 100 km |
+| Geplant | `deptime` + `enroute_time` aus dem Flugplan | noch am Boden woanders, oder Prefile |
+| Gelandet | — | rollt (GS 3–50 kt) unter 15 km vom Ziel |
+| Am Gate | — | steht (GS < 3 kt) unter 15 km vom Ziel; ans Ende sortiert, höchstens 6 |
+
+Der eigene Flug ist gelb markiert („Ihr Flug“).
+
+**Gespeicherte Ansicht:** `localStorage["vdgs.view"]` („slot“ = Pilot, „ife“ = Passagier, „fids“ = Tafel) und `localStorage["vdgs.pane"]` („map“, „conn“, „arr“, „dest“). Der automatische Wechsel nach dem Start passiert einmal pro Callsign (`localStorage["vdgs.autoIfe"]`).
+
+## 5c. Tafel (FIDS, `renderFids()`, `pollFids()`)
+
+- Flughafen per Eingabefeld oder `?fids=ICAO`, gespeichert in `localStorage["vdgs.fids"]`.
+- Abflüge: dieselbe Logik wie die Anschlussflüge (`buildDeps()`), mit vIFF-CDM des Flughafens alle 60 s.
+- Ankünfte: `buildArrs()` (siehe oben).
+- Alle Zeiten in Ortszeit des Flughafens. Die Tafel braucht keinen eigenen Flug.
+
+## 5d. Push aufs Handy (`notifyPhone()`)
+
+- Dienst: ntfy.sh, kostenlos, ohne eigenen Server und ohne Konto. Das Handy abonniert in der ntfy-App ein **Thema**. Der Knopf „Neu“ erzeugt ein zufälliges Thema (`vdgs-xxxxxxxxxx`).
+- Gesendet wird vom iPad, solange die App dort offen ist.
+- **Ereignisse:**
+  - Start-up-Fenster offen (einmal pro TSAT)
+  - neue TSAT während des Wartens
+  - Frequenzwechsel „bald“ (einmal pro Station)
+  - neue CPDLC-Nachricht
+
+  Jedes Ereignis lässt sich in den Einstellungen einzeln abschalten.
+- **Datenschutz:** Wer den Themennamen kennt, kann mitlesen. Gesendet werden nur Callsign, Zeiten und Frequenzen.
+
+## 5e. CPDLC (`pollCpdlc()`, `renderCpdlc()`)
+
+- Der Hoppie-Logon-Code wird in den Einstellungen eingetragen und nur im Browser gespeichert (`localStorage["vdgs.settings"].hoppie`).
+- Die Antwort sieht so aus: `ok {id from type {packet}} …`. CPDLC-Pakete haben die Form `/data2/<min>/<mrn>/<antwort>/<text>`; das `@` als Markierung wird entfernt.
+- Eine „CONTACT“- oder „MONITOR“-Anweisung mit Frequenz erscheint 15 min lang ganz oben im Frequenz-Führer.
+- Ist der Code falsch, zeigt die App „Hoppie-Logon-Code ungültig“.
+- **Ungetestet:** der Empfang echter Nachrichten (es gab keinen echten Logon-Code zum Testen). Getestet sind die Anfrage, der Fehlerfall und das Auslesen der Antwort mit Beispieldaten.
 
 ## 6. Bekannte Grenzen
 
 - Slot-Daten nur aus dem vIFF-CDM-System (viele europäische vACCs). Das deutsche vACDM (`app.vacdm.net`) hat keine offene, öffentliche API und ist nicht eingebunden.
+- Push funktioniert nur, solange die App auf dem iPad offen ist (das iPad sendet).
 - Ohne aktiven DEL/GND/TWR am Flughafen gibt es meist keine TSAT.
 - vIFF setzt `aobt` manchmal schon, während der Flieger noch am Gate steht. Darum die Plausibilitätsprüfung in Abschnitt 5.
 - Die TOBT kann die App nicht selbst setzen, weil dafür ein VATSIM-Login (OAuth) auf vats.im/vdgs nötig ist.
@@ -248,14 +301,21 @@ Die Karte zeigt **Aktuell** (Station und Frequenz), **Als nächstes** (mit Ausl�
 | `aptStations()`, `td()`, `stn()` | Flughafen-Lotsen, Top-down-Regel, Anzeigename |
 | `freqPlan()`, `renderFreq()` | Frequenz-Führer: aktuell, als nächstes, weitere |
 | `acName()` | Flugzeugtyp im Klartext |
+| `buildDeps()`, `buildArrs()`, `boardRows()` | Abflüge / Ankünfte eines Flughafens, Tabellenzeilen |
+| `renderArr()` | Passagier: Ankünfte am Ziel |
+| `pollFids()`, `renderFids()` | Tafel (FIDS) |
+| `notifyPhone()` | Push über ntfy.sh |
+| `pollCpdlc()`, `renderCpdlc()` | CPDLC über Hoppie (peek) |
 
 ## 8. Ideen für später
 
-- vACDM (Deutschland) einbinden, falls eine öffentliche API verfügbar wird
-- Passagier-Modus: automatischer Wechsel zwischen Karte, Anschlussflügen und Zielort (wie im echten Flugzeug)
-- Ankunftstafel am Zielflughafen (wer landet gleichzeitig)
-- Mehrere Flüge oder ein ganzer Flughafen als reine FIDS-Tafel
-- Push-Benachrichtigung aufs Handy, wenn das Start-up-Fenster öffnet (bräuchte ein kleines Backend)
-- Hinweis zum Datenschutz: Die App speichert nur lokal im Browser und sendet nichts an eigene Server.
+**Erledigt:** automatischer Rundlauf, Ankunftstafel am Ziel, FIDS-Tafel für jeden Flughafen, Push aufs Handy (über ntfy.sh statt eigenem Backend), CPDLC-Anzeige.
+
+**Offen:**
+- vACDM (Deutschland) einbinden, sobald eine öffentliche API verfügbar wird (`app.vacdm.net` war am 24.10.2026 von außen nicht erreichbar)
+- Mehrere eigene Flüge gleichzeitig verfolgen
+- Push auch bei geschlossener App: Dafür bräuchte es ein kleines Backend, das die Daten selbst abfragt.
+- CPDLC-Antworten (WILCO/UNABLE) aus der App senden; bisher nur lesen
+- **Datenschutz:** Die App speichert nur lokal im Browser. Daten gehen nur an die genannten Dienste (VATSIM, vIFF, SimBrief, Hoppie, ntfy, Esri).
 
 Nur für Flugsimulation, nicht für die echte Luftfahrt.

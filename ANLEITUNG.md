@@ -54,6 +54,7 @@ Oben links schaltest du um:
   - **Flugkarte:** Satellitenkarte mit deinem Flugzeug, Geschwindigkeit in km/h, Höhe in m, Entfernung und Restflugzeit, Ankunft in Ortszeit
   - **Anschlussflüge:** die nächsten Abflüge an deinem Zielflughafen (live aus VATSIM)
   - **Zielort:** Ortszeit und Wetter am Ziel
+  - **Ankünfte:** wer gleichzeitig mit dir am Ziel landet
   - **Rundlauf:** wechselt die Bildschirme automatisch wie im Flugzeug
   - Außentemperatur und Wind sind Schätzwerte („ca.“), weil VATSIM sie nicht liefert
 
@@ -62,6 +63,24 @@ Nach dem Start schaltet die App einmal automatisch auf „Passagier“. Du kanns
 ## Aktualisieren
 
 Die App lädt alle Daten automatisch nach: VATSIM alle 15 s, Slot alle 20 s, Abflugtafel alle 45 s. Wenn das iPad aufwacht, lädt sie sofort alles neu. Oben steht, wie alt die Daten sind („Live · vor 8 s“). Wird der Punkt gelb, tippe auf **Aktualisieren**. Neue App-Versionen werden automatisch geladen.
+
+## Tafel (Flughafen-Anzeige)
+
+Oben auf **Tafel** tippen, ICAO-Code eingeben (z. B. EDDF), **Anzeigen** tippen. Du siehst Abflüge und Ankünfte live aus VATSIM, in Ortszeit, wie am Flughafen. Direktlink: `…/?fids=EDDF`.
+
+## CPDLC (Hoppie)
+
+Unter **Flug** → „CPDLC (Hoppie) und Push aufs Handy“ deinen Hoppie-Logon-Code eintragen (von hoppie.nl/acars). Dann zeigt der Pilot-Modus deine CPDLC-Nachrichten. Eine „CONTACT …“-Anweisung steht blau ganz oben bei den Frequenzen. Die App liest nur mit und nimmt deinem Flugzeug keine Nachricht weg.
+
+## Push aufs Handy
+
+1. Auf dem Handy die kostenlose App **ntfy** installieren.
+2. In der VDGS-App unter **Flug** → „CPDLC (Hoppie) und Push aufs Handy“ auf **Neu** tippen. Es entsteht ein Thema wie `vdgs-k7f3q9x2`.
+3. In der ntfy-App auf „+“ tippen und genau dieses Thema abonnieren.
+4. In der VDGS-App auf **Test** tippen. Auf dem Handy sollte „Push funktioniert“ erscheinen.
+5. Danach **Anzeigen** tippen, damit es gespeichert wird.
+
+Du bekommst dann eine Meldung, wenn das Start-up-Fenster öffnet, die TSAT sich ändert, ein Frequenzwechsel ansteht oder eine CPDLC-Nachricht kommt. Das funktioniert, solange die App auf dem iPad offen ist.
 
 ## Praktische Links
 

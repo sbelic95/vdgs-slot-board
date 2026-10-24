@@ -144,6 +144,24 @@ button { font: inherit; color: inherit; }
 .st.board { color: var(--sign-ink); background: var(--sign); }
 .st.plan { color: var(--dim); background: color-mix(in srgb, var(--dim) 14%, transparent); }
 .st.gone { color: var(--faint); }
+tr.me td { background: color-mix(in srgb, var(--sign) 13%, var(--panel)); }
+/* FIDS board */
+.fids { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.fids-head { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+.fids-apt { display: grid; gap: 6px; }
+.fids-apt div { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.fids-apt b { font: 700 54px/0.9 var(--f-display); letter-spacing: .04em; color: var(--sign); }
+.fids-apt span#fidsCity { font: 600 26px/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
+.fids-form { display: flex; gap: 8px; margin-left: auto; }
+.fids-form input { height: 48px; width: 120px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: 700 22px/1 var(--f-num); padding: 0 12px; text-transform: uppercase; }
+.fids-form input:focus { border-color: var(--sign); outline: none; }
+.fids-clock { display: grid; justify-items: end; gap: 4px; }
+.fids-clock .num { font-size: 40px; font-weight: 700; line-height: 1; }
+.fids-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.fids table { min-width: 0; }
+.fids td, .fids th { padding: 9px 10px; }
+.fids td.time { font-size: 20px; }
+@media (max-width: 1100px) { .fids-cols { grid-template-columns: minmax(0, 1fr); } }
 .dest { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; align-content: start; }
 .dest-hero { padding: 26px 28px; display: grid; gap: 10px; align-content: start; }
 .dest-hero .city { font: 700 64px/0.95 var(--f-display); letter-spacing: .02em; text-wrap: balance; }
@@ -309,7 +327,7 @@ td.k { color: var(--sign); font-weight: 700; }
 .sheet h3 { margin: 0; font: 700 28px/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
 .sheet p { margin: 0; color: var(--dim); font-size: 14px; }
 .field { display: grid; gap: 6px; }
-.field input[type=text], .field input[type=number] {
+.field input[type=text], .field input[type=number], .field input[type=password] {
   height: 50px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg);
   font: 700 22px/1 var(--f-num); padding: 0 14px; text-transform: uppercase; width: 100%;
 }
@@ -321,6 +339,21 @@ td.k { color: var(--sign); font-weight: 700; }
 .btn { height: 48px; padding: 0 20px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; font: 700 16px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; }
 .btn.primary { background: var(--sign); color: var(--sign-ink); border-color: var(--sign); flex: 1; }
 .err { color: var(--bad); font-size: 13px; }
+.more { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 14px; }
+.more[open] { display: grid; }
+.more summary { cursor: pointer; font: 700 15px/1.2 var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.more .field input { font-size: 17px; }
+.hintline { font-size: 12px; color: var(--dim); }
+.more .btn.sm { height: 50px; }
+/* CPDLC log (pilot) */
+.cp-list { display: grid; gap: 1px; background: var(--line); border-radius: 6px; overflow: hidden; }
+.cp-list > div { background: var(--panel-2); padding: 9px 12px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; }
+.cp-list .tm { font-family: var(--f-num); color: var(--dim); font-size: 13px; }
+.cp-list .tx { font-family: var(--f-num); font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.cp-list .fr { grid-column: 2; font-size: 12px; color: var(--dim); }
+.cp-list .new .tx { color: var(--sign); }
+.fq-row.cpdlc { border-color: var(--info); }
+.fq-row.cpdlc .role, .fq-row.cpdlc .mhz { color: var(--info); }
 
 /* ---------- Responsive: iPad portrait & phone ---------- */
 @media (max-width: 1280px) {
@@ -358,6 +391,7 @@ td.k { color: var(--sign); font-weight: 700; }
     <div class="seg" role="tablist" aria-label="Ansicht">
       <button role="tab" id="tabSlot" aria-selected="true">Pilot</button>
       <button role="tab" id="tabIfe" aria-selected="false">Passagier</button>
+      <button role="tab" id="tabFids" aria-selected="false">Tafel</button>
     </div>
     <span class="live"><span class="dot" id="liveDot"></span><span id="liveTxt">Verbinde…</span></span>
     <span id="demoFlag" class="demo-flag" hidden>Demo-Daten</span>
@@ -388,6 +422,7 @@ td.k { color: var(--sign); font-weight: 700; }
     <nav class="pnav" role="tablist" aria-label="Bordprogramm">
       <button role="tab" data-pane="map" aria-selected="true">Flugkarte</button>
       <button role="tab" data-pane="conn" aria-selected="false">Anschlussflüge</button>
+      <button role="tab" data-pane="arr" aria-selected="false">Ankünfte</button>
       <button role="tab" data-pane="dest" aria-selected="false">Zielort</button>
       <button class="auto" id="btnAuto" aria-pressed="false" title="Bildschirme automatisch wechseln wie im Flugzeug">Rundlauf</button>
       <span class="pnav-cs" id="paxCs"></span>
@@ -405,6 +440,20 @@ td.k { color: var(--sign); font-weight: 700; }
         </table>
       </div>
       <div class="conn-foot" id="connFoot"></div>
+    </section>
+
+    <section class="panel conn" id="paneArr" hidden aria-label="Ankünfte">
+      <div class="board-head">
+        <span class="ttl">Ankünfte</span><span class="lbl" id="arrApt"></span>
+        <span class="seq" id="arrInfo"></span>
+      </div>
+      <div class="board-scroll">
+        <table>
+          <thead><tr><th>Zeit</th><th>Flug</th><th>Von</th><th>Flugzeug</th><th>Status</th></tr></thead>
+          <tbody id="arrBody"></tbody>
+        </table>
+      </div>
+      <div class="conn-foot">Wer gleichzeitig mit Ihnen landet. Zeiten in Ortszeit, geschätzt aus Entfernung und Geschwindigkeit (in der Luft) oder aus dem Flugplan. Quelle: VATSIM.</div>
     </section>
 
     <section class="dest" id="paneDest" hidden aria-label="Zielort"></section>
@@ -434,6 +483,28 @@ td.k { color: var(--sign); font-weight: 700; }
     </div>
   </section>
 
+  <section class="fids" id="viewFids" hidden aria-label="Flughafen-Tafel">
+    <div class="fids-head">
+      <div class="fids-apt"><span class="lbl">Flughafen</span><div><b id="fidsIcao">----</b><span id="fidsCity"></span></div></div>
+      <form id="fidsForm" class="fids-form" autocomplete="off">
+        <input type="text" id="fidsIn" maxlength="4" placeholder="ICAO" aria-label="Flughafen (ICAO)" autocapitalize="characters" spellcheck="false">
+        <button class="btn" type="submit">Anzeigen</button>
+      </form>
+      <div class="fids-clock"><span class="lbl">Ortszeit</span><span class="num" id="fidsClock">--:--</span></div>
+    </div>
+    <div class="fids-cols">
+      <section class="panel conn">
+        <div class="board-head"><span class="ttl">Abflüge</span><span class="seq" id="fidsDepInfo"></span></div>
+        <div class="board-scroll"><table><thead><tr><th>Zeit</th><th>Flug</th><th>Nach</th><th>Typ</th><th>Status</th></tr></thead><tbody id="fidsDep"></tbody></table></div>
+      </section>
+      <section class="panel conn">
+        <div class="board-head"><span class="ttl">Ankünfte</span><span class="seq" id="fidsArrInfo"></span></div>
+        <div class="board-scroll"><table><thead><tr><th>Zeit</th><th>Flug</th><th>Von</th><th>Typ</th><th>Status</th></tr></thead><tbody id="fidsArr"></tbody></table></div>
+      </section>
+    </div>
+    <div class="conn-foot">Live aus VATSIM (Flugpläne und Positionen) und vIFF-CDM. Abflugzeit: TSAT, TOBT oder Flugplan. Ankunftszeit: geschätzt aus Entfernung und Geschwindigkeit. Ortszeit des Flughafens.</div>
+  </section>
+
   <div id="viewSlot" class="view-slot">
   <main class="main">
     <section class="panel vdgs" aria-label="Slot">
@@ -457,6 +528,10 @@ td.k { color: var(--sign); font-weight: 700; }
       <section class="panel card freq" id="freqCard" aria-label="Frequenzen">
         <h2><span class="lbl">Frequenzen</span><span class="chip" id="freqChip"></span></h2>
         <div id="freqBody"><div class="empty">Lade Lotsen und Lufträume…</div></div>
+      </section>
+      <section class="panel card" id="cpdlcCard" aria-label="CPDLC" hidden>
+        <h2><span class="lbl">CPDLC · Hoppie</span><span class="chip" id="cpdlcChip"></span></h2>
+        <div id="cpdlcBody"></div>
       </section>
       <section class="panel card" aria-label="Flug">
         <h2><span class="lbl" id="fplSrc">Flugplan</span><span class="chip" id="conn">Offline</span></h2>
@@ -516,6 +591,28 @@ td.k { color: var(--sign); font-weight: 700; }
       <input type="text" id="inCs" placeholder="leer lassen = automatisch" maxlength="10" autocapitalize="characters" spellcheck="false">
     </div>
     <label class="check"><input type="checkbox" id="inChime" checked> Gong, wenn das Start-up-Fenster öffnet</label>
+
+    <details class="more">
+      <summary>CPDLC (Hoppie) und Push aufs Handy</summary>
+      <div class="field">
+        <label class="lbl" for="inHoppie">Hoppie-Logon-Code (optional)</label>
+        <input type="password" id="inHoppie" placeholder="aus hoppie.nl/acars" autocomplete="off" style="text-transform:none">
+        <span class="hintline">Damit zeigt die App deine CPDLC-Nachrichten, z. B. „CONTACT … 127.925“. Sie liest nur mit (peek) und nimmt deinem Flugzeug keine Nachricht weg. Der Code bleibt nur auf diesem Gerät.</span>
+      </div>
+      <div class="field">
+        <label class="lbl" for="inNtfy">ntfy-Thema für Push (optional)</label>
+        <div class="row">
+          <input type="text" id="inNtfy" placeholder="z. B. vdgs-k7f3q9x2" maxlength="64" autocapitalize="none" spellcheck="false" style="text-transform:none;flex:1">
+          <button type="button" class="btn sm" id="btnNtfyNew">Neu</button>
+          <button type="button" class="btn sm" id="btnNtfyTest">Test</button>
+        </div>
+        <span class="hintline">ntfy-App aufs Handy laden und dasselbe Thema abonnieren. Das iPad schickt die Meldung, solange die App offen ist. Das Thema wie ein Passwort behandeln: wer es kennt, kann mitlesen.</span>
+        <span class="hintline" id="ntfyStatus"></span>
+      </div>
+      <label class="check"><input type="checkbox" id="inPushStart" checked> Push: Start-up-Fenster öffnet / neue TSAT</label>
+      <label class="check"><input type="checkbox" id="inPushFreq" checked> Push: Frequenzwechsel steht bald an</label>
+      <label class="check"><input type="checkbox" id="inPushCpdlc" checked> Push: neue CPDLC-Nachricht</label>
+    </details>
     <div class="err" id="setupErr" hidden></div>
     <div class="row">
       <button type="submit" class="btn primary">Anzeigen</button>
@@ -534,7 +631,7 @@ td.k { color: var(--sign); font-weight: 700; }
     metar: "https://metar.vatsim.net/",
     simbrief: "https://www.simbrief.com/api/xml.fetcher.php",
   };
-  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3 };
+  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3, fids: 60e3, cpdlc: 60e3 };
   const TSAT_WINDOW = 5 * 60e3;          // start-up window TSAT ±5 min
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -546,7 +643,8 @@ td.k { color: var(--sign); font-weight: 700; }
     raw(k) { try { return localStorage.getItem(k); } catch { return null; } },
     rawSet(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
-  let settings = Object.assign({ simbrief: "", callsign: "", cid: "", chime: true, demo: false }, store.get());
+  let settings = Object.assign({ simbrief: "", callsign: "", cid: "", chime: true, demo: false,
+    hoppie: "", ntfy: "", pushStart: true, pushFreq: true, pushCpdlc: true }, store.get());
 
   const S = {
     callsign: "", flight: null, board: [], pilot: null, prefile: null,
@@ -637,8 +735,9 @@ td.k { color: var(--sign); font-weight: 700; }
   async function pollFeed() {
     if (settings.demo) return;
     try {
-      S.feed = await getJSON(API.feed, 25000);
-      S.feedOk = true; S.lastFeed = Date.now();
+      const feed = await getJSON(API.feed, 25000);
+      if (settings.demo) return; // switched to demo while loading
+      S.feed = feed; S.feedOk = true; S.lastFeed = Date.now();
       if (settings.cid) {
         const cid = Number(settings.cid);
         const p = S.feed.pilots.find((x) => x.cid === cid) || S.feed.prefiles.find((x) => x.cid === cid);
@@ -808,7 +907,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const ofp = S.ofp && (!S.callsign || S.ofp.callsign === S.callsign) ? S.ofp : null;
 
     $("demoFlag").hidden = !settings.demo;
-    $("aptTag").textContent = apt || "----";
+    $("aptTag").textContent = (view === "fids" ? fidsApt || apt : apt) || "----";
     $("cs").textContent = S.callsign || "-----";
     const dep = f?.dep || fp?.departure || ofp?.dep, arr = f?.arr || fp?.arrival || ofp?.arr;
     $("route").innerHTML = dep || arr ? `<b>${esc(dep || "----")}</b><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg><b>${esc(arr || "----")}</b>` : "";
@@ -834,6 +933,15 @@ td.k { color: var(--sign); font-weight: 700; }
 
     // chime once when the start-up window opens
     if (ph === "go" && settings.chime && S.chimedFor !== S.callsign + f.tsat) { S.chimedFor = S.callsign + f.tsat; chime(); }
+    // push to the phone: start-up window open, or a new TSAT while still waiting
+    if (settings.pushStart && f?.tsat && !settings.demo) {
+      if (ph === "go" && S.pushedGo !== S.callsign + f.tsat) {
+        S.pushedGo = S.callsign + f.tsat;
+        notifyPhone("Start-up " + S.callsign, `Start-up-Fenster offen: TSAT ${hhmm(f.tsat)}Z (bis ${hhmm(f.tsat + TSAT_WINDOW)}Z)${f.rwy ? ", RWY " + f.rwy : ""}${f.sid ? " " + f.sid : ""}. Jetzt Start-up anfragen.`, "green_circle");
+      }
+      if (S.lastTsat && S.lastTsat !== f.tsat && (ph === "wait" || ph === "go")) notifyPhone("Neue TSAT " + S.callsign, `TSAT jetzt ${hhmm(f.tsat)}Z (vorher ${hhmm(S.lastTsat)}Z).`, "hourglass");
+      S.lastTsat = f.tsat;
+    }
 
     // time cells
     const cell = (lbl, t, sub, key) => `<div class="tcell${key ? " key" : ""}"><span class="lbl">${lbl}</span><span class="v num${t == null ? " none" : ""}">${hhmm(t)}</span><span class="s">${esc(sub || "")}</span></div>`;
@@ -853,7 +961,8 @@ td.k { color: var(--sign); font-weight: 700; }
     renderWx(apt);
     renderBoard(f, now, apt);
     renderLive();
-    if (view === "slot") renderFreq(now);
+    if (view === "slot") { renderFreq(now); renderCpdlc(now); }
+    if (view === "fids") renderFids(now);
 
     // after take-off switch to the flight-info view once per flight; the pilot can switch back
     if (ph === "airborne" && !settings.demo && S.callsign && store.raw("vdgs.autoIfe") !== S.callsign) {
@@ -863,6 +972,7 @@ td.k { color: var(--sign); font-weight: 700; }
       renderIfe(now, f, fp, ofp);
       $("paxCs").textContent = [S.callsign, acName(fp?.aircraft_short || f?.type || ofp?.type), f?.arr || fp?.arrival || ofp?.arr ? "nach " + (S.pax?.arr?.city || arrApt()) : ""].filter(Boolean).join(" · ");
       if (pane === "conn") renderConn(now);
+      if (pane === "arr") renderArr(now);
       if (pane === "dest") renderDest(now);
     }
   }
@@ -1115,9 +1225,44 @@ td.k { color: var(--sign); font-weight: 700; }
   // Departures from the destination airport: VATSIM pilots and prefiles leaving there, with CDM times where available
   function buildConn(now) {
     if (settings.demo) return S.demoConn || [];
-    const apt = arrApt(); if (!apt || !S.feed) return [];
-    const cdm = S.connApt === apt && S.conn ? S.conn : new Map();
-    const aptPos = S.pax?.arr?.pos;
+    const apt = arrApt();
+    return buildDeps(apt, S.connApt === apt && S.conn ? S.conn : new Map(), S.pax?.arr?.pos, now, S.callsign);
+  }
+
+  // Arrivals into an airport: airborne VATSIM pilots heading there (ETA from distance and ground speed),
+  // flights still on the ground elsewhere (planned ETA from the flight plan) and recent landings
+  function buildArrs(apt, aptPos, now, meCs) {
+    if (!apt || !S.feed) return [];
+    const out = [];
+    const planned = (fp) => { const t = toTime(fp?.deptime), e = String(fp?.enroute_time || ""); return t && e.length >= 3 ? t + (+e.slice(0, -2) * 60 + +e.slice(-2)) * 60e3 : null; };
+    for (const p of S.feed.pilots) {
+      const fp = p.flight_plan; if (fp?.arrival !== apt) continue;
+      const d = aptPos ? distKm([p.latitude, p.longitude], aptPos) : null;
+      let time, st;
+      let parked = false;
+      if (p.groundspeed < 50) {
+        // rolling in after landing, or already parked (no landing time known, so parked ones go to the end)
+        if (d != null && d < 15) { time = null; parked = p.groundspeed < 3; st = parked ? ["gone", "Am Gate"] : ["taxi", "Gelandet"]; }
+        else { time = planned(fp); st = ["plan", "Geplant"]; }
+      } else if (d != null) {
+        time = now + (d / (p.groundspeed * KT_KMH)) * 3600e3;
+        st = d < 100 ? ["board", "Im Anflug"] : ["taxi", "Unterwegs"];
+      } else continue;
+      if (time && (time > now + 12 * 3600e3 || time < now - 3 * 3600e3)) continue;
+      out.push({ cs: p.callsign, from: fp.departure, type: fp.aircraft_short || "", time, st, me: p.callsign === meCs, parked });
+    }
+    for (const p of S.feed.prefiles) {
+      if (p.flight_plan?.arrival !== apt) continue;
+      const time = planned(p.flight_plan);
+      if (!time || time < now - 60 * 60e3 || time > now + 12 * 3600e3) continue;
+      out.push({ cs: p.callsign, from: p.flight_plan.departure, type: p.flight_plan.aircraft_short || "", time, st: ["plan", "Geplant"], me: p.callsign === meCs });
+    }
+    const live = out.filter((r) => !r.parked).sort((a, b) => (a.time ?? now - 1) - (b.time ?? now - 1));
+    return live.concat(out.filter((r) => r.parked).slice(0, 6)).slice(0, 40);
+  }
+
+  function buildDeps(apt, cdm, aptPos, now, skipCs) {
+    if (!apt || !S.feed) return [];
     const rows = new Map();
     const add = (cs, o) => rows.set(cs, Object.assign(rows.get(cs) || { cs }, o));
     for (const p of S.feed.pilots) if (p.flight_plan?.departure === apt) add(p.callsign, { p, fp: p.flight_plan });
@@ -1125,7 +1270,7 @@ td.k { color: var(--sign); font-weight: 700; }
     for (const [cs, c] of cdm) add(cs, { c });
     const out = [];
     for (const r of rows.values()) {
-      if (r.cs === S.callsign) continue;
+      if (r.cs === skipCs) continue;
       const c = r.c, p = r.p;
       const time = c?.tsat || c?.tobt || c?.eobt || toTime(r.fp?.deptime);
       const near = p && aptPos ? distKm([p.latitude, p.longitude], aptPos) < 40 : !!p;
@@ -1164,6 +1309,65 @@ td.k { color: var(--sign); font-weight: 700; }
         }).join("");
     if ($("connBody").dataset.html !== html) { $("connBody").dataset.html = html; $("connBody").innerHTML = html; }
   }
+
+  // rows for an arrivals or departures table (time in the airport's local time)
+  function boardRows(rows, info, kind, emptyTxt, dimBefore) {
+    if (!rows.length) return `<tr><td colspan="5" class="empty" style="font-family:var(--f-body)">${esc(emptyTxt)}</td></tr>`;
+    return rows.map((r) => {
+      const other = kind === "arr" ? r.from : r.dest;
+      const d = APTS?.[other];
+      const dim = dimBefore && r.time && r.time < dimBefore;
+      return `<tr class="${r.me ? "me" : ""}"${dim ? ' style="opacity:.5"' : ""}><td class="time">${r.time ? fmtAt(r.time, info) : "—"}</td><td class="cs3">${esc(r.cs)}</td>`
+        + `<td class="city"><b>${esc(other || "----")}</b><span>${esc((d?.[2] || "").replace(/-/g, " "))}</span></td>`
+        + `<td>${esc(r.type)}</td><td><span class="st ${r.st[0]}">${r.me ? "Ihr Flug" : r.st[1]}</span></td></tr>`;
+    }).join("");
+  }
+
+  function renderArr(now) {
+    const apt = arrApt(), arr = S.pax?.arr;
+    $("arrApt").textContent = apt ? apt + (arr?.city ? " · " + arr.city : "") : "";
+    const rows = settings.demo ? S.demoArr || [] : buildArrs(apt, arr?.pos, now, S.callsign);
+    $("arrInfo").textContent = rows.length ? rows.length + " Flüge nach " + (arr?.city || apt) : "";
+    setHtml("arrBody", !apt ? `<tr><td colspan="5" class="empty" style="font-family:var(--f-body)">Das Ziel ist noch nicht bekannt.</td></tr>`
+      : boardRows(rows, arr, "arr", S.feed || settings.demo ? "Zurzeit keine weiteren Flüge nach " + apt + " im VATSIM-Netz." : "Lade VATSIM-Daten…"));
+  }
+
+  // ---------- FIDS: a plain airport departures/arrivals board ----------
+  let fidsApt = (store.raw("vdgs.fids") || "").toUpperCase();
+  async function pollFids() {
+    if (settings.demo || view !== "fids" || !fidsApt) return;
+    try {
+      const list = await getJSON(API.viff + "/ifps/depAirport?airport=" + encodeURIComponent(fidsApt)) || [];
+      const by = new Map();
+      for (const r of list) { const f = norm(r); if (f && (!by.has(f.callsign) || f.tsat)) by.set(f.callsign, f); }
+      S.fidsCdm = by; S.fidsCdmApt = fidsApt;
+    } catch (e) {}
+    render();
+  }
+  function renderFids(now) {
+    const apt = fidsApt || depApt() || "";
+    if (!APTS) loadAirports();
+    const a = APTS?.[apt];
+    const info = aptInfo(apt, null, "dep");
+    $("fidsIcao").textContent = apt || "----";
+    $("fidsCity").textContent = a ? a[2].replace(/-/g, " ") : "";
+    $("fidsClock").textContent = apt ? fmtAt(now, info) : "--:--";
+    if (document.activeElement !== $("fidsIn") && !$("fidsIn").value) $("fidsIn").placeholder = apt || "ICAO";
+    const deps = settings.demo ? S.demoConn || [] : buildDeps(apt, S.fidsCdmApt === apt && S.fidsCdm ? S.fidsCdm : new Map(), info?.pos, now, "");
+    const arrs = settings.demo ? S.demoArr || [] : buildArrs(apt, info?.pos, now, S.callsign);
+    const wait = !S.feed && !settings.demo ? "Lade VATSIM-Daten…" : "";
+    $("fidsDepInfo").textContent = deps.length + " Flüge";
+    $("fidsArrInfo").textContent = arrs.length + " Flüge";
+    setHtml("fidsDep", !apt ? `<tr><td colspan="5" class="empty">Flughafen oben eingeben.</td></tr>` : boardRows(deps, info, "dep", wait || "Keine Abflüge im VATSIM-Netz."));
+    setHtml("fidsArr", !apt ? `<tr><td colspan="5" class="empty">Flughafen oben eingeben.</td></tr>` : boardRows(arrs, info, "arr", wait || "Keine Ankünfte im VATSIM-Netz."));
+  }
+  $("fidsForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("fidsIn").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (v.length !== 4) return;
+    fidsApt = v; store.rawSet("vdgs.fids", v); $("fidsIn").value = ""; $("fidsIn").blur();
+    S.fidsCdm = null; nextRun.fids = 0; render();
+  });
 
   // ---------- passenger: destination time and weather ----------
   // Turn a METAR into passenger language (°C, km/h, km, hPa)
@@ -1444,7 +1648,11 @@ td.k { color: var(--sign); font-weight: 700; }
     const row = (s, cls, lbl, when) => `<div class="fq-row ${cls}${s.st.unicom ? " unicom" : ""}"><span class="lbl role">${lbl} · ${esc(s.role)}</span>`
       + `<span class="stn">${esc(s.st.name)}<small>${esc(s.st.cs)}</small></span><span class="mhz num">${esc(s.st.mhz)}</span>`
       + (when ? `<span class="when">${esc(when)}</span>` : "") + `</div>`;
-    let html = row(p.cur, "", "Aktuell", "");
+    let html = "";
+    // a frequency instruction received by CPDLC beats the estimate
+    const cf = S.cpFreq && now - S.cpFreq.at < 15 * 60e3 ? S.cpFreq : null;
+    if (cf) html += `<div class="fq-row cpdlc"><span class="lbl role">CPDLC · ${esc(cf.verb)} · ${esc(hhmm(cf.at))}Z</span><span class="stn">${esc(cf.station)}<small>von ${esc(cf.from)}</small></span><span class="mhz num">${esc(cf.mhz)}</span></div>`;
+    html += row(p.cur, "", "Aktuell", "");
     if (p.next) html += row(p.next, "next" + (soon ? " soon" : ""), soon ? "Bald wechseln" : "Als nächstes", [p.next.when !== "jetzt" ? p.next.when : "", dist(p.next)].filter(Boolean).join(" · "));
     const later = p.later.map((s) => `<div><span class="n"><b>${esc(s.role)}</b>${esc(s.st.name)}</span><span class="t">${esc(s.km != null && s.km >= 1 ? (s.min != null ? s.min + " min" : nf(s.km) + " km") : "")}</span><span class="f">${esc(s.st.mhz)}</span></div>`);
     if (p.atisArr) later.unshift(`<div><span class="n"><b>ATIS ${esc(arrApt())}</b>Information ${esc(p.atisArr.atis_code || "")} vor dem Anflug hören</span><span class="t"></span><span class="f">${esc(p.atisArr.frequency)}</span></div>`);
@@ -1455,6 +1663,73 @@ td.k { color: var(--sign); font-weight: 700; }
     chip.textContent = soon ? "Bald wechseln" : p.connected ? "" : "Vorschau";
     chip.className = "chip" + (soon ? " y" : "");
     chip.hidden = !chip.textContent;
+    if (soon && settings.pushFreq && S.pushedFreq !== p.next.st.cs) {
+      S.pushedFreq = p.next.st.cs;
+      notifyPhone("Frequenzwechsel " + S.callsign, `Bald ${p.next.st.name} ${p.next.st.mhz} (${p.next.st.cs})${p.next.min != null ? ", in ca. " + p.next.min + " min" : ""}`, "radio");
+    }
+  }
+
+  // ---------- push to the phone via ntfy.sh (no own server needed) ----------
+  async function notifyPhone(title, message, tag, topic = settings.ntfy) {
+    if (!topic || settings.demo) return false;
+    try {
+      const r = await fetch("https://ntfy.sh/", { method: "POST", body: JSON.stringify({ topic, title, message, tags: [tag || "airplane"], priority: 4 }) });
+      return r.ok;
+    } catch { return false; }
+  }
+  $("btnNtfyNew").addEventListener("click", () => {
+    const a = new Uint8Array(8); crypto.getRandomValues(a);
+    $("inNtfy").value = "vdgs-" + [...a].map((b) => "abcdefghijkmnpqrstuvwxyz23456789"[b % 32]).join("");
+    $("ntfyStatus").textContent = "Neues Thema. Im Handy in der ntfy-App abonnieren, dann „Test“ tippen.";
+  });
+  $("btnNtfyTest").addEventListener("click", async () => {
+    const t = $("inNtfy").value.trim().replace(/[^A-Za-z0-9_-]/g, "");
+    if (!t) { $("ntfyStatus").textContent = "Zuerst ein Thema eintragen oder „Neu“ tippen."; return; }
+    $("ntfyStatus").textContent = "Sende…";
+    const ok = await fetch("https://ntfy.sh/", { method: "POST", body: JSON.stringify({ topic: t, title: "VDGS Slot Board", message: "Test: Push funktioniert.", tags: ["white_check_mark"] }) }).then((r) => r.ok).catch(() => false);
+    $("ntfyStatus").textContent = ok ? "Gesendet. Kam die Meldung auf dem Handy an?" : "Senden fehlgeschlagen. Internetverbindung prüfen.";
+  });
+
+  // ---------- CPDLC via Hoppie ACARS (read-only "peek") ----------
+  async function pollCpdlc() {
+    if (settings.demo || !settings.hoppie || !S.callsign) return;
+    try {
+      const body = new URLSearchParams({ logon: settings.hoppie, from: S.callsign, to: "SERVER", type: "peek", packet: "" });
+      const txt = await (await fetch("https://www.hoppie.nl/acars/system/connect.html", { method: "POST", body, cache: "no-store" })).text();
+      if (!txt.startsWith("ok")) { S.cpErr = /logon/i.test(txt) ? "Hoppie-Logon-Code ungültig" : "Hoppie: " + txt.slice(0, 80); render(); return; }
+      S.cpErr = "";
+      const msgs = [];
+      for (const m of txt.matchAll(/\{(\d+)\s+(\S+)\s+(\S+)\s+\{([^}]*)\}\}/g)) {
+        let text = m[4];
+        const d = text.match(/^\/data2\/\d*\/\d*\/[^/]*\/(.*)$/);
+        if (d) text = d[1];
+        text = text.replace(/@/g, "").replace(/\s+/g, " ").trim();
+        msgs.push({ id: +m[1], from: m[2], type: m[3], text });
+      }
+      msgs.sort((a, b) => b.id - a.id);
+      const first = S.cpMaxId == null;
+      const fresh = first ? [] : msgs.filter((x) => x.id > S.cpMaxId);
+      for (const x of msgs) if (!S.cpSeen.has(x.id)) S.cpSeen.set(x.id, first ? null : Date.now());
+      S.cpMaxId = msgs.length ? msgs[0].id : (S.cpMaxId ?? 0);
+      S.cpMsgs = msgs.slice(0, 8);
+      for (const x of fresh.reverse()) {
+        const f = x.text.match(/\b(CONTACT|MONITOR)\s+(\S+)\s+(\d{3}\.\d{1,3})/i);
+        if (f) S.cpFreq = { verb: f[1].toUpperCase(), station: f[2], mhz: f[3], from: x.from, at: Date.now() };
+        if (settings.pushCpdlc) notifyPhone("CPDLC von " + x.from, x.text, "envelope");
+      }
+    } catch (e) { S.cpErr = "Hoppie nicht erreichbar"; }
+    render();
+  }
+  function renderCpdlc(now) {
+    $("cpdlcCard").hidden = !settings.hoppie || settings.demo;
+    if ($("cpdlcCard").hidden) return;
+    const list = S.cpMsgs || [];
+    $("cpdlcChip").textContent = S.cpErr ? "Fehler" : list.length ? list.length + " Nachrichten" : "";
+    $("cpdlcChip").className = "chip" + (S.cpErr ? " r" : "");
+    const html = S.cpErr ? `<div class="err">${esc(S.cpErr)}</div>`
+      : !list.length ? `<div class="empty">${S.cpMaxId == null ? "Verbinde mit Hoppie…" : "Noch keine Nachrichten für " + esc(S.callsign) + ". Die App prüft jede Minute."}</div>`
+      : `<div class="cp-list">${list.map((x) => { const t = S.cpSeen.get(x.id); return `<div class="${t && now - t < 5 * 60e3 ? "new" : ""}"><span class="tm">${t ? hhmm(t) + "Z" : "älter"}</span><span class="tx">${esc(x.text)}</span><span class="fr">${esc(x.from)} · ${esc(x.type)}</span></div>`; }).join("")}</div>`;
+    setHtml("cpdlcBody", html);
   }
 
   // ICAO type designator -> name passengers know
@@ -1477,29 +1752,31 @@ td.k { color: var(--sign); font-weight: 700; }
   setInterval(() => {
     if (!autoOn || view !== "ife" || Date.now() - autoT < (pane === "map" ? 40e3 : 20e3)) return;
     autoT = Date.now();
-    setPane({ map: "dest", dest: "conn", conn: "map" }[pane]);
+    setPane({ map: "dest", dest: "conn", conn: "arr", arr: "map" }[pane]);
   }, 1000);
 
   // ---------- view switch ----------
-  let view = store.raw("vdgs.view") === "ife" ? "ife" : "slot";
-  let pane = ["map", "conn", "dest"].includes(store.raw("vdgs.pane")) ? store.raw("vdgs.pane") : "map";
+  let view = ["ife", "fids"].includes(store.raw("vdgs.view")) ? store.raw("vdgs.view") : "slot";
+  let pane = ["map", "conn", "arr", "dest"].includes(store.raw("vdgs.pane")) ? store.raw("vdgs.pane") : "map";
   function setPane(p) {
     pane = p; store.rawSet("vdgs.pane", p);
-    $("paneMap").hidden = p !== "map"; $("paneConn").hidden = p !== "conn"; $("paneDest").hidden = p !== "dest";
-    document.querySelectorAll(".pnav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.pane === p)));
+    $("paneMap").hidden = p !== "map"; $("paneConn").hidden = p !== "conn"; $("paneArr").hidden = p !== "arr"; $("paneDest").hidden = p !== "dest";
+    document.querySelectorAll(".pnav [data-pane]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.pane === p)));
     if (p === "map") { mapFitted = false; if (map) setTimeout(() => { map.invalidateSize(); mapFitted = false; render(); }, 50); }
     else { nextRun.conn = 0; nextRun.arrwx = 0; }
     render();
   }
-  document.querySelectorAll(".pnav button").forEach((b) => b.addEventListener("click", () => setPane(b.dataset.pane)));
+  document.querySelectorAll(".pnav [data-pane]").forEach((b) => b.addEventListener("click", () => setPane(b.dataset.pane)));
   function setView(v) {
     view = v; store.rawSet("vdgs.view", v);
-    $("viewIfe").hidden = v !== "ife"; $("viewSlot").hidden = v !== "slot";
-    $("tabSlot").setAttribute("aria-selected", String(v === "slot")); $("tabIfe").setAttribute("aria-selected", String(v === "ife"));
+    $("viewIfe").hidden = v !== "ife"; $("viewSlot").hidden = v !== "slot"; $("viewFids").hidden = v !== "fids";
+    for (const [id, k] of [["tabSlot", "slot"], ["tabIfe", "ife"], ["tabFids", "fids"]]) $(id).setAttribute("aria-selected", String(v === k));
     if (v === "ife") { loadAirports(); nextRun.conn = 0; nextRun.arrwx = 0; setPane(pane); }
+    if (v === "fids") { loadAirports(); nextRun.fids = 0; if (booted && !running && !settings.demo) { running = true; refreshAll(true); } render(); }
   }
   $("tabSlot").addEventListener("click", () => setView("slot"));
   $("tabIfe").addEventListener("click", () => setView("ife"));
+  $("tabFids").addEventListener("click", () => setView("fids"));
   $("btnFollow").addEventListener("click", () => { follow = !follow; syncFollow(); if (follow) render(); });
   // iPad rotation or window resize: let Leaflet measure again, then re-fit the route
   let resizeT = 0;
@@ -1664,6 +1941,8 @@ td.k { color: var(--sign); font-weight: 700; }
   // ---------- setup sheet ----------
   function openSetup() {
     $("inSb").value = settings.simbrief; $("inCs").value = settings.callsign; $("inCid").value = settings.cid; $("inChime").checked = settings.chime;
+    $("inHoppie").value = settings.hoppie || ""; $("inNtfy").value = settings.ntfy || ""; $("ntfyStatus").textContent = "";
+    $("inPushStart").checked = settings.pushStart !== false; $("inPushFreq").checked = settings.pushFreq !== false; $("inPushCpdlc").checked = settings.pushCpdlc !== false;
     $("setupErr").hidden = true; $("sheet").hidden = false; $("inSb").focus();
   }
   $("btnSetup").addEventListener("click", openSetup);
@@ -1674,7 +1953,9 @@ td.k { color: var(--sign); font-weight: 700; }
     const cid = $("inCid").value.trim().replace(/\D/g, "");
     const sb = $("inSb").value.trim();
     if (!cs && !cid && !sb) { const er = $("setupErr"); er.textContent = "Bitte SimBrief-Name, CID oder Callsign eingeben."; er.hidden = false; return; }
-    settings = { simbrief: sb, callsign: cs, cid, chime: $("inChime").checked, demo: false };
+    settings = { simbrief: sb, callsign: cs, cid, chime: $("inChime").checked, demo: false,
+      hoppie: $("inHoppie").value.trim(), ntfy: $("inNtfy").value.trim().replace(/[^A-Za-z0-9_-]/g, ""),
+      pushStart: $("inPushStart").checked, pushFreq: $("inPushFreq").checked, pushCpdlc: $("inPushCpdlc").checked };
     store.set(settings); $("sheet").hidden = true; unlockAudio(); start();
   });
   $("btnDemo").addEventListener("click", () => { settings.demo = true; store.set(settings); $("sheet").hidden = true; start(); });
@@ -1717,6 +1998,12 @@ td.k { color: var(--sign); font-weight: 700; }
       cx("SAMPLE11", "LFPO", "A319", 90, ["plan", "Planmäßig"]), cx("SAMPLE12", "EHAM", "B737", 115, ["late", "Verspätet"]),
       cx("SAMPLE13", "LSZH", "A220", 140, ["plan", "Planmäßig"]),
     ];
+    const ax = (cs, from, type, min, st, me) => ({ cs, from, type, time: min == null ? null : n + min * m, st, me });
+    S.demoArr = [
+      ax("SAMPLE20", "LEMD", "A320", null, ["gone", "Gelandet"]), ax("SAMPLE21", "EGKK", "A321", 18, ["board", "Im Anflug"]),
+      ax("DEMO123", "EDDF", "A21N", 52, ["taxi", "Unterwegs"], true), ax("SAMPLE22", "LSZH", "A220", 61, ["taxi", "Unterwegs"]),
+      ax("SAMPLE23", "EHAM", "B738", 95, ["plan", "Geplant"]),
+    ];
     S.ofp = { callsign: "DEMO123", dep: "EDDF", arr: "LEPA", altn: "LEVC", depRwy: "18", arrRwy: "24L", type: "A21N", reg: "D-DEMO", units: "kgs",
       depPos: [50.0264, 8.5431], arrPos: [39.5517, 2.7388], depName: "Frankfurt", arrName: "Palma", depTzH: 2, arrTzH: 2, navlog: [], eteMs: 118 * m,
       fl: "36000", ci: "30", pax: "196", dist: "722", route: "OBOKA2G OBOKA Z10 ... (Demo-Route)", block: "9850", trip: "6420", tof: "9650",
@@ -1737,9 +2024,10 @@ td.k { color: var(--sign); font-weight: 700; }
   pollFeed = guard("feed", pollFeed); pollFlight = guard("flight", pollFlight); pollBoard = guard("board", pollBoard);
   pollMetar = guard("metar", pollMetar); pollSimbrief = guard("simbrief", pollSimbrief);
   pollConn = guard("conn", pollConn); pollArrWx = guard("arrwx", pollArrWx); pollFir = guard("fir", pollFir);
+  pollFids = guard("fids", pollFids); pollCpdlc = guard("cpdlc", pollCpdlc);
   const JOBS = { feed: () => pollFeed(), flight: () => pollFlight(), board: () => pollBoard(), metar: () => pollMetar(), simbrief: () => pollSimbrief(),
-    conn: () => pollConn(), arrwx: () => pollArrWx() };
-  let running = false, lastRefreshAll = 0;
+    conn: () => pollConn(), arrwx: () => pollArrWx(), fids: () => pollFids(), cpdlc: () => pollCpdlc() };
+  let running = false, lastRefreshAll = 0, booted = false;
   function syncRefreshBtn() { $("btnRefresh").classList.toggle("busy", Object.values(busy).some(Boolean)); }
 
   // SimBrief + VATSIM feed first (they decide the callsign), then CDM, board and weather
@@ -1748,19 +2036,24 @@ td.k { color: var(--sign); font-weight: 700; }
     const now = Date.now();
     if (!force && now - lastRefreshAll < 5000) return;
     lastRefreshAll = now;
-    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); });
+    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); pollCpdlc(); if (view === "fids") pollFids(); });
   }
   function start() {
     running = false;
     Object.assign(S, { callsign: "", flight: null, board: [], pilot: null, prefile: null, atis: [], atc: [], metar: "", metarApt: "",
       feedOk: null, cdmOk: null, sbOk: null, sbErr: "", feed: null, cidCallsign: "", ofp: null, track: null, demoAir: null,
-      conn: null, connApt: "", arrMetar: "", arrMetarApt: "", pax: null, demoConn: null, ctrIdx: null, ctrIdxFor: 0, seq: null, seqKey: "" });
+      conn: null, connApt: "", arrMetar: "", arrMetarApt: "", pax: null, demoConn: null, ctrIdx: null, ctrIdxFor: 0, seq: null, seqKey: "",
+      demoArr: null, fidsCdm: null, fidsCdmApt: "", cpMsgs: null, cpMaxId: null, cpErr: "", cpFreq: null, cpSeen: new Map(),
+      pushedFreq: "", pushedGo: "", lastTsat: null });
     $("connBody").dataset.html = ""; $("paneDest").dataset.html = ""; $("freqBody").dataset.html = "";
     $("ofp").dataset.html = ""; routeKey = ""; mapFitted = false;
     if (settings.demo) { loadDemo(); render(); return; }
     updateCallsign();
     render();
-    if (!settings.callsign && !settings.cid && !settings.simbrief) { openSetup(); return; }
+    if (!settings.callsign && !settings.cid && !settings.simbrief) {
+      // the airport board works without a flight; everything else needs one
+      if (view !== "fids") { openSetup(); return; }
+    }
     running = true;
     for (const k in JOBS) nextRun[k] = Date.now() + POLL[k]; // the chain below runs every job once first
     refreshAll(true);
@@ -1774,16 +2067,18 @@ td.k { color: var(--sign); font-weight: 700; }
   setInterval(() => {
     const n = Date.now(); renderClock(n);
     if (running) for (const k in JOBS) if (!busy[k] && n >= (nextRun[k] || 0)) JOBS[k]();
-    if (S.callsign) render();
+    if (S.callsign || view === "fids") render();
   }, 1000);
   renderClock(Date.now()); syncWake(); syncAuto(); setView(view);
   // ?simbrief=Name, ?cs=DLH4AB or ?cid=1234567 in the URL pre-fill the flight (handy as an iPad home-screen bookmark)
   const q = new URLSearchParams(location.search);
   if (q.get("demo") !== null) settings.demo = true;
+  if (q.get("fids")) { fidsApt = q.get("fids").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4); store.rawSet("vdgs.fids", fidsApt); view = "fids"; setView("fids"); }
   if (q.get("simbrief")) { settings = { ...settings, simbrief: q.get("simbrief").trim(), callsign: "", demo: false }; store.set(settings); }
   if (q.get("cs")) { settings = { ...settings, callsign: q.get("cs").toUpperCase().replace(/[^A-Z0-9]/g, ""), cid: "", demo: false }; store.set(settings); }
   if (q.get("cid")) { settings = { ...settings, cid: q.get("cid").replace(/\D/g, ""), callsign: "", demo: false }; store.set(settings); }
   start();
+  booted = true;
 
   // App updates: always check the server for a new version (no HTTP cache) and reload once it is active
   let swReg = null;
