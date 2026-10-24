@@ -1,0 +1,43 @@
+# Weekly: stand/gate/terminal data from OpenStreetMap for ~250 busy airports, one file per airport
+# on the "stands" branch. The app reads these first (fast, reliable) and only asks Overpass live
+# for other airports.
+name: Stand data
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"   # Mondays 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stands
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: Keep the files of the last run (airports that fail now keep their old data)
+        run: |
+          mkdir out
+          if git fetch -q origin stands; then git --work-tree=out checkout FETCH_HEAD -- . && git reset -q; fi
+          ls out | wc -l
+      - name: Build stand data
+        run: python3 .github/scripts/stands.py airports.json out
+      - name: Publish
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          cd out
+          git init -q -b stands
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -qm "Stand data from OpenStreetMap (ODbL)"
+          # one orphan commit, force-pushed: the branch never grows
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" stands

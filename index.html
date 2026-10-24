@@ -722,7 +722,7 @@ td.k { color: var(--sign); font-weight: 700; }
     metar: "https://metar.vatsim.net/",
     simbrief: "https://www.simbrief.com/api/xml.fetcher.php",
   };
-  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3, fids: 60e3, cpdlc: 60e3, stands: 60e3 };
+  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3, fids: 60e3, cpdlc: 60e3, stands: 60e3, ukcp: 120e3 };
   const TSAT_WINDOW = 5 * 60e3;          // start-up window TSAT ±5 min
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -853,6 +853,7 @@ td.k { color: var(--sign); font-weight: 700; }
     "Gate / Stand": ["Gate / stand", "Izlaz / stajanka"], "Prognose": ["Forecast", "Prognoza"], "Gate-Info ca. 30 min vor Ankunft": ["Gate info approx. 30 min before arrival", "Info o izlazu oko 30 min pre dolaska"],
     "Lade Stand-Daten…": ["Loading stand data…", "Učitavanje podataka o stajankama…"], "Ihr Stand": ["Your stand", "Vaša stajanka"], "Geparkt": ["Parked", "Parkiran"],
     "Außenposition, Bus": ["Remote stand, bus", "Udaljena pozicija, autobus"], "zugeteilt": ["assigned", "dodeljeno"], "Schengen": ["Schengen", "Šengen"], "Non-Schengen": ["Non-Schengen", "Van Šengena"],
+    "von VATSIM UK zugeteilt": ["assigned by VATSIM UK", "dodelio VATSIM UK"], "Cargo": ["Cargo", "Kargo"], "General Aviation": ["General aviation", "Generalna avijacija"],
   };
   // dynamic texts: [pattern, English, Serbian] ($1… = captured parts, translated again where they are words)
   const TXP = [
@@ -2297,8 +2298,49 @@ td.k { color: var(--sign); font-weight: 700; }
     lowcost: "RYR RUK EZY EJU EZS WZZ WMT VLG TRA TVF NOZ NAX SXS PGT TUI TFL CFG BCS".split(" "),
   };
   const allianceOf = (cs) => Object.keys(ALLIANCE).find((k) => ALLIANCE[k].includes(String(cs).slice(0, 3))) || "";
-  // per airport: ordered rules; the first that matches gives the stand prefixes and the terminal
+  // home bases: at its hub an airline gets the main terminal and contact stands
+  const HUBS = {
+    DLH: "EDDF EDDM", CLH: "EDDF EDDM", DLA: "EDDM", EWG: "EDDL EDDK EDDH EDDS", CFG: "EDDF EDDM EDDL", TUI: "EDDH EDDV EGCC EGBB",
+    BAW: "EGLL EGKK", SHT: "EGLL", EZY: "EGKK EGGW EGSS EGCC LFPG", EXS: "EGCC EGNM", VIR: "EGLL EGCC", AFR: "LFPG LFPO", HOP: "LFPO LFLL",
+    KLM: "EHAM", TRA: "EHAM", UAE: "OMDB", FDB: "OMDB", QTR: "OTHH", ETD: "OMAA", SVA: "OEJN OERK", THY: "LTFM", PGT: "LTFJ",
+    SWR: "LSZH LSGG", EDW: "LSZH", AUA: "LOWW", IBE: "LEMD", IBS: "LEMD", AEA: "LEMD", VLG: "LEBL", TAP: "LPPT", SAS: "EKCH ESSA ENGM",
+    NOZ: "ENGM", FIN: "EFHK", LOT: "EPWA", ITY: "LIRF LIML", ASL: "LYBE", CTN: "LDZA", AEE: "LGAV", EIN: "EIDW", RYR: "EIDW LIRF LEMD",
+    WZZ: "LHBP LROP EPKT", ICE: "BIKF", BEL: "EBBR", LGL: "ELLX", CSA: "LKPR", ROT: "LROP", TAR: "DTTA", RAM: "GMMN", MSR: "HECA",
+    ETH: "HAAB", KQA: "HKJK", SAA: "FAOR", RJA: "OJAI", MEA: "OLBA", AIC: "VIDP VABB", SIA: "WSSS", CPA: "VHHH", MAS: "WMKK",
+    THA: "VTBS", QFA: "YSSY YMML YBBN YPPH", ANZ: "NZAA", JAL: "RJTT RJAA", ANA: "RJTT RJAA", KAL: "RKSI", AAR: "RKSI", CCA: "ZBAA ZBAD",
+    CES: "ZSPD", CSN: "ZGGG", EVA: "RCTP", CAL: "RCTP", ACA: "CYYZ CYUL CYVR", WJA: "CYYC", AAL: "KDFW KCLT KMIA KORD KJFK KLAX KPHL KPHX KDCA",
+    DAL: "KATL KDTW KMSP KJFK KLAX KSEA KSLC KBOS", UAL: "KORD KEWR KIAD KDEN KIAH KSFO KLAX", JBU: "KJFK KBOS", SWA: "KMDW KDAL KLAS KBWI",
+    ASA: "KSEA KPDX", AMX: "MMMX", LAN: "SCEL SPJC", TAM: "SBGR", AVA: "SKBO", CMP: "MPTO", ARG: "SAEZ SABE",
+  };
+  const isHub = (cs, apt) => (HUBS[String(cs).slice(0, 3)] || "").split(" ").includes(apt);
+  const CARGO = /^(GEC|BOX|FDX|UPS|CLX|ABW|CKS|GTI|MPH|NCA|CAO|CKK|SQC|DHK|BCS|DAE|ICL|AZG|TAY|SWN|ABR|AHK|CLU|MSX|QAC|ETC|ICV|WGN|CVK)/;
+  const WIDE = /^(A306|A30B|A310|A33|A34|A35|A38|B74|B76|B77|B78|MD1|IL9|B741|B742|B743|B744|B748)/;
+  const PROP = /^(AT4|AT7|DH8|SF34|JS3|B190|D328|E120|C208|PC12|L410|SB20)/;
+  // per airport: ordered rules; the first that matches gives the stand prefixes (pre) or OSM terminal names (tn) and the label
   const GATE_RULES = {
+    EDDM: [
+      { alliance: "star", tn: /2/, term: "Terminal 2" },
+      { tn: /1/, term: "Terminal 1" },
+    ],
+    LEMD: [
+      { alliance: "oneworld", tn: /4/, term: "Terminal 4" }, { airlines: ["IBS", "AEA", "VLG"], tn: /4/, term: "Terminal 4" },
+      { tn: /[123]/, term: "Terminal 1–3" },
+    ],
+    LIRF: [
+      { alliance: "skyteam", schengen: true, tn: /1/, term: "Terminal 1" }, { airlines: ["ITY"], schengen: true, tn: /1/, term: "Terminal 1" },
+      { tn: /3/, term: "Terminal 3" },
+    ],
+    LPPT: [{ alliance: "lowcost", tn: /2/, term: "Terminal 2" }, { tn: /1/, term: "Terminal 1" }],
+    EIDW: [
+      { airlines: ["EIN", "UAL", "DAL", "AAL", "ETD", "UAE", "QTR", "ACA"], tn: /2/, term: "Terminal 2" },
+      { tn: /1/, term: "Terminal 1" },
+    ],
+    LEBL: [{ airlines: ["EZY", "EJU", "EZS"], tn: /2/, term: "Terminal 2" }, { tn: /1/, term: "Terminal 1" }],
+    EBBR: [{ schengen: true, pre: ["A"], term: "Pier A · Schengen" }, { schengen: false, pre: ["B"], term: "Pier B · Non-Schengen" }],
+    LFPG: [
+      { alliance: "skyteam", tn: /2E|2F|2G/, term: "Terminal 2E/2F/2G" }, { alliance: "star", tn: /^Terminal 1$|^1$|T1/, term: "Terminal 1" },
+      { alliance: "lowcost", tn: /2B|2D|3/, term: "Terminal 2B/2D/3" }, { tn: /2A|2C|^Terminal 1$|^1$/, term: "Terminal 2A/2C/1" },
+    ],
     EDDF: [
       { star: true, schengen: true, pre: ["A"], term: "Terminal 1" },
       { star: true, schengen: false, pre: ["B", "C"], term: "Terminal 1" },
@@ -2328,52 +2370,136 @@ td.k { color: var(--sign); font-weight: 700; }
   };
   const REMOTE = /^(V|W|NV|P|S|Q|BAY|TA|TB|TE|6|7)/; // apron / remote stands, used only if nothing else is free
 
+  // OpenStreetMap: stands, gates, terminal buildings and named cargo / general-aviation aprons around the airport
   function loadStands(icao, pos) {
-    const key = "vdgs.stands." + icao;
+    const key = "vdgs.stands4." + icao;
     try { const c = JSON.parse(localStorage.getItem(key) || "null"); if (c && Date.now() - c.t < 7 * 864e5) return Promise.resolve(c.list); } catch {}
     if (!pos) return Promise.resolve(null);
-    const q = `[out:json][timeout:25];(node(around:4500,${pos[0]},${pos[1]})["aeroway"~"^(parking_position|gate)$"];way(around:4500,${pos[0]},${pos[1]})["aeroway"="parking_position"];);out tags center;`;
-    return fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: new URLSearchParams({ data: q }) })
-      .then((r) => r.json()).then((d) => {
-        const gates = new Set(d.elements.filter((e) => e.tags.aeroway === "gate" && e.tags.ref).map((e) => e.tags.ref.split(/[\s/]/)[0]));
-        const list = d.elements.filter((e) => e.tags.aeroway === "parking_position" && e.tags.ref).map((e) => {
-          const ref = e.tags.ref.split(/[\s/;]/)[0];
-          return { ref, lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon, gate: gates.has(ref) };
-        }).filter((s) => s.lat != null);
-        try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), list })); } catch {}
-        return list;
-      });
+    const A = `(around:4500,${pos[0]},${pos[1]})`;
+    const q = `[out:json][timeout:25];(node${A}["aeroway"~"^(parking_position|gate)$"];way${A}["aeroway"="parking_position"];);out tags center;`
+      + `(way${A}["aeroway"="terminal"];relation${A}["aeroway"="terminal"];);out tags center;`
+      + `way${A}["aeroway"="apron"]["name"~"cargo|fracht|fret|frêt|carga|general aviation|^GA|GAT|business|executive",i];out tags geom;`;
+    // the public Overpass servers are often busy: try the main one, then a mirror
+    const servers = ["https://overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+    const ask = async () => {
+      for (const url of servers) {
+        const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), 40000);
+        try {
+          const r = await fetch(url, { method: "POST", body: new URLSearchParams({ data: q }), signal: ac.signal });
+          if (r.ok) return await r.json();
+        } catch (e) {} finally { clearTimeout(tm); }
+      }
+      throw new Error("overpass busy");
+    };
+    const save = (list) => { try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), list })); } catch {} return list; };
+    // 1. prepared weekly by a GitHub job for ~250 busy airports (fast, does not depend on Overpass)
+    return getJSON(`https://raw.githubusercontent.com/${GH}/stands/${icao}.json`, 15000)
+      .then((list) => { if (Array.isArray(list) && list.length) return save(list); throw new Error("none"); })
+      // 2. any other airport: ask Overpass live
+      .catch(() => ask().then((d) => save(buildStands(d.elements))));
+  }
+
+  // OSM elements -> stands; same as build() in .github/scripts/stands.py, keep both in step
+  const GA_RE = /business|general aviation|executive|GAT|FBO|privat/i, CARGO_RE = /cargo|fracht|fret|frêt|carga/i;
+  function termName(t) {
+    const name = t.name || "", ref = t.ref || "";
+    if (ref && !CARGO_RE.test(name) && !GA_RE.test(name)) return "Terminal " + ref.replace(/^T(?=\w)/, "");
+    const m = name.match(/Terminal\s*([0-9A-Z]{1,3})\b/);
+    return m ? "Terminal " + m[1] : name || (ref ? "Terminal " + ref : "");
+  }
+  function buildStands(el) {
+    const pos = (e) => [e.lat ?? e.center?.lat, e.lon ?? e.center?.lon];
+    const gateNodes = el.filter((e) => e.tags?.aeroway === "gate" && pos(e)[0] != null).map((e) => ({ r: (e.tags.ref || "").split(/[\s/]/)[0], p: pos(e) }));
+    const gateRefs = new Set(gateNodes.map((g) => g.r).filter(Boolean));
+    const terms = el.filter((e) => e.tags?.aeroway === "terminal" && (e.tags.name || e.tags.ref) && e.center)
+      .map((e) => ({ n: termName(e.tags), p: [e.center.lat, e.center.lon], cargo: CARGO_RE.test(e.tags.name || ""), ga: GA_RE.test(e.tags.name || "") }));
+    const aprons = el.filter((e) => e.tags?.aeroway === "apron" && e.geometry)
+      .map((e) => ({ cargo: CARGO_RE.test(e.tags.name), ring: e.geometry.map((g) => [g.lon, g.lat]) }));
+    return el.filter((e) => e.tags?.aeroway === "parking_position" && e.tags.ref).map((e) => {
+      const ref = e.tags.ref.split(/[\s/;]/)[0];
+      const [lat, lon] = pos(e);
+      if (lat == null) return null;
+      let near = null, bd = 1.5;
+      for (const x of terms) { const dd = distKm([lat, lon], x.p); if (dd < bd) { bd = dd; near = x; } }
+      const ap = aprons.find((a) => inRing([lat, lon], a.ring));
+      const cargo = !!ap?.cargo || !!near?.cargo, ga = (!!ap && !ap.cargo) || !!near?.ga;
+      const c = gateRefs.has(ref) || gateNodes.some((g) => distKm([lat, lon], g.p) < 0.12);
+      return { ref, lat, lon, gate: gateRefs.has(ref), c, t: cargo || ga ? "" : near?.n || "", cargo, ga };
+    }).filter(Boolean);
+  }
+
+  // real stand assignments for UK airports (VATSIM UK), copied every 5 min by a GitHub job to the "data" branch
+  const GH = location.hostname.endsWith("github.io")
+    ? location.hostname.split(".")[0] + "/" + (location.pathname.split("/")[1] || "vdgs-slot-board") : "sbelic95/vdgs-slot-board";
+  async function pollUkcp() {
+    if (settings.demo || !/^EG/.test(arrApt())) return;
+    try {
+      const d = await getJSON(`https://raw.githubusercontent.com/${GH}/data/ukcp.json`, 15000);
+      if (d?.assignments) { S.ukcp = d; S.ukcpAt = Date.now(); }
+    } catch (e) {}
+    render();
   }
   async function pollStands() {
     const arrI = arrApt(); if (!arrI || settings.demo || S.standsApt === arrI) return;
     const ofp = S.ofp?.callsign === S.callsign ? S.ofp : null;
     const pos = aptInfo(arrI, ofp, "arr")?.pos;
     if (!pos) return;
-    try { const list = await loadStands(arrI, pos); if (list) { S.stands = list; S.standsApt = arrI; } } catch (e) {}
+    try {
+      const list = await loadStands(arrI, pos);
+      if (list) { S.stands = list; S.standsApt = arrI; S.standsWait = 0; }
+    } catch (e) { S.standsWait = Math.min((S.standsWait || 15e3) * 2, 5 * 60e3); } // back off while the servers are busy
     render();
   }
 
-  // pick a stand: rule-based area, free on VATSIM, stable per callsign
-  function predictStand(arrI, depI, cs) {
+  // pick a stand for any airport. Layers, most specific first:
+  // 1. cargo flights -> cargo apron, general aviation -> GA apron
+  // 2. curated airport rule (terminal / pier by airline, alliance, Schengen)
+  // 3. generic: hub carrier -> main terminal; wide-bodies -> contact stands; low-cost and turboprops -> remote stands;
+  //    other airlines -> the other terminals
+  // then: skip stands occupied on VATSIM, choose stably per callsign
+  function predictStand(arrI, depI, cs, type) {
     if (!S.stands || S.standsApt !== arrI || !S.stands.length) return null;
     const schengenFlight = SCHENGEN.test(arrI) ? SCHENGEN.test(depI || "") : null;
     const al = allianceOf(cs), code = String(cs).slice(0, 3);
-    const rule = (GATE_RULES[arrI] || []).find((r) =>
-      (r.airlines ? r.airlines.includes(code) : true) && (r.alliance ? r.alliance === al : true) &&
-      (r.star !== undefined ? (al === "star") === r.star : true) && (r.schengen !== undefined ? r.schengen === schengenFlight : true));
+    const kind = CARGO.test(cs) ? "cargo" : /^[A-Z]{3}\d/.test(cs) ? "pax" : "ga";
     const taken = (S.feed?.pilots || []).filter((p) => p.groundspeed < 5 && p.callsign !== cs).map((p) => [p.latitude, p.longitude]);
     const free = (s) => !taken.some((t) => distKm(t, [s.lat, s.lon]) < 0.06);
     const sorted = [...S.stands].sort((a, b) => a.ref.localeCompare(b.ref, "en", { numeric: true }));
-    const inRule = rule ? sorted.filter((s) => rule.pre.some((p) => s.ref.startsWith(p))) : [];
-    const contact = sorted.filter((s) => !REMOTE.test(s.ref));
-    let pool = inRule.filter(free);
-    if (!pool.length) pool = (rule ? inRule : contact.filter((s) => s.gate)).filter(free);
-    if (!pool.length) pool = contact.filter(free);
-    if (!pool.length) pool = sorted.filter(free);
+    // remote = no passenger gate at or next to the stand; the letter list only applies at airports with curated rules
+    const anyContact = sorted.some((x) => x.c);
+    const isRemote = (s) => (GATE_RULES[arrI] && REMOTE.test(s.ref)) || (!s.c && anyContact);
+    const steps = []; // candidate pools, best first: [label, stands]
+    let term = "";
+
+    if (kind === "cargo") steps.push(["Cargo", sorted.filter((s) => s.cargo)], ["Cargo", sorted.filter(isRemote)]);
+    if (kind === "ga") steps.push(["General Aviation", sorted.filter((s) => s.ga)], ["General Aviation", sorted.filter((s) => isRemote(s) && !s.cargo)]);
+    const pax = sorted.filter((s) => !s.cargo && !s.ga);
+    const rule = kind === "pax" && (GATE_RULES[arrI] || []).find((r) =>
+      (r.airlines ? r.airlines.includes(code) : true) && (r.alliance ? r.alliance === al : true) &&
+      (r.star !== undefined ? (al === "star") === r.star : true) && (r.schengen !== undefined ? r.schengen === schengenFlight : true));
+    if (rule) {
+      steps.push([rule.term, pax.filter((s) => rule.pre ? rule.pre.some((p) => s.ref.startsWith(p)) : rule.tn.test(s.t))]);
+      term = rule.term;
+    } else if (kind === "pax") {
+      // terminals as mapped in OSM; the one with most gates is the main terminal
+      const count = {}; for (const s of pax) if (s.t && s.c) count[s.t] = (count[s.t] || 0) + 1;
+      const tlist = Object.keys(count).sort((a, b) => count[b] - count[a]);
+      const main = tlist[0] || "";
+      const contact = pax.filter((s) => !isRemote(s)), remote = pax.filter(isRemote);
+      const wide = WIDE.test(type || ""), small = PROP.test(type || ""), lowcost = al === "lowcost";
+      if (isHub(cs, arrI)) steps.push([main, contact.filter((s) => !main || s.t === main)]);
+      else if ((lowcost || small) && !wide) steps.push(["", remote]);
+      else if (tlist.length > 1) steps.push(["", contact.filter((s) => s.t !== main)]);
+      steps.push(["", contact]);
+    }
+    steps.push(["", pax.filter((s) => !isRemote(s))], ["", pax], ["", sorted]);
+
+    let pool = [], label = term;
+    for (const [l, cand] of steps) { pool = cand.filter(free); if (pool.length) { label = term || l; break; } }
     if (!pool.length) return null;
     let h = 0; for (const ch of cs + arrI) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
     const s = pool[h % pool.length];
-    return { ref: s.ref, gate: s.gate, term: rule?.term || "", schengen: schengenFlight, remote: REMOTE.test(s.ref), pos: [s.lat, s.lon] };
+    return { ref: s.ref, gate: s.gate, term: label || s.t || "", schengen: kind === "pax" ? schengenFlight : null, remote: isRemote(s) && kind === "pax", pos: [s.lat, s.lon] };
   }
 
   // gate info for the own flight: hidden until ~30 min before arrival (like a real airline), actual stand once parked
@@ -2386,17 +2512,23 @@ td.k { color: var(--sign); font-weight: 700; }
       if (best && bd < 0.08) return { state: "parked", ref: best.ref, gate: best.gate };
     }
     const due = landed || (eta && eta - now <= 30 * 60e3);
+    // a real assignment by VATSIM UK controllers' system beats any prediction and is shown as soon as it exists
+    const uk = S.ukcp?.assignments?.[S.callsign];
+    if (uk && uk.apt === arrI) {
+      const rule = (GATE_RULES[arrI] || []).find((r) => r.pre && r.pre.some((p) => uk.stand.startsWith(p)));
+      return { state: "assigned", real: true, due, key: S.callsign + arrI + uk.stand, ref: uk.stand, gate: false, term: rule?.term || "", schengen: null };
+    }
     if (!due) return { state: "later", at: eta ? eta - 30 * 60e3 : null };
     if (!S.stands || S.standsApt !== arrI) {
-      if (now - (S.standsTry || 0) > 15e3) { S.standsTry = now; pollStands(); } // retry soon, e.g. once airport coordinates are loaded
+      if (now - (S.standsTry || 0) > (S.standsWait || 15e3)) { S.standsTry = now; pollStands(); } // retry, e.g. once airport coordinates are loaded
       return { state: "loading" };
     }
     if (!S.gateFix || S.gateFix.key !== S.callsign + arrI) {
-      const p = predictStand(arrI, depApt(), S.callsign);
+      const p = predictStand(arrI, depApt(), S.callsign, S.pilot?.flight_plan?.aircraft_short || S.ofp?.type);
       if (!p) return { state: "none" };
       S.gateFix = { key: S.callsign + arrI, ...p, at: now };
     }
-    return { state: "assigned", ...S.gateFix };
+    return { state: "assigned", due, ...S.gateFix };
   }
   const gateLabel = (g) => (g.gate ? "Gate " : "Stand ") + g.ref;
   function gateHtml(g, arrI) {
@@ -2406,11 +2538,11 @@ td.k { color: var(--sign); font-weight: 700; }
     if (g.state === "none") return `<span class="lbl">Gate / Stand ${esc(arrI)}</span><div class="gt-s">Keine Stand-Daten für ${esc(arrI)}</div>`;
     if (g.state === "parked") return `<span class="lbl">Ihr Stand</span><div class="gt-v num">${esc(gateLabel(g))}</div><div class="gt-s">Geparkt</div>`;
     const tags = [g.term, g.schengen === true ? "Schengen" : g.schengen === false ? "Non-Schengen" : "", g.remote ? "Außenposition, Bus" : ""].filter(Boolean).join(" · ");
-    return `<span class="lbl">Gate / Stand ${esc(arrI)} · Prognose</span><div class="gt-v num">${esc(gateLabel(g))}</div><div class="gt-s">${esc(tags || "zugeteilt")}</div>`;
+    return `<span class="lbl">Gate / Stand ${esc(arrI)} · ${g.real ? "VATSIM UK" : "Prognose"}</span><div class="gt-v num">${esc(gateLabel(g))}</div><div class="gt-s">${esc(g.real ? [g.term, "von VATSIM UK zugeteilt"].filter(Boolean).join(" · ") : tags || "zugeteilt")}</div>`;
   }
   // announce once per flight, like the cabin crew does ~30 min before arrival
   function announceGate(g, arrI) {
-    if (!g || g.state !== "assigned" || S.gateAnnounced === g.key) return;
+    if (!g || g.state !== "assigned" || !g.due || S.gateAnnounced === g.key) return;
     S.gateAnnounced = g.key;
     if (settings.chime) chime();
     S.gateToastUntil = Date.now() + 20e3;
@@ -2576,9 +2708,9 @@ td.k { color: var(--sign); font-weight: 700; }
   pollFeed = guard("feed", pollFeed); pollFlight = guard("flight", pollFlight); pollBoard = guard("board", pollBoard);
   pollMetar = guard("metar", pollMetar); pollSimbrief = guard("simbrief", pollSimbrief);
   pollConn = guard("conn", pollConn); pollArrWx = guard("arrwx", pollArrWx); pollFir = guard("fir", pollFir);
-  pollFids = guard("fids", pollFids); pollCpdlc = guard("cpdlc", pollCpdlc); pollStands = guard("stands", pollStands);
+  pollFids = guard("fids", pollFids); pollCpdlc = guard("cpdlc", pollCpdlc); pollStands = guard("stands", pollStands); pollUkcp = guard("ukcp", pollUkcp);
   const JOBS = { feed: () => pollFeed(), flight: () => pollFlight(), board: () => pollBoard(), metar: () => pollMetar(), simbrief: () => pollSimbrief(),
-    conn: () => pollConn(), arrwx: () => pollArrWx(), fids: () => pollFids(), cpdlc: () => pollCpdlc(), stands: () => { if (S.pilot) pollStands(); } };
+    conn: () => pollConn(), arrwx: () => pollArrWx(), fids: () => pollFids(), cpdlc: () => pollCpdlc(), stands: () => { if (S.pilot) pollStands(); }, ukcp: () => pollUkcp() };
   let running = false, lastRefreshAll = 0, booted = false;
   function syncRefreshBtn() { $("btnRefresh").classList.toggle("busy", Object.values(busy).some(Boolean)); }
 
@@ -2588,7 +2720,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const now = Date.now();
     if (!force && now - lastRefreshAll < 5000) return;
     lastRefreshAll = now;
-    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); pollArrWx(); pollCpdlc(); if (S.pilot) pollStands(); if (view === "fids") pollFids(); });
+    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); pollArrWx(); pollCpdlc(); if (S.pilot) pollStands(); pollUkcp(); if (view === "fids") pollFids(); });
   }
   function start() {
     running = false;
@@ -2596,7 +2728,7 @@ td.k { color: var(--sign); font-weight: 700; }
       feedOk: null, cdmOk: null, sbOk: null, sbErr: "", feed: null, cidCallsign: "", ofp: null, track: null, demoAir: null,
       conn: null, connApt: "", arrMetar: "", arrMetarApt: "", pax: null, demoConn: null, ctrIdx: null, ctrIdxFor: 0, seq: null, seqKey: "",
       demoArr: null, fidsCdm: null, fidsCdmApt: "", cpMsgs: null, cpMaxId: null, cpErr: "", cpFreq: null, cpSeen: new Map(),
-      pushedFreq: "", pushedGo: "", lastTsat: null, stands: null, standsApt: "", gateFix: null, gateAnnounced: "", gateToastUntil: 0, paxGate: "" });
+      pushedFreq: "", pushedGo: "", lastTsat: null, stands: null, standsApt: "", gateFix: null, gateAnnounced: "", gateToastUntil: 0, paxGate: "", ukcp: null });
     $("connBody").dataset.html = ""; $("paneDest").dataset.html = ""; $("freqBody").dataset.html = "";
     $("ofp").dataset.html = ""; routeKey = ""; mapFitted = false;
     if (settings.demo) { loadDemo(); render(); return; }
