@@ -50,15 +50,15 @@ def overpass(lat, lon):
          f'(way{a}["aeroway"="terminal"];relation{a}["aeroway"="terminal"];);out tags center;'
          f'way{a}["aeroway"="apron"]["name"~"cargo|fracht|fret|frêt|carga|general aviation|^GA|GAT|business|executive",i];out tags geom;')
     body = urllib.parse.urlencode({"data": q}).encode()
-    for attempt in range(6):
+    for attempt in range(3):
         url = SERVERS[attempt % len(SERVERS)]
         try:
             req = urllib.request.Request(url, data=body, headers={"User-Agent": "vdgs-slot-board stand builder (GitHub Actions)"})
-            with urllib.request.urlopen(req, timeout=120) as r:
+            with urllib.request.urlopen(req, timeout=90) as r:
                 return json.load(r)
-        except Exception as e:  # busy or timeout: back off and try the other server
-            print(f"  {url.split('/')[2]}: {e}; retry", flush=True)
-            time.sleep(15 * (attempt + 1))
+        except Exception as e:  # busy or timeout: short pause, then the other server; the next weekly run retries
+            print(f"  {url.split('/')[2]}: {e}", flush=True)
+            time.sleep(10 * (attempt + 1))
     return None
 
 
@@ -135,9 +135,13 @@ def main():
     out_dir = sys.argv[2]
     os.makedirs(out_dir, exist_ok=True)
     ok = fail = 0
+    deadline = time.time() + float(os.environ.get("STANDS_MINUTES", "150")) * 60  # stop in time so the results get published
     for icao in AIRPORTS:
         if icao not in apts:
             continue
+        if time.time() > deadline:
+            print("time budget used up; the remaining airports keep their old files")
+            break
         lat, lon = apts[icao][0], apts[icao][1]
         print(icao, flush=True)
         d = overpass(lat, lon)
