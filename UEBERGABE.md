@@ -184,7 +184,7 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 2. **Prognose** für alle anderen Flughäfen.
 
 **Stand-Daten** (Stands, Gates, Terminals, Fracht- und GA-Vorfelder aus OpenStreetMap):
-- Für ~250 große Flughäfen baut ein wöchentlicher GitHub-Job sie vor (`.github/workflows/stands.yml` und `.github/scripts/stands.py`). Ergebnis: eine Datei `<ICAO>.json` pro Flughafen im Branch `stands`.
+- Für ~250 große Flughäfen baut ein täglicher GitHub-Job sie vor (fehlende Flughäfen zuerst) (`.github/workflows/stands.yml` und `.github/scripts/stands.py`). Ergebnis: eine Datei `<ICAO>.json` pro Flughafen im Branch `stands`.
 - Für andere Flughäfen fragt die App live bei Overpass an: zuerst `overpass-api.de`, sonst `maps.mail.ru`. Zwischen Fehlversuchen wartet sie doppelt so lange, höchstens 5 min.
 - Zwischenspeicher: 7 Tage in `localStorage["vdgs.stands4.<ICAO>"]`.
 - **Felder pro Stand:**
@@ -234,7 +234,7 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 **Navigraph:** Für Webseiten verlangt Navigraph eine Partnerschaft (Entwickler-Zugang beantragen), einen eigenen Server und ein Abo der Nutzer. Nicht eingebunden.
 
 **GitHub-Jobs:**
-- **Zeitplan:** `*/5 * * * *` (UK) und montags 03:17 UTC (Stand-Daten). Beide lassen sich unter „Actions“ von Hand starten („Run workflow“).
+- **Zeitplan:** `*/5 * * * *` (UK) und täglich 03:17 UTC (Stand-Daten). Beide lassen sich unter „Actions“ von Hand starten („Run workflow“).
 - **Speicher:** Jeder Lauf schreibt genau einen Commit in seinen Branch (Force-Push), der Branch wächst also nicht.
 - **Hinweis:** GitHub kann zeitgesteuerte Jobs abschalten, wenn im Repository 60 Tage lang nichts passiert. Dann unter „Actions“ wieder einschalten.
 

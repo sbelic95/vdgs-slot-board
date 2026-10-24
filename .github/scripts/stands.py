@@ -143,7 +143,9 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     ok = fail = 0
     deadline = time.time() + float(os.environ.get("STANDS_MINUTES", "150")) * 60  # stop in time so the results get published
-    for icao in AIRPORTS:
+    # missing airports first, then the oldest files: busy Overpass days still make progress over several runs
+    age = lambda i: os.path.getmtime(os.path.join(out_dir, i + ".json")) if os.path.exists(os.path.join(out_dir, i + ".json")) else 0
+    for icao in sorted(dict.fromkeys(AIRPORTS), key=age):
         if icao not in apts:
             continue
         if time.time() > deadline:

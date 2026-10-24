@@ -1,11 +1,11 @@
-# Weekly: stand/gate/terminal data from OpenStreetMap for ~250 busy airports, one file per airport
+# Daily: stand/gate/terminal data from OpenStreetMap for ~250 busy airports, one file per airport
 # on the "stands" branch. The app reads these first (fast, reliable) and only asks Overpass live
 # for other airports.
 name: Stand data
 
 on:
   schedule:
-    - cron: "17 3 * * 1"   # Mondays 03:17 UTC
+    - cron: "17 3 * * *"   # daily 03:17 UTC (missing airports first)
   workflow_dispatch:
 
 permissions:
