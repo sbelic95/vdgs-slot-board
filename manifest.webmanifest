@@ -1,0 +1,16 @@
+{
+  "name": "VDGS Slot Board",
+  "short_name": "VDGS",
+  "description": "Live CDM-Slot (TOBT, TSAT, TTOT, CTOT) für VATSIM-Piloten.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0e13",
+  "theme_color": "#0a0e13",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

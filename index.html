@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VDGS Slot Board</title>
+<meta name="description" content="Live CDM-Slot (TOBT, TSAT, TTOT, CTOT) für VATSIM-Piloten – Dauerbildschirm fürs iPad.">
+<meta name="theme-color" content="#0a0e13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VDGS">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: airport apron display — top status rail, VDGS slot panel left, flight/weather/ATC stack right, FIDS departure board across the bottom.
+   Single dark look on purpose: it is an always-on screen (battery, glare, matches real VDGS/FIDS hardware). */
+:root {
+  color-scheme: dark;
+  --bg: #0a0e13;          /* apron night, slight blue bias */
+  --panel: #10161e;
+  --panel-2: #151d27;
+  --line: #222d3a;
+  --fg: #e8eef4;
+  --dim: #8492a3;
+  --faint: #566476;
+  --sign: #ffcc00;        /* airport wayfinding yellow — the accent */
+  --sign-ink: #121212;
+  --ok: #2fd47a;
+  --warn: #ffb020;
+  --bad: #ff4f5a;
+  --info: #57b8ff;
+
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "B612", "Segoe UI", system-ui, sans-serif;   /* Airbus cockpit face */
+  --f-num: "B612 Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.4 var(--f-body);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--sign); outline-offset: 2px; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }
+.lbl { font: 600 12px/1 var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+
+.app {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 14px;
+  padding-block: 12px 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- Top rail ---------- */
+.rail { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { display: flex; align-items: stretch; height: 42px; font-family: var(--f-display); text-transform: uppercase; }
+.brand .tag { background: var(--sign); color: var(--sign-ink); font-weight: 700; font-size: 24px; letter-spacing: .06em; padding: 0 12px; display: grid; place-items: center; }
+.brand .apt { background: var(--panel-2); border: 1px solid var(--line); border-left: 0; padding: 0 14px; display: grid; place-items: center; font-weight: 600; font-size: 22px; letter-spacing: .1em; }
+.clocks { display: flex; gap: 18px; margin-left: auto; align-items: baseline; }
+.clock { display: grid; justify-items: end; gap: 2px; }
+.clock .t { font-size: 30px; font-weight: 700; line-height: 1; }
+.clock.sec .t { font-size: 20px; color: var(--dim); font-weight: 400; }
+.tools { display: flex; gap: 8px; }
+.ibtn {
+  height: 42px; min-width: 42px; padding: 0 12px; border-radius: 6px;
+  background: var(--panel-2); border: 1px solid var(--line); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 600 13px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase;
+}
+.ibtn:hover { border-color: var(--faint); }
+.ibtn[aria-pressed="true"] { border-color: var(--sign); color: var(--sign); }
+.ibtn svg { width: 18px; height: 18px; flex: none; }
+.live { display: inline-flex; align-items: center; gap: 7px; font: 600 12px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+.dot.ok { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+.dot.bad { background: var(--bad); }
+
+/* ---------- Main grid ---------- */
+.main { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; min-height: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+/* VDGS slot panel */
+.vdgs { display: grid; grid-template-rows: auto auto auto auto; align-content: start; overflow: hidden; }
+.vdgs-head { display: flex; align-items: center; gap: 16px; padding: 18px 22px 10px; flex-wrap: wrap; }
+.cs { font: 700 64px/0.9 var(--f-display); letter-spacing: .03em; }
+.route { display: flex; align-items: center; gap: 10px; font: 600 28px/1 var(--f-display); letter-spacing: .08em; color: var(--dim); }
+.route b { color: var(--fg); }
+.route svg { width: 22px; height: 22px; color: var(--sign); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.chip { font: 600 12px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--line); color: var(--dim); }
+.chip.y { border-color: var(--sign); color: var(--sign); }
+.chip.r { border-color: var(--bad); color: var(--bad); }
+.chip.g { border-color: var(--ok); color: var(--ok); }
+
+.banner {
+  margin: 0 22px; border-radius: 8px; padding: 16px 20px;
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  background: var(--panel-2); border: 1px solid var(--line);
+}
+.banner .state { font: 700 34px/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
+.banner .hint { color: var(--dim); font-size: 14px; max-width: 46ch; }
+.banner .count { margin-left: auto; text-align: right; display: grid; gap: 4px; }
+.banner .count .num { font-size: 54px; font-weight: 700; line-height: .95; }
+.banner.wait { background: color-mix(in srgb, var(--warn) 14%, var(--panel)); border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+.banner.wait .state, .banner.wait .count .num { color: var(--warn); }
+.banner.go { background: color-mix(in srgb, var(--ok) 16%, var(--panel)); border-color: var(--ok); }
+.banner.go .state, .banner.go .count .num { color: var(--ok); }
+.banner.go { animation: pulse 2.4s ease-in-out infinite; }
+.banner.late { background: color-mix(in srgb, var(--bad) 16%, var(--panel)); border-color: var(--bad); }
+.banner.late .state, .banner.late .count .num { color: var(--bad); }
+.banner.done .state { color: var(--info); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ok) 18%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .banner.go { animation: none; } }
+
+.times { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); margin: 18px 22px 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: start; }
+.tcell { background: var(--panel); padding: 14px 16px 16px; display: grid; gap: 8px; min-width: 0; }
+.tcell .v { font-size: 44px; font-weight: 700; line-height: 1; }
+.tcell .v.none { color: var(--faint); }
+.tcell .s { font-size: 12px; color: var(--dim); min-height: 1.2em; }
+.tcell.key { background: color-mix(in srgb, var(--sign) 7%, var(--panel)); }
+.tcell.key .lbl { color: var(--sign); }
+.tcell.key .v { color: var(--sign); }
+
+.timeline { padding: 18px 22px 20px; }
+.tl { position: relative; height: 66px; margin-top: 10px; }
+.tl .axis { position: absolute; left: 0; right: 0; top: 30px; height: 2px; background: var(--line); }
+.tl .band { position: absolute; top: 24px; height: 14px; border-radius: 3px; }
+.tl .band.tsat { background: color-mix(in srgb, var(--ok) 35%, transparent); border: 1px solid var(--ok); }
+.tl .band.ctot { background: color-mix(in srgb, var(--info) 25%, transparent); border: 1px solid var(--info); top: 40px; height: 8px; }
+.tl .mk { position: absolute; top: 0; transform: translateX(-50%); display: grid; justify-items: center; gap: 3px; font: 600 11px/1 var(--f-display); letter-spacing: .1em; color: var(--dim); white-space: nowrap; }
+.tl .mk i { width: 2px; height: 14px; background: var(--dim); display: block; margin-top: 3px; }
+.tl .mk.k { color: var(--sign); } .tl .mk.k i { background: var(--sign); }
+.tl .now { position: absolute; top: 14px; bottom: 0; width: 2px; background: var(--fg); transform: translateX(-50%); }
+.tl .now::after { content: "NOW"; position: absolute; bottom: -2px; left: 6px; font: 700 11px/1 var(--f-display); letter-spacing: .12em; color: var(--fg); }
+.tl .tick { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 11px; color: var(--faint); }
+
+/* Side cards */
+.card { padding: 16px 18px; display: grid; gap: 12px; }
+.card h2 { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; }
+.kv > div { display: grid; gap: 5px; min-width: 0; }
+.kv .v { font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.rte { font-family: var(--f-num); font-size: 12.5px; color: var(--dim); line-height: 1.5; max-height: 4.6em; overflow: auto; overflow-wrap: anywhere; border-top: 1px solid var(--line); padding-top: 10px; }
+.metar { font-family: var(--f-num); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.atis { display: flex; align-items: center; gap: 12px; }
+.atis .letter { width: 52px; height: 52px; border-radius: 6px; background: var(--sign); color: var(--sign-ink); display: grid; place-items: center; font: 700 36px/1 var(--f-display); flex: none; }
+.atis .txt { font-size: 12.5px; color: var(--dim); max-height: 5.8em; overflow: auto; min-width: 0; }
+.atc { display: grid; gap: 1px; background: var(--line); border-radius: 6px; overflow: hidden; }
+.atc > div { background: var(--panel-2); display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; }
+.atc .pos { font: 700 15px/1 var(--f-display); letter-spacing: .1em; color: var(--sign); }
+.atc .cs2 { font-size: 13px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atc .fq { font-size: 18px; font-weight: 700; }
+.empty { color: var(--faint); font-size: 13px; }
+.card h2.sub { border-top: 1px solid var(--line); padding-top: 12px; }
+.ofp { display: grid; gap: 12px; }
+.ofp .kv .v { font-size: 16px; }
+.btn.sm { height: 36px; padding: 0 12px; font-size: 13px; display: inline-flex; align-items: center; text-decoration: none; color: var(--fg); flex: none; }
+.btn.sm.primary { color: var(--sign-ink); }
+
+/* FIDS board */
+.board { overflow: hidden; }
+.board-head { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.board-head .ttl { font: 700 22px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; }
+.board-head .seq { margin-left: auto; color: var(--dim); font-size: 13px; }
+.board-head .seq b { color: var(--sign); font-family: var(--f-num); font-size: 16px; }
+.board-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th { text-align: left; padding: 9px 12px; font: 600 12px/1 var(--f-display); letter-spacing: .14em; color: var(--dim); text-transform: uppercase; background: var(--panel-2); }
+td { padding: 9px 12px; border-top: 1px solid var(--line); font-family: var(--f-num); font-variant-numeric: tabular-nums; font-size: 16px; white-space: nowrap; }
+td.cs3 { font: 700 19px/1 var(--f-display); letter-spacing: .05em; }
+tr.me td { background: color-mix(in srgb, var(--sign) 13%, var(--panel)); }
+tr.me td.cs3 { color: var(--sign); }
+td.k { color: var(--sign); font-weight: 700; }
+.st { font: 700 12px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; padding: 5px 8px; border-radius: 3px; display: inline-block; }
+.st.wait { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.st.go { color: var(--sign-ink); background: var(--ok); }
+.st.late { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.st.taxi { color: var(--info); background: color-mix(in srgb, var(--info) 14%, transparent); }
+.st.none { color: var(--faint); }
+
+.foot { display: flex; gap: 16px; flex-wrap: wrap; color: var(--faint); font-size: 12px; padding: 0 2px; }
+.foot a { color: var(--dim); }
+.demo-flag { background: var(--info); color: #06121f; font: 700 12px/1 var(--f-display); letter-spacing: .14em; padding: 6px 9px; border-radius: 4px; text-transform: uppercase; }
+
+/* Setup sheet */
+.sheet { position: fixed; inset: 0; background: color-mix(in srgb, #000 62%, transparent); display: grid; place-items: center; padding: 16px; z-index: 20; }
+.sheet .box { width: min(520px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; display: grid; gap: 16px; max-height: 100%; overflow: auto; }
+.sheet h3 { margin: 0; font: 700 28px/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
+.sheet p { margin: 0; color: var(--dim); font-size: 14px; }
+.field { display: grid; gap: 6px; }
+.field input[type=text], .field input[type=number] {
+  height: 50px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+  font: 700 22px/1 var(--f-num); padding: 0 14px; text-transform: uppercase; width: 100%;
+}
+.field input:focus { border-color: var(--sign); outline: none; }
+.or { text-align: center; color: var(--faint); font: 600 12px/1 var(--f-display); letter-spacing: .2em; }
+.check { display: flex; gap: 10px; align-items: center; font-size: 14px; }
+.check input { width: 20px; height: 20px; accent-color: var(--sign); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { height: 48px; padding: 0 20px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; font: 700 16px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; }
+.btn.primary { background: var(--sign); color: var(--sign-ink); border-color: var(--sign); flex: 1; }
+.err { color: var(--bad); font-size: 13px; }
+
+/* ---------- Responsive: iPad portrait & phone ---------- */
+@media (max-width: 1100px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .side { grid-template-columns: minmax(0, 1fr); }
+  .cs { font-size: 46px; }
+  .route { font-size: 22px; }
+  .times { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-inline: 14px; }
+  .banner { margin-inline: 14px; }
+  .banner .count { margin-left: 0; text-align: left; }
+  .vdgs-head, .timeline { padding-inline: 14px; }
+  .tcell .v { font-size: 34px; }
+  .clocks { margin-left: 0; }
+  .clock.sec { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="rail">
+    <div class="brand"><span class="tag">VDGS</span><span class="apt" id="aptTag">----</span></div>
+    <span class="live"><span class="dot" id="liveDot"></span><span id="liveTxt">Verbinde…</span></span>
+    <span id="demoFlag" class="demo-flag" hidden>Demo-Daten</span>
+    <div class="clocks">
+      <div class="clock"><span class="lbl">UTC</span><span class="t num" id="clkUtc">--:--:--</span></div>
+      <div class="clock sec"><span class="lbl">Lokal</span><span class="t num" id="clkLoc">--:--</span></div>
+    </div>
+    <div class="tools">
+      <button class="ibtn" id="btnWake" aria-pressed="false" title="Bildschirm wach halten">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <span>Wach</span>
+      </button>
+      <button class="ibtn" id="btnFull" title="Vollbild">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+      <button class="ibtn" id="btnSetup" title="Flug einstellen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.5 21 9 15 3 13.5l1.2-1.6 5.3.5L14.6 7 13 3.2l1.3-1L19 8.4l3.3-1.1.6 1.4-2.6 2.4.8 6.3-1.6.9-3.4-4.7-4.9 5.4.4 2.3z"/></svg>
+        <span>Flug</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="panel vdgs" aria-label="Slot">
+      <div class="vdgs-head">
+        <div class="cs" id="cs">-----</div>
+        <div class="route" id="route"></div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="banner" id="banner">
+        <div><div class="state" id="bState">Lade…</div><div class="hint" id="bHint"></div></div>
+        <div class="count"><span class="lbl" id="bCountLbl"></span><span class="num" id="bCount"></span></div>
+      </div>
+      <div class="times" id="times"></div>
+      <div class="timeline">
+        <span class="lbl">Ablauf (UTC)</span>
+        <div class="tl" id="tl"></div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel card" aria-label="Flug">
+        <h2><span class="lbl" id="fplSrc">Flugplan</span><span class="chip" id="conn">Offline</span></h2>
+        <div class="kv" id="fpl"></div>
+        <div class="rte" id="rte"></div>
+        <h2 class="sub"><span class="lbl">SimBrief OFP</span></h2>
+        <div class="ofp" id="ofp"></div>
+      </section>
+      <section class="panel card" aria-label="Wetter">
+        <h2><span class="lbl">ATIS / METAR <span id="wxApt"></span></span></h2>
+        <div class="atis" id="atis"></div>
+        <div class="metar" id="metar"></div>
+      </section>
+      <section class="panel card" aria-label="ATC">
+        <h2><span class="lbl">ATC online</span></h2>
+        <div id="atc"></div>
+      </section>
+    </aside>
+  </main>
+
+  <section class="panel board" aria-label="Abflüge">
+    <div class="board-head">
+      <span class="ttl">Departures</span><span class="lbl" id="boardApt"></span>
+      <span class="seq" id="seq"></span>
+    </div>
+    <div class="board-scroll">
+      <table>
+        <thead><tr><th>Flug</th><th>Nach</th><th>EOBT</th><th>TOBT</th><th>TSAT</th><th>TTOT</th><th>CTOT</th><th>RWY / SID</th><th>Status</th></tr></thead>
+        <tbody id="boardBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>Daten: VATSIM Data Feed · vIFF CDM (viff-system.network) · VATSIM METAR</span>
+    <span>TOBT setzen: <a href="https://vats.im/vdgs" target="_blank" rel="noopener">vats.im/vdgs</a></span>
+    <span id="upd"></span>
+    <span>Nur für Flugsimulation – nicht für echte Luftfahrt.</span>
+  </footer>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <form class="box" id="setupForm" autocomplete="off">
+    <h3>Dein Flug</h3>
+    <p>Am einfachsten: SimBrief-Name und VATSIM-CID eintragen. Dann holt die App dein neuestes OFP automatisch und erkennt deinen Flug, sobald du mit VATSIM verbunden bist.</p>
+    <div class="field">
+      <label class="lbl" for="inSb">SimBrief Benutzername oder Pilot-ID</label>
+      <input type="text" id="inSb" placeholder="z.B. MaxMuster oder 123456" maxlength="40" autocapitalize="none" spellcheck="false" style="text-transform:none">
+    </div>
+    <div class="field">
+      <label class="lbl" for="inCid">VATSIM CID</label>
+      <input type="number" id="inCid" placeholder="z.B. 1234567" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label class="lbl" for="inCs">Callsign (optional, überschreibt alles)</label>
+      <input type="text" id="inCs" placeholder="leer lassen = automatisch" maxlength="10" autocapitalize="characters" spellcheck="false">
+    </div>
+    <label class="check"><input type="checkbox" id="inChime" checked> Gong, wenn das Start-up-Fenster öffnet</label>
+    <div class="err" id="setupErr" hidden></div>
+    <div class="row">
+      <button type="submit" class="btn primary">Anzeigen</button>
+      <button type="button" class="btn" id="btnDemo">Demo</button>
+      <button type="button" class="btn" id="btnClose">Schließen</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const API = {
+    feed: "https://data.vatsim.net/v3/vatsim-data.json",
+    viff: "https://viff-system.network",
+    metar: "https://metar.vatsim.net/",
+    simbrief: "https://www.simbrief.com/api/xml.fetcher.php",
+  };
+  const POLL = { flight: 20e3, board: 45e3, feed: 30e3, metar: 300e3, simbrief: 300e3 };
+  const TSAT_WINDOW = 5 * 60e3;          // start-up window TSAT ±5 min
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // ---------- settings ----------
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem("vdgs.settings") || "{}"); } catch { return {}; } },
+    set(v) { try { localStorage.setItem("vdgs.settings", JSON.stringify(v)); } catch {} },
+  };
+  let settings = Object.assign({ simbrief: "", callsign: "", cid: "", chime: true, demo: false }, store.get());
+
+  const S = {
+    callsign: "", flight: null, board: [], pilot: null, prefile: null,
+    atis: [], atc: [], metar: "", metarApt: "", feedOk: null, cdmOk: null, sbOk: null, sbErr: "",
+    lastFeed: 0, lastCdm: 0, chimedFor: "", feed: null, cidCallsign: "", ofp: null,
+  };
+
+  // Callsign priority: typed by hand > live/prefiled on VATSIM under the CID > latest SimBrief OFP
+  function updateCallsign() {
+    const cs = settings.callsign || S.cidCallsign || S.ofp?.callsign || "";
+    if (cs === S.callsign) return false;
+    S.callsign = cs; S.flight = null; S.board = []; S.atis = []; S.atc = [];
+    applyFeed();
+    return true;
+  }
+
+  // ---------- time helpers ----------
+  // CDM times are HHMM or HHMMSS without a date; pick the UTC day closest to now.
+  function toTime(s) {
+    if (!s) return null;
+    const d = String(s).replace(/\D/g, "");
+    if (d.length < 4) return null;
+    const h = +d.slice(0, 2), m = +d.slice(2, 4), sec = d.length >= 6 ? +d.slice(4, 6) : 0;
+    if (h > 23 || m > 59) return null;
+    const n = new Date(), now = n.getTime();
+    let best = null;
+    for (const off of [-1, 0, 1]) {
+      const t = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + off, h, m, sec);
+      if (best === null || Math.abs(t - now) < Math.abs(best - now)) best = t;
+    }
+    return best;
+  }
+  const p2 = (n) => String(n).padStart(2, "0");
+  const hhmm = (t) => { if (t == null) return "--:--"; const d = new Date(t); return p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()); };
+  function dur(ms) {
+    const neg = ms < 0; ms = Math.abs(ms);
+    const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+    return (neg ? "-" : "") + (h ? h + ":" + p2(m) : p2(m)) + ":" + p2(r);
+  }
+
+  // ---------- normalize a vIFF record ----------
+  function norm(r) {
+    if (!r || !r.callsign) return null;
+    const c = r.cdmData || {}, a = r.atfcmData || {};
+    const [rwy, sid] = String(c.depInfo || "").split("/");
+    return {
+      callsign: r.callsign, dep: r.departure, arr: r.arrival, cid: r.cid,
+      eobt: toTime(r.eobt), tobt: toTime(c.tobt || r.tobt), tsat: toTime(c.tsat),
+      ttot: toTime(c.ttot), ctot: toTime(c.ctot || r.ctot), aobt: toTime(r.aobt), atot: toTime(r.atot),
+      eta: toTime(r.eta), taxi: Number(r.taxi) || null, rwy: rwy || "", sid: sid || "",
+      reason: c.reason || a.mostPenalisingRegulation || r.mostPenalizingAirspace || "",
+      regType: a.mostPenalisingRegulationType || "", cdmSts: r.cdmSts || "", atfcm: r.atfcmStatus || "",
+      confirmed: !!c.confirmed, excluded: !!a.excluded, type: r.flightPlanning?.aircraft_short || "",
+    };
+  }
+
+  // Phase of a flight relative to now
+  // `live` is the pilot from the VATSIM feed (own flight only) and beats CDM flags.
+  function phase(f, now = Date.now(), live = null) {
+    if (!f) return "none";
+    if (f.atot || (live && live.groundspeed > 60)) return "airborne";
+    if (live && live.groundspeed >= 3) return "offblock";
+    // vIFF sometimes sets AOBT long before the TSAT window while the aircraft is still at the gate; ignore that
+    const aobtPlausible = f.aobt && (!f.tsat || f.aobt >= f.tsat - TSAT_WINDOW);
+    if (aobtPlausible && !(live && live.groundspeed < 3)) return "offblock";
+    if (f.tsat) {
+      if (now < f.tsat - TSAT_WINDOW) return "wait";
+      if (now <= f.tsat + TSAT_WINDOW) return "go";
+      return "late";
+    }
+    if (f.tobt || f.ctot) return "pending";
+    return "none";
+  }
+
+  // ---------- network ----------
+  async function getJSON(url, ms = 15000) {
+    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ac.signal, cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const txt = await r.text();
+      return txt.trim() ? JSON.parse(txt) : null;
+    } finally { clearTimeout(t); }
+  }
+
+  async function pollFeed() {
+    if (settings.demo) return;
+    try {
+      S.feed = await getJSON(API.feed, 25000);
+      S.feedOk = true; S.lastFeed = Date.now();
+      if (settings.cid) {
+        const cid = Number(settings.cid);
+        const p = S.feed.pilots.find((x) => x.cid === cid) || S.feed.prefiles.find((x) => x.cid === cid);
+        S.cidCallsign = p ? p.callsign : "";
+      }
+      if (updateCallsign()) pollFlight(); else applyFeed();
+    } catch (e) { S.feedOk = false; }
+    render();
+  }
+
+  // Look up the own flight, ATIS and ATC in the last VATSIM snapshot
+  function applyFeed() {
+    const d = S.feed; if (!d) return;
+    const cs = S.callsign;
+    S.pilot = cs ? d.pilots.find((p) => p.callsign === cs) || null : null;
+    S.prefile = cs && !S.pilot ? d.prefiles.find((p) => p.callsign === cs) || null : null;
+    const apt = depApt();
+    if (apt) {
+      const pre = apt + "_";
+      S.atis = d.atis.filter((a) => a.callsign.startsWith(pre));
+      S.atc = d.controllers.filter((c) => c.callsign.startsWith(pre) && c.facility >= 2 && c.facility <= 5)
+        .sort((a, b) => a.facility - b.facility);
+    }
+  }
+
+  async function pollSimbrief() {
+    if (settings.demo || !settings.simbrief) return;
+    const id = settings.simbrief.trim();
+    const q = /^\d+$/.test(id) ? "userid=" + id : "username=" + encodeURIComponent(id);
+    try {
+      const d = await getJSON(API.simbrief + "?" + q + "&json=v2", 20000);
+      if (!d || !String(d.fetch?.status).startsWith("Success")) {
+        S.sbOk = false; S.sbErr = /unknown/i.test(d?.fetch?.status || "") ? "SimBrief-Benutzer nicht gefunden" : "Kein OFP bei SimBrief gefunden";
+      } else {
+        S.ofp = normOfp(d); S.sbOk = true; S.sbErr = "";
+        if (updateCallsign()) pollFlight();
+      }
+    } catch (e) { S.sbOk = false; S.sbErr = "SimBrief nicht erreichbar"; }
+    render();
+  }
+
+  function normOfp(d) {
+    const g = d.general || {}, o = d.origin || {}, de = d.destination || {}, t = d.times || {}, w = d.weights || {}, f = d.fuel || {}, ac = d.aircraft || {};
+    const alt = Array.isArray(d.alternate) ? d.alternate[0] : d.alternate;
+    const iso = (s) => (s ? Date.parse(s) : null);
+    return {
+      callsign: d.atc?.callsign || ((g.icao_airline || "") + (g.flight_number || "")),
+      dep: o.icao_code, arr: de.icao_code, altn: alt?.icao_code || "", depRwy: o.plan_rwy, arrRwy: de.plan_rwy,
+      depMetar: o.metar || "", type: ac.icaocode || ac.icao_code, reg: ac.reg, units: d.params?.units || "kgs",
+      fl: g.initial_altitude, ci: g.costindex, pax: w.pax_count_actual || w.pax_count, dist: g.route_distance,
+      route: g.route, stepclimb: g.stepclimb_string,
+      block: f.plan_ramp, trip: f.enroute_burn, tof: f.plan_takeoff, zfw: w.est_zfw, maxZfw: w.max_zfw, tow: w.est_tow, maxTow: w.max_tow,
+      out: iso(t.sched_out), off: iso(t.sched_off), on: iso(t.est_on), in: iso(t.sched_in), ete: t.est_time_enroute,
+      generated: iso(d.params?.time_generated) || (Number(d.params?.time_generated) * 1000 || null),
+      pdf: d.files?.pdf?.link ? d.files.directory + d.files.pdf.link : "",
+      prefile: d.prefile?.vatsim?.link || "",
+    };
+  }
+
+  async function pollFlight() {
+    if (settings.demo || !S.callsign) { render(); return; }
+    try {
+      const r = await getJSON(API.viff + "/ifps/callsign?callsign=" + encodeURIComponent(S.callsign));
+      S.flight = norm(r); S.cdmOk = true; S.lastCdm = Date.now();
+      if (S.flight && S.flight.dep && S.board.length === 0) pollBoard();
+    } catch (e) { S.cdmOk = false; }
+    render();
+  }
+
+  async function pollBoard() {
+    if (settings.demo) return;
+    const apt = depApt(); if (!apt) return;
+    try {
+      const list = await getJSON(API.viff + "/ifps/depAirport?airport=" + encodeURIComponent(apt)) || [];
+      // the API can return the same callsign twice; keep the record with the most CDM data
+      const by = new Map();
+      for (const r of list) {
+        const f = norm(r); if (!f) continue;
+        const score = (x) => (x.tsat ? 4 : 0) + (x.tobt ? 2 : 0) + (x.aobt ? 1 : 0);
+        const old = by.get(f.callsign);
+        if (!old || score(f) > score(old)) by.set(f.callsign, f);
+      }
+      S.board = [...by.values()]; S.cdmOk = true;
+    } catch (e) { S.cdmOk = false; }
+    render();
+  }
+
+  async function pollMetar() {
+    if (settings.demo) return;
+    const apt = depApt(); if (!apt) return;
+    try {
+      const r = await fetch(API.metar + encodeURIComponent(apt), { cache: "no-store" });
+      const txt = (await r.text()).trim();
+      if (txt) { S.metar = txt; S.metarApt = apt; }
+    } catch (e) {}
+    if (!S.metar && S.ofp?.dep === apt && S.ofp.depMetar) { S.metar = S.ofp.depMetar + " (SimBrief)"; S.metarApt = apt; }
+    render();
+  }
+
+  function depApt() {
+    return S.flight?.dep || S.pilot?.flight_plan?.departure || S.prefile?.flight_plan?.departure || S.ofp?.dep || "";
+  }
+
+  // ---------- rendering ----------
+  const STATE_TEXT = {
+    wait: ["Bitte warten", "Start-up erst zur TSAT anfragen. Fenster öffnet 5 Minuten vorher.", "Fenster öffnet in"],
+    go: ["Start-up-Fenster offen", "Jetzt Start-up / Pushback bei DEL oder GND anfragen.", "Fenster schließt in"],
+    late: ["TSAT abgelaufen", "Fenster verpasst. Neue TOBT auf vats.im/vdgs setzen oder ATC kontaktieren.", "Überfällig seit"],
+    offblock: ["Off-Block · Rollen", "Rollzeit bis zur Startbahn läuft.", "Bis TTOT"],
+    airborne: ["Abgeflogen", "Guten Flug!", "Airborne seit"],
+    pending: ["Noch keine TSAT", "Dein Flug ist im System, aber eine TSAT wird erst vergeben, wenn DEL/CDM aktiv ist oder du eine TOBT gesetzt hast.", "Bis TOBT"],
+    none: ["Kein Slot gefunden", "Flugplan bei VATSIM aufgeben (Button „Prefile“ rechts) und auf vats.im/vdgs eine TOBT setzen. Die Anzeige aktualisiert sich automatisch.", ""],
+    setup: ["Kein Flug eingestellt", "Tippe oben rechts auf „Flug“ und gib deinen SimBrief-Namen, dein Callsign oder deine CID ein.", ""],
+    loading: ["Suche Flug…", "Lade SimBrief-OFP und VATSIM-Daten.", ""],
+  };
+  const BANNER_CLASS = { wait: "wait", go: "go", late: "late", airborne: "done", offblock: "done" };
+
+  function countdown(f, ph, now) {
+    switch (ph) {
+      case "wait": return f.tsat - TSAT_WINDOW - now;
+      case "go": return f.tsat + TSAT_WINDOW - now;
+      case "late": return now - (f.tsat + TSAT_WINDOW);
+      case "offblock": return f.ttot ? f.ttot - now : null;
+      case "airborne": return f.atot ? now - f.atot : null;
+      case "pending": return f.tobt ? f.tobt - now : (f.ctot ? f.ctot - now : null);
+      default: return null;
+    }
+  }
+
+  function renderClock(now) {
+    const d = new Date(now);
+    $("clkUtc").textContent = p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()) + ":" + p2(d.getUTCSeconds()) + "Z";
+    $("clkLoc").textContent = p2(d.getHours()) + ":" + p2(d.getMinutes());
+  }
+
+  function renderLive() {
+    const dot = $("liveDot"), txt = $("liveTxt");
+    if (settings.demo) { dot.className = "dot"; txt.textContent = "Demo"; return; }
+    const ok = S.feedOk !== false && S.cdmOk !== false;
+    dot.className = "dot " + (S.feedOk === null && S.cdmOk === null ? "" : ok ? "ok" : "bad");
+    txt.textContent = S.feedOk === null && S.cdmOk === null ? "Verbinde…" : ok ? "Live" : (S.feedOk === false ? "VATSIM-Feed nicht erreichbar" : "CDM-Server nicht erreichbar");
+    const ages = [];
+    if (S.lastCdm) ages.push("CDM " + hhmm(S.lastCdm) + "Z");
+    if (S.lastFeed) ages.push("Feed " + hhmm(S.lastFeed) + "Z");
+    $("upd").textContent = ages.length ? "Aktualisiert: " + ages.join(" · ") : "";
+  }
+
+  function render() {
+    const now = Date.now();
+    const f = S.flight;
+    const fp = S.pilot?.flight_plan || S.prefile?.flight_plan || null;
+    const waiting = (settings.simbrief && S.sbOk === null) || (settings.cid && S.feedOk === null);
+    const ph = !S.callsign ? (waiting ? "loading" : "setup") : phase(f, now, settings.demo ? null : S.pilot);
+    const apt = depApt();
+    const ofp = S.ofp && (!S.callsign || S.ofp.callsign === S.callsign) ? S.ofp : null;
+
+    $("demoFlag").hidden = !settings.demo;
+    $("aptTag").textContent = apt || "----";
+    $("cs").textContent = S.callsign || "-----";
+    const dep = f?.dep || fp?.departure || ofp?.dep, arr = f?.arr || fp?.arrival || ofp?.arr;
+    $("route").innerHTML = dep || arr ? `<b>${esc(dep || "----")}</b><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg><b>${esc(arr || "----")}</b>` : "";
+
+    // chips
+    const chips = [];
+    if (f?.rwy) chips.push(`<span class="chip y">RWY ${esc(f.rwy)}</span>`);
+    if (f?.sid) chips.push(`<span class="chip y">${esc(f.sid)}</span>`);
+    if (f?.ctot) chips.push(`<span class="chip r">Regulated</span>`);
+    if (f?.reason) chips.push(`<span class="chip r">${esc(f.reason)}</span>`);
+    if (f?.atfcm) chips.push(`<span class="chip">${esc(f.atfcm.replace(/_/g, " "))}</span>`);
+    if (f?.confirmed) chips.push(`<span class="chip g">TOBT bestätigt</span>`);
+    $("chips").innerHTML = chips.join("");
+
+    // banner
+    const [st, hint, cl] = STATE_TEXT[ph];
+    const b = $("banner"); b.className = "banner " + (BANNER_CLASS[ph] || "");
+    $("bState").textContent = st;
+    $("bHint").textContent = hint;
+    const cd = f ? countdown(f, ph, now) : null;
+    $("bCountLbl").textContent = cd != null ? cl : "";
+    $("bCount").textContent = cd != null ? dur(cd) : "";
+
+    // chime once when the start-up window opens
+    if (ph === "go" && settings.chime && S.chimedFor !== S.callsign + f.tsat) { S.chimedFor = S.callsign + f.tsat; chime(); }
+
+    // time cells
+    const cell = (lbl, t, sub, key) => `<div class="tcell${key ? " key" : ""}"><span class="lbl">${lbl}</span><span class="v num${t == null ? " none" : ""}">${hhmm(t)}</span><span class="s">${esc(sub || "")}</span></div>`;
+    const rel = (t) => (t == null ? "" : (t > now ? "in " : "vor ") + dur(Math.abs(t - now)).replace(/^-/, ""));
+    const eobtT = f?.eobt ?? toTime(fp?.deptime) ?? ofp?.out ?? null;
+    $("times").innerHTML = [
+      cell("EOBT", eobtT, f?.eobt || fp ? "Flugplan" : ofp ? "SimBrief STD" : "Flugplan"),
+      cell("TOBT", f?.tobt, f?.tobt ? rel(f.tobt) : "Ziel Off-Block"),
+      cell("TSAT", f?.tsat, f?.tsat ? "Fenster " + hhmm(f.tsat - TSAT_WINDOW) + "–" + hhmm(f.tsat + TSAT_WINDOW) : "Start-up", true),
+      cell("TTOT", f?.ttot, f?.taxi ? "EXOT " + f.taxi + " min" : "Ziel Take-off"),
+      cell("CTOT", f?.ctot, f?.ctot ? "Toleranz " + hhmm(f.ctot - 5 * 60e3) + "–" + hhmm(f.ctot + 10 * 60e3) : "Keine Regulierung"),
+      f?.atot ? cell("ATOT", f.atot, "Abgehoben") : f?.aobt ? cell("AOBT", f.aobt, "Off-Block") : cell("ETA", f?.eta, arr ? "Ankunft " + arr : "Ankunft"),
+    ].join("");
+
+    renderTimeline(f, now);
+    renderFlight(f, fp, ofp);
+    renderWx(apt);
+    renderBoard(f, now, apt);
+    renderLive();
+  }
+
+  function renderTimeline(f, now) {
+    const el = $("tl");
+    const pts = f ? [["EOBT", f.eobt], ["TOBT", f.tobt], ["TSAT", f.tsat, 1], ["TTOT", f.ttot], ["CTOT", f.ctot]].filter((p) => p[1] != null) : [];
+    if (!pts.length) { el.innerHTML = `<div class="empty" style="padding-top:22px">Zeiten erscheinen, sobald dein Flug im CDM-System ist.</div>`; return; }
+    const ts = pts.map((p) => p[1]).concat(now);
+    let lo = Math.min(...ts) - 10 * 60e3, hi = Math.max(...ts) + 10 * 60e3;
+    if (hi - lo < 40 * 60e3) { const c = (hi + lo) / 2; lo = c - 20 * 60e3; hi = c + 20 * 60e3; }
+    const x = (t) => ((Math.min(Math.max(t, lo), hi) - lo) / (hi - lo)) * 100;
+    let h = `<div class="axis"></div>`;
+    if (f.tsat) h += `<div class="band tsat" style="left:${x(f.tsat - TSAT_WINDOW)}%;width:${x(f.tsat + TSAT_WINDOW) - x(f.tsat - TSAT_WINDOW)}%"></div>`;
+    if (f.ctot) h += `<div class="band ctot" style="left:${x(f.ctot - 5 * 60e3)}%;width:${x(f.ctot + 10 * 60e3) - x(f.ctot - 5 * 60e3)}%"></div>`;
+    // stagger labels that would collide
+    let lastX = -99, row = 0;
+    for (const [n, t, k] of pts.sort((a, b) => a[1] - b[1])) {
+      const px = x(t); row = px - lastX < 7 ? row + 1 : 0; lastX = px;
+      h += `<div class="mk${k ? " k" : ""}" style="left:${px}%;top:${row ? -12 : 0}px">${n}<i></i></div>`;
+    }
+    const step = (hi - lo) > 3 * 3600e3 ? 3600e3 : (hi - lo) > 90 * 60e3 ? 30 * 60e3 : 15 * 60e3;
+    for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) {
+      if (Math.abs(x(t) - x(now)) < 6) continue; // keep the NOW label readable
+      h += `<span class="tick num" style="left:${x(t)}%">${hhmm(t)}</span>`;
+    }
+    h += `<div class="now" style="left:${x(now)}%"></div>`;
+    el.innerHTML = h;
+  }
+
+  function renderFlight(f, fp, ofp) {
+    const p = S.pilot;
+    const conn = $("conn");
+    if (settings.demo) { conn.textContent = "Demo"; conn.className = "chip"; }
+    else if (p) { conn.textContent = "VATSIM verbunden"; conn.className = "chip g"; }
+    else if (S.prefile) { conn.textContent = "Prefile"; conn.className = "chip y"; }
+    else { conn.textContent = "Nicht verbunden"; conn.className = "chip"; }
+    $("fplSrc").textContent = fp ? "Flugplan · VATSIM" : ofp ? "Flugplan · SimBrief (noch nicht bei VATSIM)" : "Flugplan";
+    const ac = fp?.aircraft_short || f?.type || ofp?.type || "";
+    const alt = fp?.altitude || ofp?.fl;
+    const fl = alt ? "FL" + String(Math.round(+alt / 100)).padStart(3, "0") : "";
+    const kv = (l, v) => `<div><span class="lbl">${l}</span><span class="v num">${esc(v || "—")}</span></div>`;
+    $("fpl").innerHTML = [
+      kv("Typ", ac), kv("Reg", ofp?.reg), kv("Reiseflug", fl),
+      kv("Squawk", p?.flight_plan?.assigned_transponder && p.flight_plan.assigned_transponder !== "0000" ? p.flight_plan.assigned_transponder : p?.transponder),
+      kv("GS", p ? p.groundspeed + " kt" : ""), kv("Höhe", p ? p.altitude + " ft" : ""),
+    ].join("");
+    $("rte").textContent = fp?.route || ofp?.route || "Keine Route – Flugplan noch nicht aufgegeben.";
+
+    // SimBrief OFP block
+    const box = $("ofp");
+    const msg = (t) => { const h = `<div class="empty">${esc(t)}</div>`; if (box.dataset.html !== h) { box.dataset.html = h; box.innerHTML = h; } };
+    if (!settings.simbrief && !settings.demo) return msg("SimBrief nicht verknüpft. Unter „Flug“ deinen SimBrief-Namen eintragen, dann kommen Fuel, Gewichte und Zeiten automatisch.");
+    if (!ofp) return msg(S.sbErr || (S.ofp ? "Das SimBrief-OFP (" + S.ofp.callsign + ") passt nicht zum aktuellen Callsign " + S.callsign + "." : "Lade SimBrief-OFP…"));
+    const u = ofp.units === "lbs" ? "lb" : "kg";
+    const wt = (v) => (v ? Number(v).toLocaleString("de-DE") + " " + u : "");
+    const over = (v, max) => v && max && +v > +max;
+    const kw = (l, v, warn) => `<div><span class="lbl">${l}</span><span class="v num"${warn ? ' style="color:var(--bad)"' : ""}>${esc(v || "—")}</span></div>`;
+    const html = `
+      <div class="kv">
+        ${kw("Block Fuel", wt(ofp.block))}${kw("Trip", wt(ofp.trip))}${kw("TOF", wt(ofp.tof))}
+        ${kw("ZFW", wt(ofp.zfw), over(ofp.zfw, ofp.maxZfw))}${kw("TOW", wt(ofp.tow), over(ofp.tow, ofp.maxTow))}${kw("PAX", ofp.pax)}
+        ${kw("STD", ofp.out ? hhmm(ofp.out) + "Z" : "")}${kw("STA", ofp.in ? hhmm(ofp.in) + "Z" : "")}${kw("ETE", ofp.ete?.slice(0, 5))}
+        ${kw("Alternate", ofp.altn)}${kw("RWY Plan", [ofp.depRwy, ofp.arrRwy].filter(Boolean).join(" → "))}${kw("CI · Dist", [ofp.ci, ofp.dist ? ofp.dist + " nm" : ""].filter(Boolean).join(" · "))}
+      </div>
+      <div class="empty">OFP erstellt ${ofp.generated ? hhmm(ofp.generated) + "Z" : "—"} · AIRAC-Daten von SimBrief</div>
+      <div class="row">
+        ${ofp.prefile && !p && !S.prefile ? `<a class="btn sm primary" href="${esc(ofp.prefile)}" target="_blank" rel="noopener">Prefile auf VATSIM</a>` : ""}
+        ${ofp.pdf ? `<a class="btn sm" href="${esc(ofp.pdf)}" target="_blank" rel="noopener">OFP (PDF)</a>` : ""}
+        <a class="btn sm" href="https://vats.im/vdgs" target="_blank" rel="noopener">TOBT setzen</a>
+        ${settings.demo ? "" : `<button type="button" class="btn sm" id="btnSbReload">OFP neu laden</button>`}
+      </div>`;
+    // rendered every second: only touch the DOM when the content changed, so buttons keep focus
+    if (box.dataset.html === html) return;
+    box.dataset.html = html; box.innerHTML = html;
+    if ($("btnSbReload")) $("btnSbReload").onclick = () => { S.sbOk = null; S.sbErr = ""; render(); pollSimbrief(); };
+  }
+
+  function renderWx(apt) {
+    $("wxApt").textContent = apt ? "· " + apt : "";
+    const a = S.atis[0];
+    if (a) {
+      const txt = (a.text_atis || []).join(" ");
+      $("atis").innerHTML = `<div class="letter">${esc(a.atis_code || "?")}</div><div class="txt">${esc(txt || a.callsign)}<br><span class="num">${esc(a.frequency)}</span></div>`;
+    } else {
+      $("atis").innerHTML = `<div class="empty">Kein ATIS online${apt ? " für " + esc(apt) : ""}.</div>`;
+    }
+    $("metar").textContent = S.metar && S.metarApt === apt ? S.metar : (apt ? "METAR wird geladen…" : "—");
+    const names = { 2: "DEL", 3: "GND", 4: "TWR", 5: "APP" };
+    $("atc").innerHTML = S.atc.length
+      ? `<div class="atc">${S.atc.map((c) => `<div><span class="pos">${names[c.facility]}</span><span class="cs2">${esc(c.callsign)}</span><span class="fq num">${esc(c.frequency)}</span></div>`).join("")}</div>`
+      : `<div class="empty">Kein DEL/GND/TWR/APP online${apt ? " an " + esc(apt) : ""}. Ohne ATC gibt es meist keine TSAT.</div>`;
+  }
+
+  function renderBoard(me, now, apt) {
+    $("boardApt").textContent = apt;
+    const rows = S.board
+      .filter((f) => !f.atot || now - f.atot < 15 * 60e3)
+      .sort((a, b) => (a.tsat ?? a.tobt ?? a.eobt ?? 9e15) - (b.tsat ?? b.tobt ?? b.eobt ?? 9e15));
+    const queue = rows.filter((f) => f.tsat && ["wait", "go", "late"].includes(phase(f, now, me && f.callsign === me.callsign && !settings.demo ? S.pilot : null)));
+    const pos = me ? queue.findIndex((f) => f.callsign === me.callsign) : -1;
+    $("seq").innerHTML = pos >= 0
+      ? `Du bist <b>#${pos + 1}</b> von ${queue.length} in der Start-up-Sequenz`
+      : rows.length ? `${rows.length} Abflüge im CDM` : "";
+    const LBL = { wait: ["wait", "Wait"], go: ["go", "Start-up"], late: ["late", "Expired"], offblock: ["taxi", "Taxi"], airborne: ["taxi", "Airborne"], pending: ["none", "Filed"], none: ["none", "—"] };
+    if (!rows.length) { $("boardBody").innerHTML = `<tr><td colspan="9" class="empty" style="font-family:var(--f-body)">${apt ? "Keine CDM-Abflüge für " + esc(apt) + " gefunden." : "Die Abflugtafel erscheint, sobald dein Abflughafen bekannt ist."}</td></tr>`; return; }
+    $("boardBody").innerHTML = rows.slice(0, 40).map((f) => {
+      const isMe = me && f.callsign === me.callsign;
+      const [cls, txt] = LBL[phase(f, now, isMe && !settings.demo ? S.pilot : null)];
+      return `<tr class="${isMe ? "me" : ""}"><td class="cs3">${esc(f.callsign)}</td><td>${esc(f.arr || "")}</td><td>${hhmm(f.eobt)}</td><td>${hhmm(f.tobt)}</td><td class="k">${hhmm(f.tsat)}</td><td>${hhmm(f.ttot)}</td><td>${f.ctot ? hhmm(f.ctot) : ""}</td><td>${esc([f.rwy, f.sid].filter(Boolean).join(" / "))}</td><td><span class="st ${cls}">${txt}</span></td></tr>`;
+    }).join("");
+  }
+
+  // ---------- chime (Web Audio; needs one tap first on iPad) ----------
+  let actx = null;
+  function unlockAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") actx.resume(); } catch {} }
+  function chime() {
+    if (!actx) return;
+    const t0 = actx.currentTime;
+    [[880, 0], [660, 0.45], [880, 0.9]].forEach(([fq, dt]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = "sine"; o.frequency.value = fq;
+      g.gain.setValueAtTime(0.0001, t0 + dt); g.gain.exponentialRampToValueAtTime(0.35, t0 + dt + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.9);
+      o.connect(g).connect(actx.destination); o.start(t0 + dt); o.stop(t0 + dt + 1);
+    });
+  }
+  document.addEventListener("pointerdown", unlockAudio, { passive: true });
+
+  // ---------- wake lock & fullscreen ----------
+  let wake = null, wantWake = false;
+  async function setWake(on) {
+    wantWake = on;
+    try {
+      if (on && "wakeLock" in navigator) { wake = await navigator.wakeLock.request("screen"); wake.addEventListener("release", () => { wake = null; syncWake(); }); }
+      else if (!on && wake) { await wake.release(); wake = null; }
+    } catch { wake = null; }
+    syncWake();
+  }
+  function syncWake() {
+    const b = $("btnWake");
+    b.setAttribute("aria-pressed", String(!!wake));
+    b.title = !("wakeLock" in navigator) ? "Wach halten wird von diesem Browser nicht unterstützt – in den iPad-Einstellungen Automatische Sperre auf „Nie“ stellen." : "Bildschirm wach halten";
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { if (wantWake && !wake) setWake(true); tickAll(); } });
+  $("btnWake").addEventListener("click", () => setWake(!wake));
+  $("btnFull").addEventListener("click", () => {
+    const d = document, el = d.documentElement;
+    try {
+      if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+      else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    } catch {}
+  });
+
+  // ---------- setup sheet ----------
+  function openSetup() {
+    $("inSb").value = settings.simbrief; $("inCs").value = settings.callsign; $("inCid").value = settings.cid; $("inChime").checked = settings.chime;
+    $("setupErr").hidden = true; $("sheet").hidden = false; $("inSb").focus();
+  }
+  $("btnSetup").addEventListener("click", openSetup);
+  $("btnClose").addEventListener("click", () => { $("sheet").hidden = true; });
+  $("setupForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const cs = $("inCs").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const cid = $("inCid").value.trim().replace(/\D/g, "");
+    const sb = $("inSb").value.trim();
+    if (!cs && !cid && !sb) { const er = $("setupErr"); er.textContent = "Bitte SimBrief-Name, CID oder Callsign eingeben."; er.hidden = false; return; }
+    settings = { simbrief: sb, callsign: cs, cid, chime: $("inChime").checked, demo: false };
+    store.set(settings); $("sheet").hidden = true; unlockAudio(); start();
+  });
+  $("btnDemo").addEventListener("click", () => { settings.demo = true; store.set(settings); $("sheet").hidden = true; start(); });
+
+  // ---------- demo data (clearly flagged in the UI) ----------
+  function loadDemo() {
+    const n = Date.now(), m = 60e3, hm = (t) => { const d = new Date(t); return p2(d.getUTCHours()) + p2(d.getUTCMinutes()) + "00"; };
+    const mk = (cs, arr, tobtOff, tsatOff, extra = {}) => norm({
+      callsign: cs, departure: "EDDF", arrival: arr, eobt: hm(n + (tobtOff - 5) * m).slice(0, 4), taxi: 14,
+      cdmData: { tobt: hm(n + tobtOff * m), tsat: tsatOff == null ? "" : hm(n + tsatOff * m), ttot: tsatOff == null ? "" : hm(n + (tsatOff + 14) * m), depInfo: extra.dep || "18/OBOKA2G", ctot: extra.ctot ? hm(n + extra.ctot * m).slice(0, 4) : "", reason: extra.reason || "" },
+      atfcmData: {}, atfcmStatus: extra.atfcm || "", aobt: extra.aobt ? hm(n + extra.aobt * m).slice(0, 4) : "", atot: extra.atot ? hm(n + extra.atot * m).slice(0, 4) : "",
+      flightPlanning: { aircraft_short: extra.type || "A320" },
+    });
+    S.callsign = "DEMO123";
+    S.flight = mk("DEMO123", "LEPA", 6, 9, { ctot: 25, reason: "LECB-ALL", atfcm: "SLC", type: "A21N" });
+    S.board = [
+      mk("SAMPLE1", "EGLL", -18, -12, { aobt: -11, atot: -2 }),
+      mk("SAMPLE2", "LOWW", -8, -6, { aobt: -5, dep: "18/MARUN7F" }),
+      mk("SAMPLE3", "LIRF", -2, 1, { dep: "18/CINDY1S" }),
+      S.flight,
+      mk("SAMPLE4", "EKCH", 10, 13, { dep: "25C/TOBAK7F" }),
+      mk("SAMPLE5", "KJFK", 15, 19, { type: "B77W", dep: "18/ULKIG1S" }),
+      mk("SAMPLE6", "LFPG", 22, null),
+    ];
+    S.pilot = { groundspeed: 0, altitude: 364, transponder: "1000", flight_plan: { aircraft_short: "A21N", altitude: "36000", cruise_tas: "450", route: "OBOKA2G OBOKA Z10 ... (Demo-Route)", departure: "EDDF", arrival: "LEPA", assigned_transponder: "2341" } };
+    S.atis = [{ atis_code: "K", frequency: "118.025", text_atis: ["Demo-ATIS · Frankfurt Information K · RWY 25C/25L for arrival, RWY 18 for departure"] }];
+    S.atc = [{ facility: 2, callsign: "EDDF_DEL", frequency: "121.900" }, { facility: 3, callsign: "EDDF_S_GND", frequency: "121.955" }, { facility: 4, callsign: "EDDF_TWR", frequency: "119.905" }];
+    S.metar = "EDDF 241020Z 23012KT 9999 FEW030 12/04 Q1016 NOSIG (Demo)"; S.metarApt = "EDDF";
+    S.ofp = { callsign: "DEMO123", dep: "EDDF", arr: "LEPA", altn: "LEVC", depRwy: "18", arrRwy: "24L", type: "A21N", reg: "D-DEMO", units: "kgs",
+      fl: "36000", ci: "30", pax: "196", dist: "722", route: "OBOKA2G OBOKA Z10 ... (Demo-Route)", block: "9850", trip: "6420", tof: "9650",
+      zfw: "68200", maxZfw: "73300", tow: "77850", maxTow: "97000", out: n + 1 * m, in: n + 140 * m, ete: "01:58:00", generated: n - 40 * m, pdf: "", prefile: "" };
+  }
+
+  // ---------- main loop ----------
+  const timers = [];
+  function tickAll() { pollFeed(); pollFlight(); pollBoard(); pollMetar(); }
+  function start() {
+    timers.splice(0).forEach(clearInterval);
+    Object.assign(S, { callsign: "", flight: null, board: [], pilot: null, prefile: null, atis: [], atc: [], metar: "", metarApt: "",
+      feedOk: null, cdmOk: null, sbOk: null, sbErr: "", feed: null, cidCallsign: "", ofp: null });
+    $("ofp").dataset.html = "";
+    if (settings.demo) { loadDemo(); render(); return; }
+    updateCallsign();
+    render();
+    if (!settings.callsign && !settings.cid && !settings.simbrief) { openSetup(); return; }
+    // SimBrief + VATSIM feed first (they decide the callsign), then CDM, board and weather
+    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); });
+    timers.push(setInterval(pollFeed, POLL.feed), setInterval(pollFlight, POLL.flight), setInterval(pollBoard, POLL.board),
+      setInterval(pollMetar, POLL.metar), setInterval(pollSimbrief, POLL.simbrief));
+  }
+
+  setInterval(() => { const n = Date.now(); renderClock(n); if (S.callsign) render(); }, 1000);
+  renderClock(Date.now()); syncWake();
+  // ?simbrief=Name, ?cs=DLH4AB or ?cid=1234567 in the URL pre-fill the flight (handy as an iPad home-screen bookmark)
+  const q = new URLSearchParams(location.search);
+  if (q.get("demo") !== null) settings.demo = true;
+  if (q.get("simbrief")) { settings = { ...settings, simbrief: q.get("simbrief").trim(), callsign: "", demo: false }; store.set(settings); }
+  if (q.get("cs")) { settings = { ...settings, callsign: q.get("cs").toUpperCase().replace(/[^A-Z0-9]/g, ""), cid: "", demo: false }; store.set(settings); }
+  if (q.get("cid")) { settings = { ...settings, cid: q.get("cid").replace(/\D/g, ""), callsign: "", demo: false }; store.set(settings); }
+  start();
+  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>

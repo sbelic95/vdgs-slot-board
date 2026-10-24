@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0a0e13"/>
+  <rect x="56" y="64" width="400" height="120" rx="14" fill="#ffcc00"/>
+  <text x="256" y="152" text-anchor="middle" font-family="Arial Narrow, Arial, sans-serif" font-weight="700" font-size="104" fill="#121212" letter-spacing="6">VDGS</text>
+  <path d="M256 232 L256 448" stroke="#ffcc00" stroke-width="14" stroke-linecap="round"/>
+  <path d="M176 300 L256 236 L336 300" fill="none" stroke="#2fd47a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M176 370 L256 306 L336 370" fill="none" stroke="#2fd47a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
+</svg>
