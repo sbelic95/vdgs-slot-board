@@ -1440,9 +1440,10 @@ td.k { color: var(--sign); font-weight: 700; }
       const atDest = remain != null && remain < 12;
       if (gs < 3) phaseTxt = atDest ? "Angekommen" : "Am Gate";
       else if (!airborne) phaseTxt = atDest ? "Gelandet · Rollen" : "Rollen";
-      else if (vs < -400) phaseTxt = remain != null && remain < 80 ? "Landeanflug" : "Sinkflug";
-      else if (vs > 400) phaseTxt = "Steigflug";
-      else phaseTxt = "Reiseflug";
+      else if (remain != null && remain < 80 && alt < 12000 && vs <= 400) phaseTxt = "Landeanflug"; // also right after opening, without track history
+      else if (vs < -400) phaseTxt = "Sinkflug";
+      else if (vs > 400 || (alt < 10000 && flown != null && flown < 80)) phaseTxt = "Steigflug";
+      else phaseTxt = alt < 10000 ? "Sinkflug" : "Reiseflug";
     }
 
     $("ifeDep").textContent = depIcao || "----";
@@ -1465,7 +1466,8 @@ td.k { color: var(--sign); font-weight: 700; }
     const depW = S.metar ? decodeMetar(S.metar) : null;
     const oat = airborne ? Math.round(alt < 36089 ? 15 - 0.0019812 * alt : -56.5) : depW?.temp ?? null;
     const tas = +(fp?.cruise_tas || 0);
-    const windKmh = phaseTxt === "Reiseflug" && tas > 100 ? Math.round((gs - tas) * KT_KMH) : null;
+    // only meaningful in cruise at altitude, where ground speed and planned TAS compare
+    const windKmh = phaseTxt === "Reiseflug" && alt > 20000 && tas > 100 && Math.abs(gs - tas) < 250 ? Math.round((gs - tas) * KT_KMH) : null;
     const g = demo ? null : gateInfo(now, eta, phaseTxt === "Angekommen" || phaseTxt === "Gelandet · Rollen");
     const paxGate = g && (g.state === "assigned" || g.state === "parked") ? gateLabel(g) : "";
     if (g) announceGate(g, arrIcao);
@@ -2232,7 +2234,9 @@ td.k { color: var(--sign); font-weight: 700; }
           ? e("Restflugzeit", left ? hm(left) : "--:--", remain != null ? nf(remain / 1.852) + " nm · " + nf(remain) + " km" : "")
           : e("Ankunft Ortszeit", eta ? fmtAt(eta, arr) : "--:--", arr?.city || arrI)));
     const vs = vSpeed();
-    const phaseTxt = landed ? (gs < 3 ? "Angekommen" : "Gelandet · Rollen") : vs < -400 ? (remain != null && remain < 80 ? "Landeanflug" : "Sinkflug") : vs > 400 ? "Steigflug" : "Reiseflug";
+    const phaseTxt = landed ? (gs < 3 ? "Angekommen" : "Gelandet · Rollen")
+      : remain != null && remain < 80 && alt < 12000 && vs <= 400 ? "Landeanflug" // also right after opening, without track history
+      : vs < -400 ? "Sinkflug" : vs > 400 ? "Steigflug" : alt < 10000 ? (remain != null && remain < 200 ? "Sinkflug" : "Steigflug") : "Reiseflug";
 
     // gate / stand (prediction), announced ~30 min before arrival
     const g = gateInfo(now, eta, landed);
