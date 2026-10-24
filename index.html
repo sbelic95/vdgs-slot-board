@@ -103,11 +103,37 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { #btnRefresh.busy svg { animation: none; } }
 .view-slot { display: flex; flex-direction: column; gap: 14px; }
 
+/* Frequency guide (pilot) */
+.fq-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: end; padding: 12px 14px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); }
+.fq-row .role { grid-column: 1 / -1; }
+.fq-row .stn { font: 700 20px/1.1 var(--f-display); letter-spacing: .04em; min-width: 0; overflow-wrap: anywhere; }
+.fq-row .stn small { display: block; font: 400 12px/1.3 var(--f-body); letter-spacing: 0; color: var(--dim); margin-top: 3px; }
+.fq-row .mhz { font-size: 30px; font-weight: 700; line-height: 1; }
+.fq-row.next { border-color: color-mix(in srgb, var(--sign) 60%, transparent); }
+.fq-row.next .role, .fq-row.next .mhz { color: var(--sign); }
+.fq-row.soon { background: color-mix(in srgb, var(--sign) 16%, var(--panel)); border-color: var(--sign); animation: soon 2s ease-in-out infinite; }
+@keyframes soon { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--sign) 20%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .fq-row.soon { animation: none; } }
+.fq-row .when { grid-column: 1 / -1; font-size: 13px; color: var(--fg); }
+.fq-row.unicom .mhz { color: var(--dim); }
+#freqBody { display: grid; gap: 8px; }
+.fq-later { display: grid; gap: 1px; background: var(--line); border-radius: 6px; overflow: hidden; }
+.fq-later > div { background: var(--panel); display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 12px; font-size: 13px; }
+.fq-later .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fq-later .n b { font: 700 14px/1 var(--f-display); letter-spacing: .06em; margin-right: 6px; }
+.fq-later .t { color: var(--dim); }
+.fq-later .f { font-family: var(--f-num); font-weight: 700; font-size: 15px; }
+
 /* Passenger mode: in-flight entertainment style sub-navigation */
 .pax { display: flex; flex-direction: column; gap: 14px; flex: 1; }
 .pnav { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pnav button { height: 46px; padding: 0 20px; border-radius: 23px; border: 1px solid var(--line); background: var(--panel-2); color: var(--dim); cursor: pointer; font: 700 17px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; }
 .pnav button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.pnav button.auto { border-style: dashed; }
+.pnav button.auto[aria-pressed="true"] { border-style: solid; border-color: var(--sign); color: var(--sign); }
+.ife-cities .lt { font-size: 15px; font-weight: 700; color: var(--fg); }
+.map-msg.welcome { top: auto; bottom: 28px; padding: 16px 22px; font-size: 15px; color: var(--fg); border-color: var(--sign); }
+.map-msg.welcome b { display: block; font: 700 26px/1.1 var(--f-display); letter-spacing: .04em; color: var(--sign); margin-bottom: 4px; }
 .pnav-cs { margin-left: auto; font: 600 15px/1 var(--f-display); letter-spacing: .12em; color: var(--dim); text-transform: uppercase; }
 .conn table { min-width: 620px; }
 .conn td.time { font-size: 22px; font-weight: 700; color: var(--sign); }
@@ -363,6 +389,7 @@ td.k { color: var(--sign); font-weight: 700; }
       <button role="tab" data-pane="map" aria-selected="true">Flugkarte</button>
       <button role="tab" data-pane="conn" aria-selected="false">Anschlussflüge</button>
       <button role="tab" data-pane="dest" aria-selected="false">Zielort</button>
+      <button class="auto" id="btnAuto" aria-pressed="false" title="Bildschirme automatisch wechseln wie im Flugzeug">Rundlauf</button>
       <span class="pnav-cs" id="paxCs"></span>
     </nav>
 
@@ -394,9 +421,9 @@ td.k { color: var(--sign); font-weight: 700; }
     <aside class="ife-side">
       <div class="panel ife-route">
         <div class="ife-cities">
-          <div class="ct"><span class="iata" id="ifeDep">----</span><span class="city" id="ifeDepCity"></span></div>
+          <div class="ct"><span class="iata" id="ifeDep">----</span><span class="city" id="ifeDepCity"></span><span class="lt num" id="ifeDepTime"></span></div>
           <svg class="ife-plane" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
-          <div class="ct r"><span class="iata" id="ifeArr">----</span><span class="city" id="ifeArrCity"></span></div>
+          <div class="ct r"><span class="iata" id="ifeArr">----</span><span class="city" id="ifeArrCity"></span><span class="lt num" id="ifeArrTime"></span></div>
         </div>
         <div class="prog"><div class="bar"><i id="ifeBar"></i><b id="ifeBarPlane"></b></div>
           <div class="prog-lbl"><span id="ifeFlown"></span><span id="ifeLeft"></span></div></div>
@@ -427,6 +454,10 @@ td.k { color: var(--sign); font-weight: 700; }
     </section>
 
     <aside class="side">
+      <section class="panel card freq" id="freqCard" aria-label="Frequenzen">
+        <h2><span class="lbl">Frequenzen</span><span class="chip" id="freqChip"></span></h2>
+        <div id="freqBody"><div class="empty">Lade Lotsen und Lufträume…</div></div>
+      </section>
       <section class="panel card" aria-label="Flug">
         <h2><span class="lbl" id="fplSrc">Flugplan</span><span class="chip" id="conn">Offline</span></h2>
         <div class="kv" id="fpl"></div>
@@ -503,7 +534,7 @@ td.k { color: var(--sign); font-weight: 700; }
     metar: "https://metar.vatsim.net/",
     simbrief: "https://www.simbrief.com/api/xml.fetcher.php",
   };
-  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3 };
+  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3 };
   const TSAT_WINDOW = 5 * 60e3;          // start-up window TSAT ±5 min
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -822,6 +853,7 @@ td.k { color: var(--sign); font-weight: 700; }
     renderWx(apt);
     renderBoard(f, now, apt);
     renderLive();
+    if (view === "slot") renderFreq(now);
 
     // after take-off switch to the flight-info view once per flight; the pilot can switch back
     if (ph === "airborne" && !settings.demo && S.callsign && store.raw("vdgs.autoIfe") !== S.callsign) {
@@ -829,7 +861,7 @@ td.k { color: var(--sign); font-weight: 700; }
     }
     if (view === "ife") {
       renderIfe(now, f, fp, ofp);
-      $("paxCs").textContent = [S.callsign, f?.arr || fp?.arrival || ofp?.arr ? "nach " + (S.pax?.arr?.city || arrApt()) : ""].filter(Boolean).join(" · ");
+      $("paxCs").textContent = [S.callsign, acName(fp?.aircraft_short || f?.type || ofp?.type), f?.arr || fp?.arrival || ofp?.arr ? "nach " + (S.pax?.arr?.city || arrApt()) : ""].filter(Boolean).join(" · ");
       if (pane === "conn") renderConn(now);
       if (pane === "dest") renderDest(now);
     }
@@ -937,6 +969,8 @@ td.k { color: var(--sign); font-weight: 700; }
     mapL.arr = L.circleMarker([0, 0], { radius: 5, color: "#ffcc00", fillColor: "#ffcc00", fillOpacity: 1, weight: 2 });
     mapL.plane = L.marker([0, 0], { icon: L.divIcon({ className: "ac-icon", html: `<div id="acRot" style="width:34px;height:34px">${PLANE_SVG}</div>`, iconSize: [34, 34], iconAnchor: [17, 17] }), zIndexOffset: 1000, interactive: false });
     map.on("dragstart", () => { follow = false; syncFollow(); });
+    // the container may not have its final size yet on the very first frame: measure and fit again
+    setTimeout(() => { if (map) { map.invalidateSize(); mapFitted = false; render(); } }, 300);
     return map;
   }
   function syncFollow() { $("btnFollow").setAttribute("aria-pressed", String(follow)); }
@@ -977,6 +1011,8 @@ td.k { color: var(--sign); font-weight: 700; }
     $("ifeArr").textContent = arrIcao || "----";
     $("ifeDepCity").textContent = dep?.city || "";
     $("ifeArrCity").textContent = arr?.city || "";
+    $("ifeDepTime").textContent = depIcao ? fmtAt(now, dep) + " Ortszeit" : "";
+    $("ifeArrTime").textContent = arrIcao ? fmtAt(now, arr) + " Ortszeit" : "";
     $("ifeBar").style.width = (prog * 100).toFixed(1) + "%";
     $("ifeBarPlane").style.left = (prog * 100).toFixed(1) + "%";
     $("ifeFlown").textContent = flown != null ? nf(flown) + " km geflogen" : total != null ? "Strecke " + nf(total) + " km" : "";
@@ -987,16 +1023,23 @@ td.k { color: var(--sign); font-weight: 700; }
     const leftMs = airborne && remain != null && gs > 100 ? (remain / (gs * KT_KMH)) * 3600e3 : eta && now < eta ? eta - now : null;
     const hm = (ms) => { const m = Math.round(ms / 60e3); return Math.floor(m / 60) + ":" + p2(m % 60); };
     const vsTxt = Math.abs(vs) > 200 ? (vs > 0 ? " · steigt " : " · sinkt ") + nf(Math.abs(vs) * FT_M / 60, 1) + " m/s" : "";
+    // VATSIM has no outside temperature or wind: estimate OAT from the standard atmosphere and the wind from GS vs planned TAS
+    const depW = S.metar ? decodeMetar(S.metar) : null;
+    const oat = airborne ? Math.round(alt < 36089 ? 15 - 0.0019812 * alt : -56.5) : depW?.temp ?? null;
+    const tas = +(fp?.cruise_tas || 0);
+    const windKmh = phaseTxt === "Reiseflug" && tas > 100 ? Math.round((gs - tas) * KT_KMH) : null;
+    const dwRaw = demo ? S.metar.replace("EDDF", arrIcao || "") : S.arrMetarApt === arrIcao ? S.arrMetar : "";
+    const dw = dwRaw ? decodeMetar(dwRaw) : null;
     $("ifeGrid").innerHTML = [
       tile("Voraussichtliche Ankunft · Ortszeit", fmtAt(eta, arr), "", eta ? [arr?.city, hhmm(eta) + " UTC", ofp?.in ? "Plan " + fmtAt(ofp.in, arr) : "", etaSrc].filter(Boolean).join(" · ") : "Noch keine Schätzung", "wide"),
       tile("Geschwindigkeit", pl ? nf(gs * KT_KMH) : "—", pl ? "km/h" : "", pl ? nf(gs) + " kt über Grund" : ""),
       tile("Flughöhe", pl ? nf(alt * FT_M) : "—", pl ? "m" : "", pl ? nf(alt) + " ft" + vsTxt : ""),
       tile("Entfernung zum Ziel", remain != null ? nf(remain) : total != null ? nf(total) : "—", remain != null || total != null ? "km" : "", remain != null ? nf(remain / 1.852) + " nm Luftlinie" : "Luftlinie"),
       tile("Restflugzeit", leftMs != null ? hm(leftMs) : "—", leftMs != null ? "h" : "", ofp?.eteMs ? "geplant " + hm(ofp.eteMs) + " h" : ""),
-      tile("Zurückgelegt", flown != null ? nf(flown) : "—", flown != null ? "km" : "", total ? "von " + nf(total) + " km" : ""),
-      tile("Kurs", pl ? p2(Math.round(hdg) % 360).padStart(3, "0") + "°" : "—", pl ? COMPASS[Math.round(hdg / 45) % 8] : "", ""),
-      tile("Ortszeit " + (arr?.city || "Ziel"), fmtAt(now, arr), "", arr?.tz ? arr.tz.replace(/_/g, " ") : ""),
-      tile("Ortszeit " + (dep?.city || "Abflug"), fmtAt(now, dep), "", dep?.tz ? dep.tz.replace(/_/g, " ") : ""),
+      tile("Außentemperatur", oat != null ? oat : "—", oat != null ? "°C" : "", oat != null ? (airborne ? "ca., Standardatmosphäre" : "am Boden, " + (depIcao || "")) : ""),
+      tile("Wind", windKmh != null ? nf(Math.abs(windKmh)) : "—", windKmh != null ? "km/h" : "", windKmh != null ? (windKmh >= 0 ? "Rückenwind" : "Gegenwind") + ", ca." : "im Reiseflug"),
+      tile("Wetter " + (arr?.city || "am Ziel"), dw?.temp != null ? dw.temp : "—", dw?.temp != null ? "°C" : "", dw ? dw.cond : "wird geladen"),
+      tile("Kurs", pl ? p2(Math.round(hdg) % 360).padStart(3, "0") + "°" : "—", pl ? COMPASS[Math.round(hdg / 45) % 8] : "", flown != null ? nf(flown) + " km geflogen" : ""),
     ].join("");
 
     S.pax = { dep, arr, eta, etaSrc, remain };
@@ -1006,8 +1049,17 @@ td.k { color: var(--sign); font-weight: 700; }
     const msg = $("mapMsg");
     if (!window.L) { msg.hidden = false; msg.textContent = "Karte konnte nicht geladen werden. Internetverbindung prüfen und „Aktualisieren“ tippen."; return; }
     if (!ensureMap()) return;
-    msg.textContent = !pl && !demo ? "Deine Position erscheint, sobald du mit VATSIM verbunden bist." : "";
-    msg.hidden = !!pos || !msg.textContent;
+    // cabin messages like a real moving map: welcome at the gate, welcome at the destination
+    const flTime = ofp?.eteMs ? Math.floor(ofp.eteMs / 3600e3) + " h " + p2(Math.round((ofp.eteMs % 3600e3) / 60e3)) + " min" : "";
+    let welcome = "";
+    if (pl && phaseTxt === "Am Gate") welcome = `<b>Willkommen an Bord</b>Flug ${esc(S.callsign)} nach ${esc(arr?.city || arrIcao || "")}${flTime ? " · Flugzeit ca. " + flTime : ""}`;
+    else if (pl && (phaseTxt === "Angekommen" || phaseTxt === "Gelandet · Rollen")) welcome = `<b>Willkommen in ${esc(arr?.city || arrIcao || "")}</b>Ortszeit ${fmtAt(now, arr)}${dw?.temp != null ? " · " + dw.temp + " °C, " + esc(dw.cond) : ""}`;
+    msg.classList.toggle("welcome", !!welcome);
+    if (welcome) { if (msg.innerHTML !== welcome) msg.innerHTML = welcome; msg.hidden = false; }
+    else {
+      msg.textContent = !pl && !demo ? "Deine Position erscheint, sobald du mit VATSIM verbunden bist." : "";
+      msg.hidden = !!pos || !msg.textContent;
+    }
     const routePts = ofp && ofp.depPos && ofp.arrPos && ofp.dep === depIcao && ofp.arr === arrIcao
       ? [ofp.depPos, ...ofp.navlog, ofp.arrPos] : dep?.pos && arr?.pos ? greatCircle(dep.pos, arr.pos) : [];
     const key = (depIcao || "") + arrIcao + routePts.length;
@@ -1179,6 +1231,254 @@ td.k { color: var(--sign); font-weight: 700; }
       </div>`);
   }
   function setHtml(id, html) { const el = $(id); if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; } }
+
+  // ---------- pilot: frequency guide ----------
+  // Airspace boundaries and CTR callsign prefixes from the VATSpy data project (the data VATSIM maps use)
+  const VATSPY = "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/";
+  let FIR = null;
+  async function pollFir() {
+    if (FIR) return;
+    try {
+      const [geo, dat] = await Promise.all([
+        fetch(VATSPY + "Boundaries.geojson").then((r) => r.json()),
+        fetch(VATSPY + "VATSpy.dat").then((r) => r.text()),
+      ]);
+      const feats = geo.features.map((f) => {
+        const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+        const rings = polys.map((p) => p[0]);
+        const b = [180, 90, -180, -90];
+        for (const r of rings) for (const [x, y] of r) { if (x < b[0]) b[0] = x; if (y < b[1]) b[1] = y; if (x > b[2]) b[2] = x; if (y > b[3]) b[3] = y; }
+        return { id: f.properties.id, bbox: b, rings };
+      });
+      const firs = [], uirs = new Map(); let sec = "";
+      for (const line of dat.split(/\r?\n/)) {
+        if (line.startsWith("[")) { sec = line.trim(); continue; }
+        if (!line.trim() || line.startsWith(";")) continue;
+        const c = line.split("|");
+        if (sec === "[FIRs]") firs.push({ icao: c[0], name: c[1], prefix: c[2] || c[0], bnd: c[3] || c[0] });
+        else if (sec === "[UIRs]") uirs.set(c[0], { name: c[1], firs: (c[2] || "").split(",") });
+      }
+      FIR = { feats, firs, uirs };
+      S.ctrIdxFor = 0; S.seqKey = "";
+      render();
+    } catch (e) {}
+  }
+
+  function inRing(pt, ring) { // pt = [lat, lon], ring = [[lon, lat], ...]
+    const x = pt[1], y = pt[0]; let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  function firsAt(pt) {
+    const out = [];
+    for (const f of FIR.feats) {
+      const b = f.bbox;
+      if (pt[1] < b[0] || pt[1] > b[2] || pt[0] < b[1] || pt[0] > b[3]) continue;
+      if (f.rings.some((r) => inRing(pt, r))) out.push(f.id);
+    }
+    return out;
+  }
+
+  // boundary id -> online center/radio stations covering it (own FIR before a UIR above it)
+  function ctrIndex() {
+    if (S.ctrIdxFor === S.lastFeed && S.ctrIdx) return S.ctrIdx;
+    const idx = new Map();
+    const add = (bnd, c, lvl, name) => { if (!idx.has(bnd)) idx.set(bnd, []); idx.get(bnd).push({ c, lvl, name }); };
+    for (const c of S.feed?.controllers || []) {
+      if (c.facility !== 6 && c.facility !== 1) continue;
+      const parts = c.callsign.split("_"); parts.pop();
+      for (let n = parts.length; n > 0; n--) {
+        const pre = parts.slice(0, n).join("_");
+        const hits = FIR.firs.filter((f) => f.prefix === pre);
+        if (hits.length) { new Set(hits.map((f) => f.bnd)).forEach((b) => add(b, c, 0, hits[0].name)); break; }
+        const u = FIR.uirs.get(pre);
+        if (u) { new Set(FIR.firs.filter((f) => u.firs.includes(f.icao)).map((f) => f.bnd)).forEach((b) => add(b, c, 1, u.name)); break; }
+      }
+    }
+    for (const l of idx.values()) l.sort((a, b) => a.lvl - b.lvl || a.c.callsign.localeCompare(b.c.callsign));
+    S.ctrIdx = idx; S.ctrIdxFor = S.lastFeed;
+    return idx;
+  }
+  function ctrAt(pt) {
+    if (!FIR || !S.feed || !pt) return null;
+    const idx = ctrIndex();
+    let best = null;
+    for (const id of firsAt(pt)) for (const x of idx.get(id) || []) if (!best || x.lvl < best.lvl) best = x;
+    return best;
+  }
+
+  // Centers along the rest of the route: [{x: station or null, km: distance from `from`}]
+  function ctrSequence(from, arrPos, ofp) {
+    const key = S.lastFeed + "|" + from.map((v) => v.toFixed(2)) + "|" + (arrPos || "");
+    if (S.seqKey === key) return S.seq;
+    let pts = [from];
+    if (arrPos) {
+      const nl = ofp?.navlog?.length ? ofp.navlog : [];
+      let i = -1, bd = Infinity;
+      nl.forEach((p, k) => { const d = distKm(from, p); if (d < bd) { bd = d; i = k; } });
+      if (i >= 0 && distKm(nl[i], arrPos) > distKm(from, arrPos)) i++; // nearest fix is behind us
+      pts = [from, ...(i >= 0 ? nl.slice(i) : []), arrPos];
+    }
+    const seq = []; let km = 0, last;
+    for (let s = 0; s < pts.length - 1; s++) {
+      const d = distKm(pts[s], pts[s + 1]);
+      const n = Math.max(1, Math.min(200, Math.ceil(d / 15)));
+      const g = n > 1 ? greatCircle(pts[s], pts[s + 1], n) : [pts[s], pts[s + 1]];
+      for (let k = s === 0 ? 0 : 1; k < g.length; k++) {
+        if (k > 0) km += distKm(g[k - 1], g[k]);
+        const x = ctrAt(g[k]);
+        const cs = x?.c.callsign || "";
+        if (cs !== last) { seq.push({ x, km }); last = cs; }
+      }
+    }
+    S.seq = seq; S.seqKey = key;
+    return seq;
+  }
+
+  const FAC = { 1: "Radio", 2: "Delivery", 3: "Ground", 4: "Tower", 5: "Approach", 6: "Radar" };
+  function aptStations(icao) {
+    const out = {};
+    if (!icao || !S.feed) return out;
+    const pres = [icao + "_"]; if (/^K[A-Z]{3}$/.test(icao)) pres.push(icao.slice(1) + "_");
+    for (const c of S.feed.controllers) {
+      if (!pres.some((p) => c.callsign.startsWith(p))) continue;
+      const k = { 2: "del", 3: "gnd", 4: "twr", 5: c.callsign.endsWith("_DEP") ? "dep" : "app" }[c.facility];
+      if (k && !out[k]) out[k] = c;
+    }
+    out.atis = S.feed.atis.find((a) => pres.some((p) => a.callsign.startsWith(p)));
+    return out;
+  }
+  const td = (...l) => l.find(Boolean) || null; // VATSIM top-down: the next higher station online covers the lower one
+  function stn(c, place) {
+    if (!c) return { cs: "UNICOM", mhz: "122.800", name: "Kein Lotse online", unicom: true };
+    if (c.c) return stn(c.c, c.name); // center from ctrAt()
+    let kind = c.callsign.endsWith("_DEP") ? "Departure" : FAC[c.facility] || "";
+    if (place && /radar|control|cent(er|re)|radio|information|oceanic/i.test(place)) kind = ""; // VATSpy names often carry it already
+    return { cs: c.callsign, mhz: c.frequency, name: [place, kind].filter(Boolean).join(" ") };
+  }
+
+  function freqPlan(now) {
+    const pl = settings.demo ? null : S.pilot, fp = pl?.flight_plan || S.prefile?.flight_plan;
+    const ofp = S.ofp?.callsign === S.callsign ? S.ofp : null;
+    const depI = depApt(), arrI = arrApt();
+    const dep = aptInfo(depI, ofp, "dep"), arr = aptInfo(arrI, ofp, "arr");
+    const D = aptStations(depI), A = aptStations(arrI);
+    const dc = dep?.city || depI, ac = arr?.city || arrI;
+    const pos = pl && pl.latitude != null ? livePos(pl, now) : null;
+    const gs = pl?.groundspeed || 0, alt = pl?.altitude || 0;
+    const airborne = gs > 60;
+    const distDep = pos && dep?.pos ? distKm(pos, dep.pos) : null;
+    const remain = pos && arr?.pos ? distKm(pos, arr.pos) : null;
+    const atDest = !airborne && remain != null && remain < 15 && (distDep == null || distDep > 15);
+    const here = pos ? ctrAt(pos) : dep?.pos ? ctrAt(dep.pos) : null;
+    const arrCtr = arr?.pos ? ctrAt(arr.pos) : null;
+    const kmh = (gs > 100 ? gs : +(fp?.cruise_tas || 0)) * KT_KMH;
+    const mins = (km) => (airborne && kmh ? Math.round((km / kmh) * 60) : null);
+    const APP_KM = 100, TWR_KM = 20; // typical hand-off distances before the destination
+
+    // the whole chain from here on, in order; each step: role, station, trigger text, km ahead
+    const steps = [];
+    const push = (role, st, when, km = null) => steps.push({ role, st, when, km });
+    const depApp = td(D.dep, D.app);
+    const depZone = airborne && distDep != null && distDep < 50 && alt < 12000 && (remain == null || remain > APP_KM);
+    if (!airborne && !atDest) {
+      if (gs < 3) push("Streckenfreigabe", stn(td(D.del, D.gnd, D.twr, depApp, here), dc), "jetzt");
+      push("Pushback & Rollen", stn(td(D.gnd, D.twr, depApp, here), dc), gs < 3 ? "nach der Freigabe" : "jetzt");
+      push("Start", stn(td(D.twr, depApp, here), dc), "am Rollhalt vor der Piste");
+      push("Abflug", stn(td(depApp, here), dc), "nach dem Start, auf Anweisung vom Tower");
+    } else if (depZone) {
+      if (distDep < 10 && alt < 3000) push("Start", stn(td(D.twr, depApp, here), dc), "jetzt");
+      push("Abflug", stn(td(depApp, here), dc), distDep < 10 && alt < 3000 ? "nach dem Start, auf Anweisung vom Tower" : "jetzt");
+    }
+    if (!atDest) {
+      // centers along the route up to the approach area
+      const from = airborne && pos ? pos : dep?.pos;
+      const total = from && arr?.pos ? distKm(from, arr.pos) : null;
+      if (from && FIR && S.feed) {
+        for (const s of ctrSequence(from, arr?.pos, ofp)) {
+          if (total != null && s.km > Math.max(0, total - APP_KM)) break;
+          if (depZone && s.km < 1) continue; // still with departure; its center comes next
+          if (!airborne && !atDest && s.km < 1 && steps.at(-1)?.st.cs === stn(s.x).cs) continue;
+          push("Strecke", stn(s.x), s.km < 1 ? "jetzt" : "an der Luftraumgrenze", s.km);
+        }
+      }
+      const r = remain ?? total;
+      if (arrI) {
+        push("Anflug " + arrI, stn(td(A.app, arrCtr), ac), "ca. " + APP_KM + " km vor dem Ziel", r != null ? Math.max(0, r - APP_KM) : null);
+        push("Landung", stn(td(A.twr, A.app, arrCtr), ac), "im Endanflug", r != null ? Math.max(0, r - TWR_KM) : null);
+        push("Rollen zum Gate", stn(td(A.gnd, A.twr, A.app, arrCtr), ac), "nach dem Verlassen der Piste", r);
+      }
+    } else push("Rollen zum Gate", stn(td(A.gnd, A.twr, A.app, arrCtr), ac), "jetzt");
+
+    // merge steps handled by the same station, then find where we are now
+    const merged = [];
+    for (const s of steps) {
+      const prev = merged.at(-1);
+      if (prev && prev.st.cs === s.st.cs) { if (!prev.role.includes(s.role.split(" · ")[0])) prev.role += " · " + s.role.split(" · ")[0]; continue; }
+      merged.push({ ...s });
+    }
+    let cur = 0;
+    if (airborne && remain != null && !depZone) {
+      merged.forEach((s, i) => { if (s.km != null && s.km <= 0.5) cur = i; });
+      if (remain < APP_KM) cur = Math.max(cur, merged.findIndex((s) => s.role.startsWith("Anflug")));
+      if (remain < TWR_KM && alt < 5000) cur = Math.max(cur, merged.findIndex((s) => s.role.includes("Landung")));
+      cur = Math.max(0, cur);
+    }
+    const out = merged.slice(cur).map((s) => ({ ...s, min: s.km != null ? mins(s.km) : null }));
+    // remind the arrival ATIS shortly before the approach
+    const atisArr = A.atis && airborne && remain != null && remain < 300 && remain > 15 ? A.atis : null;
+    return { cur: out[0], next: out[1], later: out.slice(2), atisArr, airborne, connected: !!pl };
+  }
+
+  function renderFreq(now) {
+    if (!S.callsign) { setHtml("freqBody", `<div class="empty">Flug einstellen, dann erscheinen hier die Funkfrequenzen.</div>`); return; }
+    if (!S.feed && !settings.demo) { setHtml("freqBody", `<div class="empty">Lade VATSIM-Lotsen…</div>`); return; }
+    if (!FIR && now - (S.firTried || 0) > 60e3) { S.firTried = now; pollFir(); }
+    const p = freqPlan(now);
+    if (!p.cur) { setHtml("freqBody", `<div class="empty">Keine Daten.</div>`); return; }
+    const dist = (s) => (s.km != null && s.km > 0.5 ? [s.min != null ? "in ca. " + s.min + " min" : "", "noch " + nf(s.km) + " km"].filter(Boolean).join(" · ") : "");
+    const soon = p.next && p.airborne && ((p.next.min != null && p.next.min <= 3) || (p.next.km != null && p.next.km <= 25));
+    const row = (s, cls, lbl, when) => `<div class="fq-row ${cls}${s.st.unicom ? " unicom" : ""}"><span class="lbl role">${lbl} · ${esc(s.role)}</span>`
+      + `<span class="stn">${esc(s.st.name)}<small>${esc(s.st.cs)}</small></span><span class="mhz num">${esc(s.st.mhz)}</span>`
+      + (when ? `<span class="when">${esc(when)}</span>` : "") + `</div>`;
+    let html = row(p.cur, "", "Aktuell", "");
+    if (p.next) html += row(p.next, "next" + (soon ? " soon" : ""), soon ? "Bald wechseln" : "Als nächstes", [p.next.when !== "jetzt" ? p.next.when : "", dist(p.next)].filter(Boolean).join(" · "));
+    const later = p.later.map((s) => `<div><span class="n"><b>${esc(s.role)}</b>${esc(s.st.name)}</span><span class="t">${esc(s.km != null && s.km >= 1 ? (s.min != null ? s.min + " min" : nf(s.km) + " km") : "")}</span><span class="f">${esc(s.st.mhz)}</span></div>`);
+    if (p.atisArr) later.unshift(`<div><span class="n"><b>ATIS ${esc(arrApt())}</b>Information ${esc(p.atisArr.atis_code || "")} vor dem Anflug hören</span><span class="t"></span><span class="f">${esc(p.atisArr.frequency)}</span></div>`);
+    if (later.length) html += `<div class="fq-later">${later.join("")}</div>`;
+    html += `<div class="empty">Ohne Lotsen: UNICOM 122.800. Zuständigkeit nach VATSIM-Regel „top-down“. Entfernungen sind Schätzungen entlang deiner Route.</div>`;
+    setHtml("freqBody", html);
+    const chip = $("freqChip");
+    chip.textContent = soon ? "Bald wechseln" : p.connected ? "" : "Vorschau";
+    chip.className = "chip" + (soon ? " y" : "");
+    chip.hidden = !chip.textContent;
+  }
+
+  // ICAO type designator -> name passengers know
+  const AC_NAMES = {
+    A19N: "Airbus A319neo", A20N: "Airbus A320neo", A21N: "Airbus A321neo", A318: "Airbus A318", A319: "Airbus A319", A320: "Airbus A320", A321: "Airbus A321",
+    A332: "Airbus A330-200", A333: "Airbus A330-300", A338: "Airbus A330-800neo", A339: "Airbus A330-900neo", A343: "Airbus A340-300", A346: "Airbus A340-600",
+    A359: "Airbus A350-900", A35K: "Airbus A350-1000", A388: "Airbus A380", BCS1: "Airbus A220-100", BCS3: "Airbus A220-300",
+    B737: "Boeing 737-700", B738: "Boeing 737-800", B739: "Boeing 737-900", B37M: "Boeing 737 MAX 7", B38M: "Boeing 737 MAX 8", B39M: "Boeing 737 MAX 9",
+    B744: "Boeing 747-400", B748: "Boeing 747-8", B752: "Boeing 757-200", B763: "Boeing 767-300", B772: "Boeing 777-200", B77L: "Boeing 777-200LR",
+    B77W: "Boeing 777-300ER", B778: "Boeing 777-8", B779: "Boeing 777-9", B788: "Boeing 787-8", B789: "Boeing 787-9", B78X: "Boeing 787-10",
+    E170: "Embraer 170", E175: "Embraer 175", E190: "Embraer 190", E195: "Embraer 195", E290: "Embraer E190-E2", E295: "Embraer E195-E2",
+    CRJ7: "Bombardier CRJ700", CRJ9: "Bombardier CRJ900", DH8D: "De Havilland Dash 8-400", AT76: "ATR 72-600", AT75: "ATR 72-500", MD11: "McDonnell Douglas MD-11",
+  };
+  const acName = (t) => (t ? AC_NAMES[t] || t : "");
+
+  // passenger screens rotate on their own like a cabin moving map, until the viewer picks one
+  let autoOn = store.raw("vdgs.auto") === "1", autoT = 0;
+  function syncAuto() { $("btnAuto").setAttribute("aria-pressed", String(autoOn)); }
+  $("btnAuto").addEventListener("click", () => { autoOn = !autoOn; store.rawSet("vdgs.auto", autoOn ? "1" : "0"); autoT = Date.now(); syncAuto(); });
+  setInterval(() => {
+    if (!autoOn || view !== "ife" || Date.now() - autoT < (pane === "map" ? 40e3 : 20e3)) return;
+    autoT = Date.now();
+    setPane({ map: "dest", dest: "conn", conn: "map" }[pane]);
+  }, 1000);
 
   // ---------- view switch ----------
   let view = store.raw("vdgs.view") === "ife" ? "ife" : "slot";
@@ -1402,6 +1702,11 @@ td.k { color: var(--sign); font-weight: 700; }
     S.pilot = { groundspeed: 0, altitude: 364, transponder: "1000", flight_plan: { aircraft_short: "A21N", altitude: "36000", cruise_tas: "450", route: "OBOKA2G OBOKA Z10 ... (Demo-Route)", departure: "EDDF", arrival: "LEPA", assigned_transponder: "2341" } };
     S.atis = [{ atis_code: "K", frequency: "118.025", text_atis: ["Demo-ATIS · Frankfurt Information K · RWY 25C/25L for arrival, RWY 18 for departure"] }];
     S.atc = [{ facility: 2, callsign: "EDDF_DEL", frequency: "121.900" }, { facility: 3, callsign: "EDDF_S_GND", frequency: "121.955" }, { facility: 4, callsign: "EDDF_TWR", frequency: "119.905" }];
+    // demo network for the frequency guide (flagged as demo data in the header)
+    S.feed = { pilots: [], prefiles: [], atis: [{ callsign: "LEPA_ATIS", atis_code: "D", frequency: "118.825" }], controllers: [
+      ...S.atc, { facility: 5, callsign: "EDDF_N_APP", frequency: "120.805" }, { facility: 6, callsign: "EDGG_P_CTR", frequency: "136.230" },
+      { facility: 6, callsign: "LFMM_CTR", frequency: "133.470" }, { facility: 6, callsign: "LECB_CTR", frequency: "132.355" },
+      { facility: 5, callsign: "LEPA_APP", frequency: "119.150" }, { facility: 4, callsign: "LEPA_TWR", frequency: "118.300" } ] };
     S.metar = "EDDF 241020Z 23012KT 9999 FEW030 12/04 Q1016 NOSIG (Demo)"; S.metarApt = "EDDF";
     // demo aircraft for the flight-info view: cruising between Frankfurt and Palma
     S.demoAir = { latitude: 45.6, longitude: 6.1, heading: 207, groundspeed: 452, altitude: 36000, last_updated: new Date(n).toISOString() };
@@ -1431,7 +1736,7 @@ td.k { color: var(--sign); font-weight: 700; }
   }
   pollFeed = guard("feed", pollFeed); pollFlight = guard("flight", pollFlight); pollBoard = guard("board", pollBoard);
   pollMetar = guard("metar", pollMetar); pollSimbrief = guard("simbrief", pollSimbrief);
-  pollConn = guard("conn", pollConn); pollArrWx = guard("arrwx", pollArrWx);
+  pollConn = guard("conn", pollConn); pollArrWx = guard("arrwx", pollArrWx); pollFir = guard("fir", pollFir);
   const JOBS = { feed: () => pollFeed(), flight: () => pollFlight(), board: () => pollBoard(), metar: () => pollMetar(), simbrief: () => pollSimbrief(),
     conn: () => pollConn(), arrwx: () => pollArrWx() };
   let running = false, lastRefreshAll = 0;
@@ -1449,8 +1754,8 @@ td.k { color: var(--sign); font-weight: 700; }
     running = false;
     Object.assign(S, { callsign: "", flight: null, board: [], pilot: null, prefile: null, atis: [], atc: [], metar: "", metarApt: "",
       feedOk: null, cdmOk: null, sbOk: null, sbErr: "", feed: null, cidCallsign: "", ofp: null, track: null, demoAir: null,
-      conn: null, connApt: "", arrMetar: "", arrMetarApt: "", pax: null, demoConn: null });
-    $("connBody").dataset.html = ""; $("paneDest").dataset.html = "";
+      conn: null, connApt: "", arrMetar: "", arrMetarApt: "", pax: null, demoConn: null, ctrIdx: null, ctrIdxFor: 0, seq: null, seqKey: "" });
+    $("connBody").dataset.html = ""; $("paneDest").dataset.html = ""; $("freqBody").dataset.html = "";
     $("ofp").dataset.html = ""; routeKey = ""; mapFitted = false;
     if (settings.demo) { loadDemo(); render(); return; }
     updateCallsign();
@@ -1471,7 +1776,7 @@ td.k { color: var(--sign); font-weight: 700; }
     if (running) for (const k in JOBS) if (!busy[k] && n >= (nextRun[k] || 0)) JOBS[k]();
     if (S.callsign) render();
   }, 1000);
-  renderClock(Date.now()); syncWake(); setView(view);
+  renderClock(Date.now()); syncWake(); syncAuto(); setView(view);
   // ?simbrief=Name, ?cs=DLH4AB or ?cid=1234567 in the URL pre-fill the flight (handy as an iPad home-screen bookmark)
   const q = new URLSearchParams(location.search);
   if (q.get("demo") !== null) settings.demo = true;

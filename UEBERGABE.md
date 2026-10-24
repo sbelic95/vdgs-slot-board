@@ -7,7 +7,7 @@ Stand: 24.10.2026.
 
 Eine statische Web-App (HTML, CSS und JavaScript in einer Datei, ohne Build-Schritt und ohne Server-Code) als Dauerbildschirm fürs iPad. Oben in der Leiste schaltet man zwischen zwei Modi um:
 
-- **Pilot:** CDM-Slot (EOBT, TOBT, TSAT, TTOT, CTOT), Runway/SID, Status mit Countdown, SimBrief-OFP-Daten, VATSIM-Flugplan, ATIS, METAR, ATC online und eine Abflugtafel des Abflughafens.
+- **Pilot:** CDM-Slot (EOBT, TOBT, TSAT, TTOT, CTOT), Runway/SID, Status mit Countdown, **Frequenz-Führer** (aktuelle und nächste Funkstation mit Frequenz und Zeit bis zum Wechsel), SimBrief-OFP-Daten, VATSIM-Flugplan, ATIS, METAR, ATC online und eine Abflugtafel des Abflughafens.
 - **Passagier:** Wie ein echtes Bordunterhaltungssystem, mit drei Bereichen:
   - **Flugkarte:** Satellitenkarte mit Route, Track und Flugzeug; Geschwindigkeit in km/h, Höhe in m, Entfernung in km, Restflugzeit, Ankunft in Ortszeit, Kurs, Flugphase
   - **Anschlussflüge:** nächste Abflüge am Zielflughafen aus VATSIM und vIFF
@@ -48,6 +48,7 @@ Zum Hosten werden nur `index.html`, `manifest.webmanifest`, `sw.js` und die drei
 | D | `https://www.simbrief.com/api/xml.fetcher.php?username=<NAME>&json=v2` (oder `userid=<ID>`) | Neuestes SimBrief-OFP inkl. `navlog` (Wegpunkte für die Karte) | 5 min und per Button |
 | E | `https://metar.vatsim.net/<ICAO>` | METAR als Klartext (Abflughafen; im Passagier-Modus auch Zielflughafen) | 5 min |
 | B2 | wie B, aber für den **Zielflughafen** | Anschlussflüge (nur im Passagier-Modus) | 60 s |
+| G | `https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson` und `…/VATSpy.dat` | Luftraumgrenzen (FIR, 1.219 Flächen) und Zuordnung Center-Rufzeichen → FIR/UIR. Dieselben Daten wie die VATSIM-Karten. | einmal beim Start (ca. 3 MB) |
 | F | `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}` und `…/Reference/World_Boundaries_and_Places/…` | Kartenkacheln (Satellit, Grenzen, Ortsnamen), ohne Schlüssel. Hinweis: CARTO-Kacheln verlangen inzwischen einen API-Schlüssel. | beim Zoomen |
 
 **Aktualisierung:**
@@ -142,6 +143,23 @@ Die Live-Geschwindigkeit kommt nur für den eigenen Flug aus dem VATSIM-Feed. Di
 
 CTOT-Toleranz in der Anzeige: −5 / +10 min. Start-up-Fenster: TSAT ± 5 min (Konstante `TSAT_WINDOW`).
 
+## 5a. Frequenz-Führer (Pilot-Modus, `freqPlan()`, `renderFreq()`)
+
+Die Karte zeigt **Aktuell** (Station und Frequenz), **Als nächstes** (mit Auslöser, Minuten und km) und darunter alle weiteren Stationen bis zum Ziel.
+
+- **Flughafen-Stationen:** Lotsen, deren Rufzeichen mit `<ICAO>_` beginnt (in den USA auch ohne „K“, z. B. `JFK_`). Zuordnung über `facility`: 2 DEL, 3 GND, 4 TWR, 5 APP (`_DEP` = Departure).
+- **Center:** Der Rufzeichen-Präfix eines Lotsen (z. B. `EDGG_CH` aus `EDGG_CH_CTR`) wird in `VATSpy.dat` gesucht, zuerst `[FIRs]`, dann `[UIRs]`. So bekommt man die Grenzflächen-IDs, die die Station abdeckt (`ctrIndex()`). Eine Position liegt in einer FIR, wenn der Punkt im Polygon liegt (`firsAt()`). Die eigene FIR hat Vorrang vor der UIR darüber.
+- **Top-down (VATSIM-Regel):** Ist eine Station offline, übernimmt die nächsthöhere: DEL → GND → TWR → APP/DEP → CTR (`td()`). Ist niemand online, zeigt die App **UNICOM 122.800**.
+- **Ablauf:**
+  - Am Boden: Streckenfreigabe → Pushback & Rollen → Start (Rollhalt) → Abflug (nach dem Start)
+  - Danach jedes Center entlang der Route (`ctrSequence()`: Route in 15-km-Schritten abgetastet, SimBrief-Navlog oder Großkreis) mit Entfernung bis zur Luftraumgrenze
+  - Zum Schluss Anflug (ca. 100 km vor dem Ziel), Landung (ca. 20 km vorher) und Rollen zum Gate
+
+  Aufeinanderfolgende Schritte bei derselben Station werden zusammengefasst.
+- **Bald wechseln:** gelb pulsierend, wenn der nächste Wechsel in höchstens 3 min oder 25 km kommt.
+- **ATIS:** 300 km vor dem Ziel erscheint der Hinweis, die Ziel-ATIS (Buchstabe und Frequenz) zu hören.
+- **Grenzen:** Sektoren innerhalb einer FIR (z. B. mehrere `EDGG_…_CTR`) unterscheidet die App nicht genau, weil VATSIM keine Sektorgrenzen veröffentlicht. Sie nimmt die erste passende Station. Die Übergabe-Entfernungen für Anflug und Tower sind Schätzwerte.
+
 ## 5b. Passagier-Modus (Bordunterhaltungssystem)
 
 **Flugkarte**
@@ -157,6 +175,13 @@ CTOT-Toleranz in der Anzeige: −5 / +10 min. Start-up-Fenster: TSAT ± 5 min (K
 
   Angezeigt wird die Ortszeit am Ziel.
 - **Flugphase:** Am Gate, Rollen, Steigflug, Reiseflug, Sinkflug, Landeanflug, Gelandet, Angekommen. Steig- und Sinkflug gelten ab ±400 ft/min aus den letzten zwei Track-Punkten.
+- **Außentemperatur:** VATSIM liefert keine. Die App schätzt sie aus der Standardatmosphäre (15 °C − 1,98 °C je 1000 ft, ab 36.089 ft konstant −56,5 °C) und zeigt am Boden den METAR-Wert des Abflughafens.
+- **Wind:** nur im Reiseflug, geschätzt als Groundspeed minus geplante TAS aus dem Flugplan (Rücken- oder Gegenwind, „ca.“).
+- **Wetter am Ziel:** Temperatur und Wetterlage aus dem METAR des Zielflughafens.
+- **Ortszeiten:** für Abflug- und Zielort im Routen-Kopf.
+- **Flugzeug im Klartext:** Typcode → Name (`AC_NAMES`, z. B. B38M → Boeing 737 MAX 8). Angezeigt oben rechts neben dem Callsign.
+- **Kabinen-Meldungen:** „Willkommen an Bord · Flug … nach … · Flugzeit ca. …“ am Gate, „Willkommen in … · Ortszeit · Wetter“ nach der Landung.
+- **Rundlauf:** Der Knopf „Rundlauf“ wechselt automatisch zwischen Flugkarte (40 s), Zielort und Anschlussflügen (je 20 s), wie im Flugzeug (`localStorage["vdgs.auto"]`).
 
 **Anschlussflüge** (`buildConn()`)
 - **Quellen:** Alle VATSIM-Piloten und Prefiles mit `departure` = Zielflughafen, ergänzt um die vIFF-CDM-Daten dieses Flughafens.
@@ -218,6 +243,11 @@ CTOT-Toleranz in der Anzeige: −5 / +10 min. Start-up-Fenster: TSAT ± 5 min (K
 | `distKm()`, `greatCircle()`, `movePoint()` | Geo-Rechnungen (Großkreis) |
 | `loadAirports()`, `aptInfo()`, `fmtAt()` | Flughafen-Daten, Ortszeit |
 | `checkAppUpdate()` | Neue App-Version beim Server abfragen |
+| `pollFir()`, `ctrIndex()`, `firsAt()`, `ctrAt()` | Luftraumgrenzen laden; welches Center deckt welche Position ab |
+| `ctrSequence()` | Centers entlang der restlichen Route mit Entfernung |
+| `aptStations()`, `td()`, `stn()` | Flughafen-Lotsen, Top-down-Regel, Anzeigename |
+| `freqPlan()`, `renderFreq()` | Frequenz-Führer: aktuell, als nächstes, weitere |
+| `acName()` | Flugzeugtyp im Klartext |
 
 ## 8. Ideen für später
 

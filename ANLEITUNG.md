@@ -48,11 +48,14 @@ Die App ist eine statische Website. Alle Dateien in diesem Ordner hochladen:
 
 Oben links schaltest du um:
 
-- **Pilot:** Slot, TSAT-Countdown, Flugplan, SimBrief, ATIS, ATC und Abflugtafel
+- **Pilot:** Slot, TSAT-Countdown, **Frequenzen**, Flugplan, SimBrief, ATIS, ATC und Abflugtafel
+  - **Frequenzen:** Oben rechts siehst du, mit wem du gerade sprichst (**Aktuell**) und zu welcher Frequenz du als nächstes wechseln musst (**Als nächstes**, mit „in ca. X min“). Kurz vor dem Wechsel blinkt es gelb: „Bald wechseln“. Darunter stehen alle weiteren Stationen bis zum Ziel. Ist niemand online, steht dort UNICOM 122.800.
 - **Passagier:** wie das Bordunterhaltungssystem im echten Flieger
   - **Flugkarte:** Satellitenkarte mit deinem Flugzeug, Geschwindigkeit in km/h, Höhe in m, Entfernung und Restflugzeit, Ankunft in Ortszeit
   - **Anschlussflüge:** die nächsten Abflüge an deinem Zielflughafen (live aus VATSIM)
   - **Zielort:** Ortszeit und Wetter am Ziel
+  - **Rundlauf:** wechselt die Bildschirme automatisch wie im Flugzeug
+  - Außentemperatur und Wind sind Schätzwerte („ca.“), weil VATSIM sie nicht liefert
 
 Nach dem Start schaltet die App einmal automatisch auf „Passagier“. Du kannst jederzeit zurück auf „Pilot“.
 
