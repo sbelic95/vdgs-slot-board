@@ -16,6 +16,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <style>
 /* Layout: airport apron display — top status rail, VDGS slot panel left, flight/weather/ATC stack right, FIDS departure board across the bottom.
    Single dark look on purpose: it is an always-on screen (battery, glare, matches real VDGS/FIDS hardware). */
@@ -59,8 +61,8 @@ button { font: inherit; color: inherit; }
 
 .app {
   min-height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   padding-block: 12px 16px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
@@ -90,6 +92,82 @@ button { font: inherit; color: inherit; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
 .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
 .dot.bad { background: var(--bad); }
+
+/* View switch + refresh */
+.seg { display: inline-flex; height: 42px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel-2); }
+.seg button { border: 0; background: transparent; padding: 0 16px; cursor: pointer; font: 700 15px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.seg button[aria-selected="true"] { background: var(--sign); color: var(--sign-ink); }
+.dot.warn { background: var(--warn); }
+#btnRefresh.busy svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #btnRefresh.busy svg { animation: none; } }
+.view-slot { display: flex; flex-direction: column; gap: 14px; }
+
+/* Passenger mode: in-flight entertainment style sub-navigation */
+.pax { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.pnav { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.pnav button { height: 46px; padding: 0 20px; border-radius: 23px; border: 1px solid var(--line); background: var(--panel-2); color: var(--dim); cursor: pointer; font: 700 17px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; }
+.pnav button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.pnav-cs { margin-left: auto; font: 600 15px/1 var(--f-display); letter-spacing: .12em; color: var(--dim); text-transform: uppercase; }
+.conn table { min-width: 620px; }
+.conn td.time { font-size: 22px; font-weight: 700; color: var(--sign); }
+.conn td.city { font-family: var(--f-body); }
+.conn td.city b { font: 700 19px/1 var(--f-display); letter-spacing: .05em; margin-right: 8px; }
+.conn td.city span { color: var(--dim); font-size: 14px; }
+.conn-foot { padding: 10px 16px 14px; color: var(--faint); font-size: 12px; }
+.st.board { color: var(--sign-ink); background: var(--sign); }
+.st.plan { color: var(--dim); background: color-mix(in srgb, var(--dim) 14%, transparent); }
+.st.gone { color: var(--faint); }
+.dest { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; align-content: start; }
+.dest-hero { padding: 26px 28px; display: grid; gap: 10px; align-content: start; }
+.dest-hero .city { font: 700 64px/0.95 var(--f-display); letter-spacing: .02em; text-wrap: balance; }
+.dest-hero .sub { color: var(--dim); font-size: 15px; }
+.dest-hero .time { font-size: 96px; font-weight: 700; line-height: 1; margin-top: 10px; }
+.dest-hero .date { color: var(--dim); font-size: 16px; }
+.wx { padding: 22px 24px; display: grid; gap: 16px; align-content: start; }
+.wx .temp { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.wx .temp .num { font-size: 84px; font-weight: 700; line-height: 1; }
+.wx .temp .cond { font: 700 26px/1.1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; color: var(--sign); }
+.wx .kv .v { font-size: 22px; }
+.wx .raw { font-family: var(--f-num); font-size: 12px; color: var(--faint); overflow-wrap: anywhere; }
+
+/* ---------- Flight info (IFE moving map) ---------- */
+.ife { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 14px; flex: 1; min-height: 560px; }
+.ife-map { position: relative; overflow: hidden; min-height: 420px; }
+#map { position: absolute; inset: 0; background: #0b1622; }
+.leaflet-container { font-family: var(--f-body); }
+.leaflet-control-attribution { background: color-mix(in srgb, var(--bg) 75%, transparent) !important; color: var(--dim) !important; font-size: 10px; }
+.leaflet-control-attribution a { color: var(--dim) !important; }
+.leaflet-bar a { background: var(--panel-2) !important; color: var(--fg) !important; border-color: var(--line) !important; }
+.map-msg { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); z-index: 500; background: color-mix(in srgb, var(--bg) 88%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; font-size: 13px; color: var(--dim); max-width: min(440px, 90%); text-align: center; }
+.map-follow { position: absolute; right: 12px; top: 12px; z-index: 500; }
+.apt-lbl { font: 700 13px/1 var(--f-display) !important; letter-spacing: .1em; color: var(--sign); background: transparent; border: 0; box-shadow: none; text-shadow: 0 0 4px #000, 0 0 2px #000; }
+.apt-lbl::before { display: none; }
+.ac-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(0,0,0,.8)); }
+
+.ife-side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.ife-route { padding: 16px 18px; display: grid; gap: 14px; }
+.ife-cities { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.ife-cities .ct { display: grid; gap: 4px; min-width: 0; }
+.ife-cities .ct.r { text-align: right; }
+.ife-cities .iata { font: 700 40px/0.9 var(--f-display); letter-spacing: .04em; }
+.ife-cities .city { font-size: 13px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ife-plane { width: 26px; height: 26px; color: var(--sign); transform: rotate(90deg); }
+.prog { display: grid; gap: 6px; }
+.prog .bar { position: relative; height: 6px; border-radius: 3px; background: var(--line); }
+.prog .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--sign); width: 0; }
+.prog .bar b { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--sign); border: 3px solid var(--panel); transform: translate(-50%, -50%); left: 0; }
+.prog-lbl { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--dim); }
+.ife-phase { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.ife-phase #ifePhase { font: 700 24px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--sign); }
+.ife-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); overflow: hidden; }
+.itile { background: var(--panel); padding: 14px 16px; display: grid; gap: 6px; min-width: 0; }
+.itile .v { font-size: 30px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.itile .v small { font: 600 15px/1 var(--f-display); letter-spacing: .08em; color: var(--dim); margin-left: 4px; }
+.itile .s { font-size: 12px; color: var(--dim); min-height: 1.2em; }
+.itile.wide { grid-column: 1 / -1; background: color-mix(in srgb, var(--sign) 7%, var(--panel)); }
+.itile.wide .lbl, .itile.wide .v { color: var(--sign); }
+.itile.wide .v { font-size: 44px; }
 
 /* ---------- Main grid ---------- */
 .main { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; min-height: 0; }
@@ -219,12 +297,22 @@ td.k { color: var(--sign); font-weight: 700; }
 .err { color: var(--bad); font-size: 13px; }
 
 /* ---------- Responsive: iPad portrait & phone ---------- */
+@media (max-width: 1280px) {
+  #btnWake span, #btnSetup span { display: none; }
+  .clock.sec { display: none; }
+}
 @media (max-width: 1100px) {
-  .main { grid-template-columns: minmax(0, 1fr); }
+  .main, .dest { grid-template-columns: minmax(0, 1fr); }
+  .ife { grid-template-columns: minmax(0, 1fr); }
+  .ife-map { min-height: 52vh; }
+  .ife-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
-  .side { grid-template-columns: minmax(0, 1fr); }
+  .side, .ife-side { grid-template-columns: minmax(0, 1fr); }
+  .itile .v { font-size: 24px; }
+  .itile.wide .v { font-size: 34px; }
+  #btnRefresh span, #btnWake span, #btnSetup span { display: none; }
   .cs { font-size: 46px; }
   .route { font-size: 22px; }
   .times { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-inline: 14px; }
@@ -241,6 +329,10 @@ td.k { color: var(--sign); font-weight: 700; }
 <div class="app">
   <header class="rail">
     <div class="brand"><span class="tag">VDGS</span><span class="apt" id="aptTag">----</span></div>
+    <div class="seg" role="tablist" aria-label="Ansicht">
+      <button role="tab" id="tabSlot" aria-selected="true">Pilot</button>
+      <button role="tab" id="tabIfe" aria-selected="false">Passagier</button>
+    </div>
     <span class="live"><span class="dot" id="liveDot"></span><span id="liveTxt">Verbinde…</span></span>
     <span id="demoFlag" class="demo-flag" hidden>Demo-Daten</span>
     <div class="clocks">
@@ -248,6 +340,10 @@ td.k { color: var(--sign); font-weight: 700; }
       <div class="clock sec"><span class="lbl">Lokal</span><span class="t num" id="clkLoc">--:--</span></div>
     </div>
     <div class="tools">
+      <button class="ibtn" id="btnRefresh" title="Jetzt aktualisieren">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+        <span>Aktualisieren</span>
+      </button>
       <button class="ibtn" id="btnWake" aria-pressed="false" title="Bildschirm wach halten">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <span>Wach</span>
@@ -262,6 +358,56 @@ td.k { color: var(--sign); font-weight: 700; }
     </div>
   </header>
 
+  <section class="pax" id="viewIfe" hidden aria-label="Passagier">
+    <nav class="pnav" role="tablist" aria-label="Bordprogramm">
+      <button role="tab" data-pane="map" aria-selected="true">Flugkarte</button>
+      <button role="tab" data-pane="conn" aria-selected="false">Anschlussflüge</button>
+      <button role="tab" data-pane="dest" aria-selected="false">Zielort</button>
+      <span class="pnav-cs" id="paxCs"></span>
+    </nav>
+
+    <section class="panel conn" id="paneConn" hidden aria-label="Anschlussflüge">
+      <div class="board-head">
+        <span class="ttl">Anschlussflüge</span><span class="lbl" id="connApt"></span>
+        <span class="seq" id="connInfo"></span>
+      </div>
+      <div class="board-scroll">
+        <table>
+          <thead><tr><th>Zeit</th><th>Flug</th><th>Nach</th><th>Flugzeug</th><th>Status</th></tr></thead>
+          <tbody id="connBody"></tbody>
+        </table>
+      </div>
+      <div class="conn-foot" id="connFoot"></div>
+    </section>
+
+    <section class="dest" id="paneDest" hidden aria-label="Zielort"></section>
+
+    <div class="ife" id="paneMap">
+    <div class="panel ife-map">
+      <div id="map"></div>
+      <div class="map-msg" id="mapMsg" hidden></div>
+      <button class="ibtn map-follow" id="btnFollow" aria-pressed="true" title="Karte folgt dem Flugzeug">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+        <span>Folgen</span>
+      </button>
+    </div>
+    <aside class="ife-side">
+      <div class="panel ife-route">
+        <div class="ife-cities">
+          <div class="ct"><span class="iata" id="ifeDep">----</span><span class="city" id="ifeDepCity"></span></div>
+          <svg class="ife-plane" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+          <div class="ct r"><span class="iata" id="ifeArr">----</span><span class="city" id="ifeArrCity"></span></div>
+        </div>
+        <div class="prog"><div class="bar"><i id="ifeBar"></i><b id="ifeBarPlane"></b></div>
+          <div class="prog-lbl"><span id="ifeFlown"></span><span id="ifeLeft"></span></div></div>
+        <div class="ife-phase"><span class="lbl">Flugphase</span><span id="ifePhase">—</span></div>
+      </div>
+      <div class="panel ife-grid" id="ifeGrid"></div>
+    </aside>
+    </div>
+  </section>
+
+  <div id="viewSlot" class="view-slot">
   <main class="main">
     <section class="panel vdgs" aria-label="Slot">
       <div class="vdgs-head">
@@ -312,9 +458,10 @@ td.k { color: var(--sign); font-weight: 700; }
       </table>
     </div>
   </section>
+  </div>
 
   <footer class="foot">
-    <span>Daten: VATSIM Data Feed · vIFF CDM (viff-system.network) · VATSIM METAR</span>
+    <span>Daten: VATSIM Data Feed · vIFF CDM (viff-system.network) · VATSIM METAR · SimBrief · Karte © Esri · Flughäfen: mwgg/Airports</span>
     <span>TOBT setzen: <a href="https://vats.im/vdgs" target="_blank" rel="noopener">vats.im/vdgs</a></span>
     <span id="upd"></span>
     <span>Nur für Flugsimulation – nicht für echte Luftfahrt.</span>
@@ -356,7 +503,7 @@ td.k { color: var(--sign); font-weight: 700; }
     metar: "https://metar.vatsim.net/",
     simbrief: "https://www.simbrief.com/api/xml.fetcher.php",
   };
-  const POLL = { flight: 20e3, board: 45e3, feed: 30e3, metar: 300e3, simbrief: 300e3 };
+  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3 };
   const TSAT_WINDOW = 5 * 60e3;          // start-up window TSAT ±5 min
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -365,6 +512,8 @@ td.k { color: var(--sign); font-weight: 700; }
   const store = {
     get() { try { return JSON.parse(localStorage.getItem("vdgs.settings") || "{}"); } catch { return {}; } },
     set(v) { try { localStorage.setItem("vdgs.settings", JSON.stringify(v)); } catch {} },
+    raw(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    rawSet(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
   let settings = Object.assign({ simbrief: "", callsign: "", cid: "", chime: true, demo: false }, store.get());
 
@@ -444,6 +593,8 @@ td.k { color: var(--sign); font-weight: 700; }
   // ---------- network ----------
   async function getJSON(url, ms = 15000) {
     const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms);
+    // cache-buster on top of no-store: iOS Safari sometimes still serves a cached response
+    url += (url.includes("?") ? "&" : "?") + "_=" + Date.now();
     try {
       const r = await fetch(url, { signal: ac.signal, cache: "no-store" });
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -473,6 +624,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const cs = S.callsign;
     S.pilot = cs ? d.pilots.find((p) => p.callsign === cs) || null : null;
     S.prefile = cs && !S.pilot ? d.prefiles.find((p) => p.callsign === cs) || null : null;
+    if (S.pilot) recordTrack(S.pilot);
     const apt = depApt();
     if (apt) {
       const pre = apt + "_";
@@ -502,7 +654,14 @@ td.k { color: var(--sign); font-weight: 700; }
     const g = d.general || {}, o = d.origin || {}, de = d.destination || {}, t = d.times || {}, w = d.weights || {}, f = d.fuel || {}, ac = d.aircraft || {};
     const alt = Array.isArray(d.alternate) ? d.alternate[0] : d.alternate;
     const iso = (s) => (s ? Date.parse(s) : null);
+    const pos = (x) => (x && x.pos_lat != null && x.pos_long != null ? [+x.pos_lat, +x.pos_long] : null);
+    const fixes = (Array.isArray(d.navlog) ? d.navlog : d.navlog?.fix || []).map(pos).filter(Boolean);
+    const hms = (s) => { const [h, m, x] = String(s || "").split(":").map(Number); return h >= 0 ? ((h * 60 + (m || 0)) * 60 + (x || 0)) * 1000 : null; };
     return {
+      depPos: pos(o), arrPos: pos(de), depName: o.name || "", arrName: de.name || "",
+      depTzH: o.timezone !== undefined && o.timezone !== "" ? Number(o.timezone) : null,
+      arrTzH: de.timezone !== undefined && de.timezone !== "" ? Number(de.timezone) : null,
+      navlog: fixes, eteMs: hms(t.est_time_enroute),
       callsign: d.atc?.callsign || ((g.icao_airline || "") + (g.flight_number || "")),
       dep: o.icao_code, arr: de.icao_code, altn: alt?.icao_code || "", depRwy: o.plan_rwy, arrRwy: de.plan_rwy,
       depMetar: o.metar || "", type: ac.icaocode || ac.icao_code, reg: ac.reg, units: d.params?.units || "kgs",
@@ -548,7 +707,7 @@ td.k { color: var(--sign); font-weight: 700; }
     if (settings.demo) return;
     const apt = depApt(); if (!apt) return;
     try {
-      const r = await fetch(API.metar + encodeURIComponent(apt), { cache: "no-store" });
+      const r = await fetch(API.metar + encodeURIComponent(apt) + "?_=" + Date.now(), { cache: "no-store" });
       const txt = (await r.text()).trim();
       if (txt) { S.metar = txt; S.metarApt = apt; }
     } catch (e) {}
@@ -596,8 +755,12 @@ td.k { color: var(--sign); font-weight: 700; }
     const dot = $("liveDot"), txt = $("liveTxt");
     if (settings.demo) { dot.className = "dot"; txt.textContent = "Demo"; return; }
     const ok = S.feedOk !== false && S.cdmOk !== false;
-    dot.className = "dot " + (S.feedOk === null && S.cdmOk === null ? "" : ok ? "ok" : "bad");
-    txt.textContent = S.feedOk === null && S.cdmOk === null ? "Verbinde…" : ok ? "Live" : (S.feedOk === false ? "VATSIM-Feed nicht erreichbar" : "CDM-Server nicht erreichbar");
+    const age = S.lastFeed ? Date.now() - S.lastFeed : 0;
+    const stale = age > 75e3;
+    dot.className = "dot " + (S.feedOk === null && S.cdmOk === null ? "" : !ok ? "bad" : stale ? "warn" : "ok");
+    txt.textContent = S.feedOk === null && S.cdmOk === null ? "Verbinde…"
+      : !ok ? (S.feedOk === false ? "VATSIM-Feed nicht erreichbar" : "CDM-Server nicht erreichbar")
+      : stale ? "Veraltet (" + Math.round(age / 60e3) + " min)" : "Live · vor " + Math.round(age / 1000) + " s";
     const ages = [];
     if (S.lastCdm) ages.push("CDM " + hhmm(S.lastCdm) + "Z");
     if (S.lastFeed) ages.push("Feed " + hhmm(S.lastFeed) + "Z");
@@ -659,7 +822,391 @@ td.k { color: var(--sign); font-weight: 700; }
     renderWx(apt);
     renderBoard(f, now, apt);
     renderLive();
+
+    // after take-off switch to the flight-info view once per flight; the pilot can switch back
+    if (ph === "airborne" && !settings.demo && S.callsign && store.raw("vdgs.autoIfe") !== S.callsign) {
+      store.rawSet("vdgs.autoIfe", S.callsign); setView("ife");
+    }
+    if (view === "ife") {
+      renderIfe(now, f, fp, ofp);
+      $("paxCs").textContent = [S.callsign, f?.arr || fp?.arrival || ofp?.arr ? "nach " + (S.pax?.arr?.city || arrApt()) : ""].filter(Boolean).join(" · ");
+      if (pane === "conn") renderConn(now);
+      if (pane === "dest") renderDest(now);
+    }
   }
+
+  // ---------- flight info (IFE moving map) ----------
+  const KT_KMH = 1.852, FT_M = 0.3048;
+  const R_KM = 6371;
+  const rad = (d) => (d * Math.PI) / 180, deg = (r) => (r * 180) / Math.PI;
+  function distKm(a, b) {
+    const dLat = rad(b[0] - a[0]), dLon = rad(b[1] - a[1]);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLon / 2) ** 2;
+    return 2 * R_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function movePoint(p, hdg, km) {
+    const d = km / R_KM, b = rad(hdg), la = rad(p[0]), lo = rad(p[1]);
+    const la2 = Math.asin(Math.sin(la) * Math.cos(d) + Math.cos(la) * Math.sin(d) * Math.cos(b));
+    const lo2 = lo + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(la), Math.cos(d) - Math.sin(la) * Math.sin(la2));
+    return [deg(la2), ((deg(lo2) + 540) % 360) - 180];
+  }
+  function greatCircle(a, b, n = 64) {
+    const [la1, lo1, la2, lo2] = [rad(a[0]), rad(a[1]), rad(b[0]), rad(b[1])];
+    const d = distKm(a, b) / R_KM; if (!d) return [a, b];
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const f = i / n, A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
+      const x = A * Math.cos(la1) * Math.cos(lo1) + B * Math.cos(la2) * Math.cos(lo2);
+      const y = A * Math.cos(la1) * Math.sin(lo1) + B * Math.cos(la2) * Math.sin(lo2);
+      const z = A * Math.sin(la1) + B * Math.sin(la2);
+      pts.push([deg(Math.atan2(z, Math.hypot(x, y))), deg(Math.atan2(y, x))]);
+    }
+    return pts;
+  }
+  const nf = (v, d = 0) => Number(v).toLocaleString("de-DE", { maximumFractionDigits: d, minimumFractionDigits: d });
+  const COMPASS = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
+
+  // Airport coordinates, city and time zone (compact copy of github.com/mwgg/Airports, loaded on demand)
+  let APTS = null, aptsReq = null;
+  function loadAirports() {
+    if (!aptsReq) aptsReq = fetch("airports.json").then((r) => r.json()).then((d) => { APTS = d; render(); }).catch(() => { aptsReq = null; });
+    return aptsReq;
+  }
+  function aptInfo(icao, ofp, side) {
+    if (!icao) return null;
+    const a = APTS?.[icao];
+    const fromOfp = ofp && ofp[side] === icao;
+    const p = fromOfp ? ofp[side + "Pos"] : null;
+    const city = a?.[2] || (fromOfp ? ofp[side + "Name"] : "") || "";
+    return {
+      icao, pos: p || (a ? [a[0], a[1]] : null), city: city.replace(/-/g, " "), tz: a?.[3] || "",
+      tzH: fromOfp ? ofp[side + "TzH"] : null,
+    };
+  }
+  function fmtAt(t, info) {
+    if (t == null) return "--:--";
+    if (info?.tz) { try { return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: info.tz }).format(t); } catch {} }
+    if (info?.tzH != null && !isNaN(info.tzH)) return hhmm(t + info.tzH * 3600e3);
+    return hhmm(t) + "Z";
+  }
+
+  // Flown track, kept per callsign in the browser so a reload keeps the line on the map
+  function loadTrack() { try { return JSON.parse(localStorage.getItem("vdgs.track") || "null"); } catch { return null; } }
+  function recordTrack(p) {
+    if (p.latitude == null) return;
+    const now = Date.now();
+    let tr = S.track || loadTrack();
+    if (!tr || tr.cs !== p.callsign || now - (tr.pts.at(-1)?.[3] || 0) > 6 * 3600e3) tr = { cs: p.callsign, pts: [] };
+    const last = tr.pts.at(-1);
+    if (!last || distKm(last, [p.latitude, p.longitude]) > 0.3 || now - last[3] > 60e3) {
+      tr.pts.push([p.latitude, p.longitude, p.altitude, now]);
+      if (tr.pts.length > 3000) tr.pts.splice(0, tr.pts.length - 3000);
+      try { localStorage.setItem("vdgs.track", JSON.stringify(tr)); } catch {}
+    }
+    S.track = tr;
+  }
+  // vertical speed in ft/min from the last two track samples
+  function vSpeed() {
+    const p = S.track?.pts; if (!p || p.length < 2) return 0;
+    const [a, b] = [p.at(-2), p.at(-1)], min = (b[3] - a[3]) / 60e3;
+    return min > 0.1 && min < 5 ? (b[2] - a[2]) / min : 0;
+  }
+
+  // Position now: last VATSIM report moved forward along the heading (the feed updates every ~15 s)
+  function livePos(pl, now) {
+    if (!pl || pl.latitude == null) return null;
+    const p = [pl.latitude, pl.longitude];
+    const age = Math.min(Math.max((now - Date.parse(pl.last_updated || now)) / 1000, 0), 60);
+    return pl.groundspeed > 40 ? movePoint(p, pl.heading || 0, (pl.groundspeed * KT_KMH * age) / 3600) : p;
+  }
+
+  let map = null, mapL = {}, follow = true, mapFitted = false, routeKey = "";
+  const PLANE_SVG = `<svg viewBox="0 0 24 24"><path fill="#ffcc00" stroke="#0a0e13" stroke-width="0.8" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>`;
+  function ensureMap() {
+    if (map || !window.L || $("viewIfe").hidden || $("paneMap").hidden) return map;
+    map = L.map("map", { zoomControl: true, worldCopyJump: true, attributionControl: true }).setView([48, 10], 5);
+    // satellite base + country borders and place names, like a cabin moving map (Esri, no API key needed)
+    const esri = "https://server.arcgisonline.com/ArcGIS/rest/services/";
+    L.tileLayer(esri + "World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 12, attribution: "Tiles &copy; Esri &mdash; Esri, Maxar, Earthstar Geographics, GIS User Community",
+    }).addTo(map);
+    L.tileLayer(esri + "Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 12, opacity: 0.85 }).addTo(map);
+    mapL.route = L.polyline([], { color: "#e8eef4", weight: 2, dashArray: "6 8", opacity: 0.85 }).addTo(map);
+    mapL.track = L.polyline([], { color: "#ffcc00", weight: 3, opacity: 0.95 }).addTo(map);
+    mapL.dep = L.circleMarker([0, 0], { radius: 5, color: "#ffcc00", fillColor: "#0a0e13", fillOpacity: 1, weight: 2 });
+    mapL.arr = L.circleMarker([0, 0], { radius: 5, color: "#ffcc00", fillColor: "#ffcc00", fillOpacity: 1, weight: 2 });
+    mapL.plane = L.marker([0, 0], { icon: L.divIcon({ className: "ac-icon", html: `<div id="acRot" style="width:34px;height:34px">${PLANE_SVG}</div>`, iconSize: [34, 34], iconAnchor: [17, 17] }), zIndexOffset: 1000, interactive: false });
+    map.on("dragstart", () => { follow = false; syncFollow(); });
+    return map;
+  }
+  function syncFollow() { $("btnFollow").setAttribute("aria-pressed", String(follow)); }
+
+  function renderIfe(now, f, fp, ofp) {
+    const demo = settings.demo;
+    const pl = demo ? S.demoAir : S.pilot;
+    const depIcao = f?.dep || fp?.departure || ofp?.dep, arrIcao = f?.arr || fp?.arrival || ofp?.arr;
+    if (!APTS) loadAirports();
+    const dep = aptInfo(depIcao, ofp, "dep"), arr = aptInfo(arrIcao, ofp, "arr");
+    const pos = livePos(pl, now);
+    const gs = pl?.groundspeed || 0, alt = pl?.altitude || 0, hdg = pl?.heading || 0;
+    const airborne = gs > 60;
+    const remain = pos && arr?.pos ? distKm(pos, arr.pos) : null;
+    const flown = pos && dep?.pos ? distKm(dep.pos, pos) : null;
+    const total = dep?.pos && arr?.pos ? distKm(dep.pos, arr.pos) : null;
+    const prog = flown != null && remain != null ? flown / (flown + remain) : 0;
+    const vs = demo ? 0 : vSpeed();
+
+    // ETA: live from ground speed once airborne, otherwise take-off time + planned air time
+    let eta = null, etaSrc = "";
+    if (airborne && remain != null && gs > 100) { eta = now + (remain / (gs * KT_KMH)) * 3600e3; etaSrc = "aus aktueller Geschwindigkeit"; }
+    else if (ofp?.eteMs && (f?.ttot || ofp.off)) { eta = (f?.ttot || ofp.off) + ofp.eteMs; etaSrc = f?.ttot ? "TTOT + geplante Flugzeit" : "SimBrief-Plan"; }
+    else if (f?.eta) { eta = f.eta; etaSrc = "CDM-Plan"; }
+    else if (ofp?.on) { eta = ofp.on; etaSrc = "SimBrief-Plan"; }
+
+    let phaseTxt = "Nicht verbunden";
+    if (pl) {
+      const atDest = remain != null && remain < 12;
+      if (gs < 3) phaseTxt = atDest ? "Angekommen" : "Am Gate";
+      else if (!airborne) phaseTxt = atDest ? "Gelandet · Rollen" : "Rollen";
+      else if (vs < -400) phaseTxt = remain != null && remain < 80 ? "Landeanflug" : "Sinkflug";
+      else if (vs > 400) phaseTxt = "Steigflug";
+      else phaseTxt = "Reiseflug";
+    }
+
+    $("ifeDep").textContent = depIcao || "----";
+    $("ifeArr").textContent = arrIcao || "----";
+    $("ifeDepCity").textContent = dep?.city || "";
+    $("ifeArrCity").textContent = arr?.city || "";
+    $("ifeBar").style.width = (prog * 100).toFixed(1) + "%";
+    $("ifeBarPlane").style.left = (prog * 100).toFixed(1) + "%";
+    $("ifeFlown").textContent = flown != null ? nf(flown) + " km geflogen" : total != null ? "Strecke " + nf(total) + " km" : "";
+    $("ifeLeft").textContent = remain != null ? "noch " + nf(remain) + " km" : "";
+    $("ifePhase").textContent = phaseTxt;
+
+    const tile = (lbl, v, unit, sub, cls = "") => `<div class="itile ${cls}"><span class="lbl">${lbl}</span><span class="v num">${v}${unit ? `<small>${unit}</small>` : ""}</span><span class="s">${esc(sub || "")}</span></div>`;
+    const leftMs = airborne && remain != null && gs > 100 ? (remain / (gs * KT_KMH)) * 3600e3 : eta && now < eta ? eta - now : null;
+    const hm = (ms) => { const m = Math.round(ms / 60e3); return Math.floor(m / 60) + ":" + p2(m % 60); };
+    const vsTxt = Math.abs(vs) > 200 ? (vs > 0 ? " · steigt " : " · sinkt ") + nf(Math.abs(vs) * FT_M / 60, 1) + " m/s" : "";
+    $("ifeGrid").innerHTML = [
+      tile("Voraussichtliche Ankunft · Ortszeit", fmtAt(eta, arr), "", eta ? [arr?.city, hhmm(eta) + " UTC", ofp?.in ? "Plan " + fmtAt(ofp.in, arr) : "", etaSrc].filter(Boolean).join(" · ") : "Noch keine Schätzung", "wide"),
+      tile("Geschwindigkeit", pl ? nf(gs * KT_KMH) : "—", pl ? "km/h" : "", pl ? nf(gs) + " kt über Grund" : ""),
+      tile("Flughöhe", pl ? nf(alt * FT_M) : "—", pl ? "m" : "", pl ? nf(alt) + " ft" + vsTxt : ""),
+      tile("Entfernung zum Ziel", remain != null ? nf(remain) : total != null ? nf(total) : "—", remain != null || total != null ? "km" : "", remain != null ? nf(remain / 1.852) + " nm Luftlinie" : "Luftlinie"),
+      tile("Restflugzeit", leftMs != null ? hm(leftMs) : "—", leftMs != null ? "h" : "", ofp?.eteMs ? "geplant " + hm(ofp.eteMs) + " h" : ""),
+      tile("Zurückgelegt", flown != null ? nf(flown) : "—", flown != null ? "km" : "", total ? "von " + nf(total) + " km" : ""),
+      tile("Kurs", pl ? p2(Math.round(hdg) % 360).padStart(3, "0") + "°" : "—", pl ? COMPASS[Math.round(hdg / 45) % 8] : "", ""),
+      tile("Ortszeit " + (arr?.city || "Ziel"), fmtAt(now, arr), "", arr?.tz ? arr.tz.replace(/_/g, " ") : ""),
+      tile("Ortszeit " + (dep?.city || "Abflug"), fmtAt(now, dep), "", dep?.tz ? dep.tz.replace(/_/g, " ") : ""),
+    ].join("");
+
+    S.pax = { dep, arr, eta, etaSrc, remain };
+    if (pane !== "map") return;
+
+    // map
+    const msg = $("mapMsg");
+    if (!window.L) { msg.hidden = false; msg.textContent = "Karte konnte nicht geladen werden. Internetverbindung prüfen und „Aktualisieren“ tippen."; return; }
+    if (!ensureMap()) return;
+    msg.textContent = !pl && !demo ? "Deine Position erscheint, sobald du mit VATSIM verbunden bist." : "";
+    msg.hidden = !!pos || !msg.textContent;
+    const routePts = ofp && ofp.depPos && ofp.arrPos && ofp.dep === depIcao && ofp.arr === arrIcao
+      ? [ofp.depPos, ...ofp.navlog, ofp.arrPos] : dep?.pos && arr?.pos ? greatCircle(dep.pos, arr.pos) : [];
+    const key = (depIcao || "") + arrIcao + routePts.length;
+    if (key !== routeKey) {
+      routeKey = key; mapFitted = false;
+      mapL.route.setLatLngs(routePts);
+      for (const [m, a] of [[mapL.dep, dep], [mapL.arr, arr]]) {
+        if (a?.pos) { m.setLatLng(a.pos).addTo(map); m.unbindTooltip().bindTooltip(a.icao, { permanent: true, direction: "top", className: "apt-lbl", offset: [0, -6] }); }
+        else m.remove();
+      }
+    }
+    const trackPts = !demo && S.track?.cs === S.callsign ? S.track.pts.map((p) => [p[0], p[1]]) : demo && pos && dep?.pos ? greatCircle(dep.pos, pos, 24) : [];
+    if (pos && !demo) trackPts.push(pos);
+    mapL.track.setLatLngs(trackPts);
+    if (pos) {
+      mapL.plane.setLatLng(pos).addTo(map);
+      const rot = document.getElementById("acRot"); if (rot) rot.style.transform = `rotate(${hdg}deg)`;
+    } else mapL.plane.remove();
+    if (!mapFitted) {
+      const b = [dep?.pos, arr?.pos, pos].filter(Boolean);
+      if (b.length > 1) { map.fitBounds(b, { padding: [50, 50], maxZoom: 9 }); mapFitted = true; }
+      else if (b.length === 1) { map.setView(b[0], 8); mapFitted = true; }
+    } else if (follow && pos) map.panTo(pos, { animate: false });
+  }
+
+  // ---------- passenger: connecting flights at the destination ----------
+  function arrApt() {
+    return S.flight?.arr || S.pilot?.flight_plan?.arrival || S.prefile?.flight_plan?.arrival || (S.ofp?.callsign === S.callsign ? S.ofp?.arr : "") || "";
+  }
+
+  async function pollConn() {
+    if (settings.demo || view !== "ife") return;
+    const apt = arrApt(); if (!apt) return;
+    try {
+      const list = await getJSON(API.viff + "/ifps/depAirport?airport=" + encodeURIComponent(apt)) || [];
+      const by = new Map();
+      for (const r of list) { const f = norm(r); if (f && (!by.has(f.callsign) || f.tsat)) by.set(f.callsign, f); }
+      S.conn = by; S.connApt = apt;
+    } catch (e) {}
+    render();
+  }
+
+  async function pollArrWx() {
+    if (settings.demo || view !== "ife") return;
+    const apt = arrApt(); if (!apt) return;
+    try {
+      const txt = (await (await fetch(API.metar + encodeURIComponent(apt) + "?_=" + Date.now(), { cache: "no-store" })).text()).trim();
+      if (txt) { S.arrMetar = txt; S.arrMetarApt = apt; }
+    } catch (e) {}
+    render();
+  }
+
+  // Departures from the destination airport: VATSIM pilots and prefiles leaving there, with CDM times where available
+  function buildConn(now) {
+    if (settings.demo) return S.demoConn || [];
+    const apt = arrApt(); if (!apt || !S.feed) return [];
+    const cdm = S.connApt === apt && S.conn ? S.conn : new Map();
+    const aptPos = S.pax?.arr?.pos;
+    const rows = new Map();
+    const add = (cs, o) => rows.set(cs, Object.assign(rows.get(cs) || { cs }, o));
+    for (const p of S.feed.pilots) if (p.flight_plan?.departure === apt) add(p.callsign, { p, fp: p.flight_plan });
+    for (const p of S.feed.prefiles) if (p.flight_plan?.departure === apt && !rows.has(p.callsign)) add(p.callsign, { fp: p.flight_plan });
+    for (const [cs, c] of cdm) add(cs, { c });
+    const out = [];
+    for (const r of rows.values()) {
+      if (r.cs === S.callsign) continue;
+      const c = r.c, p = r.p;
+      const time = c?.tsat || c?.tobt || c?.eobt || toTime(r.fp?.deptime);
+      const near = p && aptPos ? distKm([p.latitude, p.longitude], aptPos) < 40 : !!p;
+      let st;
+      if (c?.atot || (p && p.groundspeed > 60)) {
+        const recent = c?.atot ? now - c.atot < 20 * 60e3 : near;
+        if (!recent) continue;
+        st = ["gone", "Gestartet"];
+      } else if (p && p.groundspeed >= 3) st = ["taxi", "Rollt"];
+      else if (p) {
+        const mins = time ? (time - now) / 60e3 : 99;
+        st = c && phase(c, now) === "go" ? ["go", "Gate geschlossen"] : mins <= 40 ? ["board", "Boarding"] : ["plan", "Planmäßig"];
+      } else if (time && now - time > 15 * 60e3) st = ["late", "Verspätet"];
+      else st = ["plan", "Planmäßig"];
+      if (!time && !p) continue;
+      if (time && (time < now - 90 * 60e3 || time > now + 12 * 3600e3)) continue;
+      out.push({ cs: r.cs, dest: r.fp?.arrival || c?.arr || "", type: r.fp?.aircraft_short || c?.type || "", time, st });
+    }
+    return out.sort((a, b) => (a.time ?? 9e15) - (b.time ?? 9e15)).slice(0, 40);
+  }
+
+  function renderConn(now) {
+    const apt = arrApt(), arr = S.pax?.arr, eta = S.pax?.eta;
+    $("connApt").textContent = apt ? "ab " + apt + (arr?.city ? " · " + arr.city : "") : "";
+    const rows = buildConn(now);
+    $("connInfo").innerHTML = eta ? `Ihre Ankunft <b>${esc(fmtAt(eta, arr))}</b> Ortszeit · ${rows.length} Abflüge` : rows.length ? rows.length + " Abflüge" : "";
+    $("connFoot").textContent = "Zeiten in Ortszeit " + (arr?.city || "am Ziel") + ". Grau: Abflug vor Ihrer voraussichtlichen Ankunft. Quelle: VATSIM-Flugpläne und vIFF-CDM, Aktualisierung jede Minute.";
+    const html = !apt ? `<tr><td colspan="5" class="empty" style="font-family:var(--f-body)">Das Ziel ist noch nicht bekannt. Flugplan aufgeben oder SimBrief verknüpfen.</td></tr>`
+      : !rows.length ? `<tr><td colspan="5" class="empty" style="font-family:var(--f-body)">${S.feed || settings.demo ? "Zurzeit keine Abflüge ab " + esc(apt) + " im VATSIM-Netz." : "Lade VATSIM-Daten…"}</td></tr>`
+      : rows.map((r) => {
+          const d = APTS?.[r.dest];
+          const before = eta && r.time && r.time < eta;
+          return `<tr${before ? ' style="opacity:.5"' : ""}><td class="time">${r.time ? fmtAt(r.time, arr) : "--:--"}</td><td class="cs3">${esc(r.cs)}</td>`
+            + `<td class="city"><b>${esc(r.dest || "----")}</b><span>${esc((d?.[2] || "").replace(/-/g, " "))}</span></td>`
+            + `<td>${esc(r.type)}</td><td><span class="st ${r.st[0]}">${r.st[1]}</span></td></tr>`;
+        }).join("");
+    if ($("connBody").dataset.html !== html) { $("connBody").dataset.html = html; $("connBody").innerHTML = html; }
+  }
+
+  // ---------- passenger: destination time and weather ----------
+  // Turn a METAR into passenger language (°C, km/h, km, hPa)
+  function decodeMetar(raw) {
+    const t = " " + String(raw || "").replace(/\s+/g, " ") + " ";
+    const o = {};
+    let m = t.match(/ (M?\d{2})\/(M?\d{2})? /);
+    if (m) { o.temp = +m[1].replace("M", "-"); if (m[2]) o.dew = +m[2].replace("M", "-"); }
+    m = t.match(/ (\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?(KT|MPS) /);
+    if (m) { const k = m[4] === "MPS" ? 3.6 : KT_KMH; o.wdir = m[1]; o.wspd = Math.round(+m[2] * k); if (m[3]) o.gust = Math.round(+m[3] * k); }
+    if (/ CAVOK /.test(t)) { o.visKm = 10; o.cavok = true; }
+    else if ((m = t.match(/ (\d{4}) /))) o.visKm = +m[1] >= 9999 ? 10 : +m[1] / 1000;
+    else if ((m = t.match(/ (\d+)(?:\/(\d))?SM /))) o.visKm = Math.min(10, (m[2] ? +m[1] / +m[2] : +m[1]) * 1.609);
+    if ((m = t.match(/ Q(\d{4}) /))) o.qnh = +m[1];
+    else if ((m = t.match(/ A(\d{4}) /))) o.qnh = Math.round(+m[1] / 100 * 33.8639);
+    o.clouds = [...t.matchAll(/ (FEW|SCT|BKN|OVC|VV)(\d{3})/g)].map((c) => ({ cov: c[1], ft: +c[2] * 100 }));
+    const wx = t.match(/ (?:[-+]|VC)?(?:MI|BC|PR|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|PL|GR|GS|FG|BR|HZ|FU|SA|DU)+ /g) || [];
+    const w = wx.join(" ");
+    o.cond = /TS/.test(w) ? "Gewitter" : /SN|SG|PL/.test(w) ? "Schnee" : /SHRA/.test(w) ? "Regenschauer" : /RA/.test(w) ? (/\+RA/.test(w) ? "Starker Regen" : "Regen")
+      : /DZ/.test(w) ? "Nieselregen" : /FG/.test(w) ? "Nebel" : /BR/.test(w) ? "Dunst" : /HZ|FU|SA|DU/.test(w) ? "Diesig" : "";
+    if (!o.cond) {
+      const top = ["OVC", "VV", "BKN", "SCT", "FEW"].find((c) => o.clouds.some((x) => x.cov === c));
+      o.cond = { OVC: "Bedeckt", VV: "Bedeckt", BKN: "Stark bewölkt", SCT: "Wolkig", FEW: "Leicht bewölkt" }[top] || "Klar";
+    }
+    return o;
+  }
+
+  function renderDest(now) {
+    const apt = arrApt(), arr = S.pax?.arr, eta = S.pax?.eta;
+    if (!apt) { setHtml("paneDest", `<div class="panel dest-hero"><div class="empty">Das Ziel ist noch nicht bekannt.</div></div>`); return; }
+    let date = "", zone = "";
+    try {
+      if (arr?.tz) {
+        date = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", timeZone: arr.tz }).format(now);
+        zone = new Intl.DateTimeFormat("de-DE", { timeZone: arr.tz, timeZoneName: "shortOffset" }).formatToParts(now).find((p) => p.type === "timeZoneName")?.value || "";
+      }
+    } catch {}
+    const ofp = S.ofp?.arr === apt ? S.ofp : null;
+    const name = ofp?.arrName ? ofp.arrName.replace(/\b\w+/g, (w) => w[0] + w.slice(1).toLowerCase()) : "";
+    const raw = settings.demo ? S.metar.replace("EDDF", apt) : S.arrMetarApt === apt ? S.arrMetar : "";
+    const w = raw ? decodeMetar(raw) : null;
+    const kv = (l, v) => `<div><span class="lbl">${l}</span><span class="v num">${v}</span></div>`;
+    const wind = w?.wspd != null ? (w.wspd < 2 ? "Windstill" : (w.wdir === "VRB" ? "wechselnd " : COMPASS[Math.round(+w.wdir / 45) % 8] + " ") + w.wspd + " km/h" + (w.gust ? ", Böen " + w.gust : "")) : "—";
+    const base = w?.clouds?.find((c) => ["BKN", "OVC", "VV"].includes(c.cov));
+    setHtml("paneDest", `
+      <div class="panel dest-hero">
+        <span class="lbl">Ihr Ziel</span>
+        <div class="city">${esc(arr?.city || apt)}</div>
+        <div class="sub">${esc([apt, name].filter(Boolean).join(" · "))}</div>
+        <span class="lbl" style="margin-top:14px">Ortszeit ${esc(zone)}</span>
+        <div class="time num">${fmtAt(now, arr)}</div>
+        <div class="date">${esc(date)}</div>
+        <div class="kv" style="margin-top:16px">
+          ${kv("Ankunft", eta ? fmtAt(eta, arr) : "—")}${kv("Entfernung", S.pax?.remain != null ? nf(S.pax.remain) + " km" : "—")}${kv("Restflugzeit", S.pax?.remain != null && (S.demoAir || S.pilot)?.groundspeed > 100 ? (() => { const mm = Math.round(S.pax.remain / ((S.demoAir || S.pilot).groundspeed * KT_KMH) * 60); return Math.floor(mm / 60) + ":" + p2(mm % 60) + " h"; })() : "—")}
+        </div>
+      </div>
+      <div class="panel wx">
+        <span class="lbl">Wetter in ${esc(arr?.city || apt)}</span>
+        ${w ? `<div class="temp"><span class="num">${w.temp != null ? w.temp + "°" : "—"}</span><span class="cond">${esc(w.cond)}</span></div>
+        <div class="kv">
+          ${kv("Wind", esc(wind))}${kv("Sicht", w.visKm != null ? (w.visKm >= 10 ? "über 10 km" : nf(w.visKm, 1) + " km") : "—")}${kv("Luftdruck", w.qnh ? w.qnh + " hPa" : "—")}
+          ${kv("Taupunkt", w.dew != null ? w.dew + " °C" : "—")}${kv("Wolkenuntergrenze", base ? nf(base.ft * FT_M, 0) + " m" : w.cavok ? "keine" : "—")}${kv("Luftfeuchte", w.temp != null && w.dew != null ? Math.round(100 * Math.exp((17.625 * w.dew) / (243.04 + w.dew)) / Math.exp((17.625 * w.temp) / (243.04 + w.temp))) + " %" : "—")}
+        </div>
+        <div class="raw">${esc(raw)}</div>` : `<div class="empty">Wetterdaten für ${esc(apt)} werden geladen…</div>`}
+      </div>`);
+  }
+  function setHtml(id, html) { const el = $(id); if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; } }
+
+  // ---------- view switch ----------
+  let view = store.raw("vdgs.view") === "ife" ? "ife" : "slot";
+  let pane = ["map", "conn", "dest"].includes(store.raw("vdgs.pane")) ? store.raw("vdgs.pane") : "map";
+  function setPane(p) {
+    pane = p; store.rawSet("vdgs.pane", p);
+    $("paneMap").hidden = p !== "map"; $("paneConn").hidden = p !== "conn"; $("paneDest").hidden = p !== "dest";
+    document.querySelectorAll(".pnav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.pane === p)));
+    if (p === "map") { mapFitted = false; if (map) setTimeout(() => { map.invalidateSize(); mapFitted = false; render(); }, 50); }
+    else { nextRun.conn = 0; nextRun.arrwx = 0; }
+    render();
+  }
+  document.querySelectorAll(".pnav button").forEach((b) => b.addEventListener("click", () => setPane(b.dataset.pane)));
+  function setView(v) {
+    view = v; store.rawSet("vdgs.view", v);
+    $("viewIfe").hidden = v !== "ife"; $("viewSlot").hidden = v !== "slot";
+    $("tabSlot").setAttribute("aria-selected", String(v === "slot")); $("tabIfe").setAttribute("aria-selected", String(v === "ife"));
+    if (v === "ife") { loadAirports(); nextRun.conn = 0; nextRun.arrwx = 0; setPane(pane); }
+  }
+  $("tabSlot").addEventListener("click", () => setView("slot"));
+  $("tabIfe").addEventListener("click", () => setView("ife"));
+  $("btnFollow").addEventListener("click", () => { follow = !follow; syncFollow(); if (follow) render(); });
+  // iPad rotation or window resize: let Leaflet measure again, then re-fit the route
+  let resizeT = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(() => { if (map) { map.invalidateSize(); mapFitted = false; render(); } }, 200);
+  });
 
   function renderTimeline(f, now) {
     const el = $("tl");
@@ -800,7 +1347,11 @@ td.k { color: var(--sign); font-weight: 700; }
     b.setAttribute("aria-pressed", String(!!wake));
     b.title = !("wakeLock" in navigator) ? "Wach halten wird von diesem Browser nicht unterstützt – in den iPad-Einstellungen Automatische Sperre auf „Nie“ stellen." : "Bildschirm wach halten";
   }
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { if (wantWake && !wake) setWake(true); tickAll(); } });
+  // iPad pauses timers while the screen is off or the app is in the background: catch up as soon as it is back
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { if (wantWake && !wake) setWake(true); refreshAll(); } });
+  window.addEventListener("pageshow", () => refreshAll());
+  window.addEventListener("focus", () => refreshAll());
+  window.addEventListener("online", () => refreshAll(true));
   $("btnWake").addEventListener("click", () => setWake(!wake));
   $("btnFull").addEventListener("click", () => {
     const d = document, el = d.documentElement;
@@ -852,31 +1403,75 @@ td.k { color: var(--sign); font-weight: 700; }
     S.atis = [{ atis_code: "K", frequency: "118.025", text_atis: ["Demo-ATIS · Frankfurt Information K · RWY 25C/25L for arrival, RWY 18 for departure"] }];
     S.atc = [{ facility: 2, callsign: "EDDF_DEL", frequency: "121.900" }, { facility: 3, callsign: "EDDF_S_GND", frequency: "121.955" }, { facility: 4, callsign: "EDDF_TWR", frequency: "119.905" }];
     S.metar = "EDDF 241020Z 23012KT 9999 FEW030 12/04 Q1016 NOSIG (Demo)"; S.metarApt = "EDDF";
+    // demo aircraft for the flight-info view: cruising between Frankfurt and Palma
+    S.demoAir = { latitude: 45.6, longitude: 6.1, heading: 207, groundspeed: 452, altitude: 36000, last_updated: new Date(n).toISOString() };
+    const cx = (cs, dest, type, min, st) => ({ cs, dest, type, time: n + min * m, st });
+    S.demoConn = [
+      cx("SAMPLE7", "LEBL", "A320", 25, ["gone", "Gestartet"]), cx("SAMPLE8", "EGKK", "B738", 38, ["taxi", "Rollt"]),
+      cx("SAMPLE9", "LEMD", "A321", 52, ["board", "Boarding"]), cx("SAMPLE10", "EDDM", "A320", 75, ["plan", "Planmäßig"]),
+      cx("SAMPLE11", "LFPO", "A319", 90, ["plan", "Planmäßig"]), cx("SAMPLE12", "EHAM", "B737", 115, ["late", "Verspätet"]),
+      cx("SAMPLE13", "LSZH", "A220", 140, ["plan", "Planmäßig"]),
+    ];
     S.ofp = { callsign: "DEMO123", dep: "EDDF", arr: "LEPA", altn: "LEVC", depRwy: "18", arrRwy: "24L", type: "A21N", reg: "D-DEMO", units: "kgs",
+      depPos: [50.0264, 8.5431], arrPos: [39.5517, 2.7388], depName: "Frankfurt", arrName: "Palma", depTzH: 2, arrTzH: 2, navlog: [], eteMs: 118 * m,
       fl: "36000", ci: "30", pax: "196", dist: "722", route: "OBOKA2G OBOKA Z10 ... (Demo-Route)", block: "9850", trip: "6420", tof: "9650",
       zfw: "68200", maxZfw: "73300", tow: "77850", maxTow: "97000", out: n + 1 * m, in: n + 140 * m, ete: "01:58:00", generated: n - 40 * m, pdf: "", prefile: "" };
   }
 
   // ---------- main loop ----------
-  const timers = [];
-  function tickAll() { pollFeed(); pollFlight(); pollBoard(); pollMetar(); }
+  // Each data source runs on its own schedule. A job never overlaps itself, and the 1-second tick
+  // restarts anything that is overdue, so a sleeping iPad catches up on wake instead of freezing.
+  const busy = {}, nextRun = {};
+  function guard(name, fn) {
+    return async function () {
+      if (busy[name]) return;
+      busy[name] = true; nextRun[name] = Date.now() + POLL[name]; syncRefreshBtn();
+      try { await fn(); } finally { busy[name] = false; syncRefreshBtn(); }
+    };
+  }
+  pollFeed = guard("feed", pollFeed); pollFlight = guard("flight", pollFlight); pollBoard = guard("board", pollBoard);
+  pollMetar = guard("metar", pollMetar); pollSimbrief = guard("simbrief", pollSimbrief);
+  pollConn = guard("conn", pollConn); pollArrWx = guard("arrwx", pollArrWx);
+  const JOBS = { feed: () => pollFeed(), flight: () => pollFlight(), board: () => pollBoard(), metar: () => pollMetar(), simbrief: () => pollSimbrief(),
+    conn: () => pollConn(), arrwx: () => pollArrWx() };
+  let running = false, lastRefreshAll = 0;
+  function syncRefreshBtn() { $("btnRefresh").classList.toggle("busy", Object.values(busy).some(Boolean)); }
+
+  // SimBrief + VATSIM feed first (they decide the callsign), then CDM, board and weather
+  function refreshAll(force) {
+    if (!running || settings.demo) return;
+    const now = Date.now();
+    if (!force && now - lastRefreshAll < 5000) return;
+    lastRefreshAll = now;
+    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); });
+  }
   function start() {
-    timers.splice(0).forEach(clearInterval);
+    running = false;
     Object.assign(S, { callsign: "", flight: null, board: [], pilot: null, prefile: null, atis: [], atc: [], metar: "", metarApt: "",
-      feedOk: null, cdmOk: null, sbOk: null, sbErr: "", feed: null, cidCallsign: "", ofp: null });
-    $("ofp").dataset.html = "";
+      feedOk: null, cdmOk: null, sbOk: null, sbErr: "", feed: null, cidCallsign: "", ofp: null, track: null, demoAir: null,
+      conn: null, connApt: "", arrMetar: "", arrMetarApt: "", pax: null, demoConn: null });
+    $("connBody").dataset.html = ""; $("paneDest").dataset.html = "";
+    $("ofp").dataset.html = ""; routeKey = ""; mapFitted = false;
     if (settings.demo) { loadDemo(); render(); return; }
     updateCallsign();
     render();
     if (!settings.callsign && !settings.cid && !settings.simbrief) { openSetup(); return; }
-    // SimBrief + VATSIM feed first (they decide the callsign), then CDM, board and weather
-    Promise.all([pollSimbrief(), pollFeed()]).then(() => pollFlight()).then(() => { pollBoard(); pollMetar(); });
-    timers.push(setInterval(pollFeed, POLL.feed), setInterval(pollFlight, POLL.flight), setInterval(pollBoard, POLL.board),
-      setInterval(pollMetar, POLL.metar), setInterval(pollSimbrief, POLL.simbrief));
+    running = true;
+    for (const k in JOBS) nextRun[k] = Date.now() + POLL[k]; // the chain below runs every job once first
+    refreshAll(true);
   }
 
-  setInterval(() => { const n = Date.now(); renderClock(n); if (S.callsign) render(); }, 1000);
-  renderClock(Date.now()); syncWake();
+  $("btnRefresh").addEventListener("click", () => {
+    if (settings.demo) { loadDemo(); render(); return; }
+    refreshAll(true); checkAppUpdate();
+  });
+
+  setInterval(() => {
+    const n = Date.now(); renderClock(n);
+    if (running) for (const k in JOBS) if (!busy[k] && n >= (nextRun[k] || 0)) JOBS[k]();
+    if (S.callsign) render();
+  }, 1000);
+  renderClock(Date.now()); syncWake(); setView(view);
   // ?simbrief=Name, ?cs=DLH4AB or ?cid=1234567 in the URL pre-fill the flight (handy as an iPad home-screen bookmark)
   const q = new URLSearchParams(location.search);
   if (q.get("demo") !== null) settings.demo = true;
@@ -884,7 +1479,17 @@ td.k { color: var(--sign); font-weight: 700; }
   if (q.get("cs")) { settings = { ...settings, callsign: q.get("cs").toUpperCase().replace(/[^A-Z0-9]/g, ""), cid: "", demo: false }; store.set(settings); }
   if (q.get("cid")) { settings = { ...settings, cid: q.get("cid").replace(/\D/g, ""), callsign: "", demo: false }; store.set(settings); }
   start();
-  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+
+  // App updates: always check the server for a new version (no HTTP cache) and reload once it is active
+  let swReg = null;
+  function checkAppUpdate() { if (swReg) swReg.update().catch(() => {}); }
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => { swReg = r; }).catch(() => {});
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController) location.reload(); });
+    setInterval(checkAppUpdate, 10 * 60e3);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkAppUpdate(); });
+  }
 })();
 </script>
 </body>

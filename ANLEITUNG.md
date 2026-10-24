@@ -44,6 +44,22 @@ Die App ist eine statische Website. Alle Dateien in diesem Ordner hochladen:
 4. Dauerbildschirm: Button **„Wach"** antippen. Sicherer ist zusätzlich *Einstellungen → Anzeige & Helligkeit → Automatische Sperre → Nie* (und iPad am Strom).
 5. Einmal irgendwo antippen, damit der Gong beim Öffnen des Start-up-Fensters abgespielt werden darf.
 
+## Pilot und Passagier
+
+Oben links schaltest du um:
+
+- **Pilot:** Slot, TSAT-Countdown, Flugplan, SimBrief, ATIS, ATC und Abflugtafel
+- **Passagier:** wie das Bordunterhaltungssystem im echten Flieger
+  - **Flugkarte:** Satellitenkarte mit deinem Flugzeug, Geschwindigkeit in km/h, Höhe in m, Entfernung und Restflugzeit, Ankunft in Ortszeit
+  - **Anschlussflüge:** die nächsten Abflüge an deinem Zielflughafen (live aus VATSIM)
+  - **Zielort:** Ortszeit und Wetter am Ziel
+
+Nach dem Start schaltet die App einmal automatisch auf „Passagier“. Du kannst jederzeit zurück auf „Pilot“.
+
+## Aktualisieren
+
+Die App lädt alle Daten automatisch nach: VATSIM alle 15 s, Slot alle 20 s, Abflugtafel alle 45 s. Wenn das iPad aufwacht, lädt sie sofort alles neu. Oben steht, wie alt die Daten sind („Live · vor 8 s“). Wird der Punkt gelb, tippe auf **Aktualisieren**. Neue App-Versionen werden automatisch geladen.
+
 ## Praktische Links
 
 - `…/?simbrief=DEINNAME` stellt SimBrief direkt ein
