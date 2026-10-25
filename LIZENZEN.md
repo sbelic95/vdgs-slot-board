@@ -14,6 +14,7 @@
   - OpenStreetMap Overpass (Gate-Positionen, nur wenn keine vorbereiteten Daten da sind)
   - raw.githubusercontent.com (vorbereitete Daten: Stands, Anflugbereiche, Pisten)
 - Schriften und Kartenbibliothek liegen in der App selbst (Ordner `vendor/`), es gehen keine Anfragen an Google Fonts oder CDNs.
+- **Videos im Bordprogramm** (Filme, Sicherheitsvideo) sind deine eigenen Dateien: entweder im Ordner `Videos\VDGS` auf dem PC (über die Bridge) oder auf dem Gerät gespeichert (IndexedDB im Browser). Sie sind nicht Teil der App, liegen nicht auf GitHub und werden nicht weitergegeben. Airline-Videos gehören der Airline; nur privat verwenden.
 - Die VDGS-Bridge (Windows) läuft nur in deinem Heimnetz (Port 8770). Sie liest Daten aus dem Simulator und stellt COM1/Squawk nur auf Befehl vom Tablet. Sie sendet nichts ins Internet, außer beim Start die App-Dateien von GitHub Pages zu aktualisieren.
 
 ## Lizenzen der enthaltenen Teile
@@ -22,6 +23,8 @@
 |---|---|---|
 | Schrift B612 / B612 Mono | Airbus / PolarSys | SIL Open Font License 1.1 |
 | Schrift Barlow Condensed | Jeremy Tribby | SIL Open Font License 1.1 |
+| Schrift Roboto / Roboto Condensed (Airline-Sitzdisplay) | Google | Apache License 2.0 |
+| Symbole im Sitzdisplay (Material Icons) | Google | Apache License 2.0 |
 | Leaflet 1.9.4 | leafletjs.com | BSD-2-Clause |
 | Flughafendaten | github.com/mwgg/Airports | MIT |
 | Pisten | OurAirports | Public Domain |

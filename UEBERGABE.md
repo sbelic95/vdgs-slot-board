@@ -275,7 +275,10 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 - Die installierte exe speichert die geladene App in `%LOCALAPPDATA%\VDGS-Bridge\app` (Programme ist schreibgeschützt). In der exe steckt zusätzlich eine Kopie der App für den ersten Start ohne Internet.
 - Beim Start öffnet sich `http://localhost:8770/connect`: QR-Code (Paket `qrcode`, SVG) mit der Heimnetz-Adresse. Abschalten mit `--no-browser`. Beliebig viele Geräte können gleichzeitig zusehen.
 
-## 5-L. Sprachen (`tr()`, `setLang()`)
+## 5-L. Sprachen
+
+Fünf Sprachen: Deutsch (Quelltext), Englisch, Serbisch (lateinisch), Russisch, Chinesisch (vereinfacht). `TX`/`TXP` liefern Englisch und Serbisch für alles; `TX2`/`TXP2` liefern Russisch und Chinesisch für alles, was Passagiere sehen (Sitzdisplay, Karte, Zielort, Tafeln, Status, Wetter). Pilotentexte erscheinen in Russisch/Chinesisch auf Englisch.
+ (`tr()`, `setLang()`)
 
 Oben rechts gibt es die Auswahl **DE / EN / SR** (Serbisch in lateinischer Schrift), gespeichert in `localStorage["vdgs.lang"]`.
 
@@ -387,6 +390,16 @@ Reihenfolge der Quellen:
 3. **SimBrief-Plan** (`arrRwy`).
 
 Angezeigt im Pilot-Modus im Flug neben dem Gate (`#enRwy`) und im Passagier-Zielort („Landebahn“). Live-Prüfung: 110 von 124 ATIS lieferten eine Landebahn; die übrigen nennen nur Startbahnen oder sind geschlossen.
+
+## 5b-S. Sitzdisplay einer Airline (`SEAT_SKINS`, `renderSeat()`, `loadMedia()`, `playVideo()`, `safetyCheck()`)
+
+- **Aktiv:** wenn das Callsign zu einer Airline in `SEAT_SKINS` gehört (zurzeit `JU` = Air Serbia, Callsign `ASL…`). Die Passagier-Ansicht bekommt die Klasse `seat`: heller Bildschirm mit Ornament-Muster, Abzeichen mit Flugnummer oben links, Logo oben rechts, blaue Leiste unten (Zurück, Start, Sprache, Hilfe, Flugkarte; rechts Zeit/Entfernung zum Ziel und Außentemperatur).
+- **Design nach Air Serbia Brand Guidelines 2025:** Schrift Roboto / Roboto Condensed (lokal in `vendor/fonts`, Apache 2.0), Farben Stratosphere Blue `#002E5D`, Sky Blue `#0059C2`, Beacon Red `#E3001F`, Airstream Silver `#75787B`, Lunar Silver `#A7A8AA`, Cloudline White `#FFFFFF`. Logo wie bisher zur Laufzeit von pics.avs.io (nicht im Code).
+- **Seiten (Panes):** `welcome` (Willkommen an Bord + START), `home` (Kacheln: Filme, Flugkarte, Zielort, Anschlussflüge, Ankünfte, Sicherheit an Bord), `movies`, dazu die bekannten `map`, `dest`, `conn`, `arr` im hellen Look. Nach 3 min ohne Berührung zurück zur Flugkarte.
+- **Videos:** nie im Repository. Quellen: Bridge `GET media/list` + `GET media/<name>` (Byte-Range, nötig für Safari) aus `Videos\VDGS` auf dem PC; oder auf dem Gerät per Datei-Auswahl, gespeichert in IndexedDB `vdgs-media`. Vorschaubilder macht der Browser selbst (Canvas, nicht schwarzes Bild).
+- **Sicherheitsvideo:** Dateiname enthält „Safety“ (oder sigurnost/Sicherheit). Start automatisch, wenn das Flugzeug am Abflughafen (unter 6 km) mit ≥ 2 kt rollt, einmal pro Callsign, Abflughafen und Tag (`localStorage["vdgs.safety"]`).
+- **iPad-Regel:** Video mit Ton nur nach einem Tippen. Der START-Knopf spielt einmal einen 0,4-s-Stummclip im selben `<video>`-Element ab; danach darf es später von selbst starten. Klappt es nicht, erscheint „zum Starten auf ▶ tippen“.
+- **Demo:** `?demo=ASL500` (Willkommensseite), `?demo=ASL500,inflight` (im Reiseflug), `?demo=ASL500,push` (Pushback in Frankfurt: Sicherheitsvideo startet).
 
 ## 5c. Tafel (FIDS, `renderFids()`, `pollFids()`)
 

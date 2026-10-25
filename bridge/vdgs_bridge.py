@@ -18,19 +18,20 @@ import argparse
 import json
 import math
 import os
+import re
 import socket
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 APP_URL = "https://sbelic95.github.io/vdgs-slot-board/"
-FONTS = ["B612-400-latin", "B612-700-latin", "B612Mono-400-latin", "B612Mono-700-latin"] + [
-    f"BarlowCondensed-{w}-{s}" for w in (500, 600, 700) for s in ("latin", "latin-ext")]
+# the font files come from the url(...) entries in vendor/fonts.css (see update_app)
 APP_FILES = ["index.html", "airports.json", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-512.png",
-             "vendor/fonts.css", "vendor/leaflet.css", "vendor/leaflet.js"] + [f"vendor/fonts/{f}.woff2" for f in FONTS]
+             "vendor/fonts.css", "vendor/leaflet.css", "vendor/leaflet.js"]
 FROZEN = getattr(sys, "frozen", False)
 # installed under Program Files (read-only): keep the downloaded app in the user's local app data
 if FROZEN:
@@ -39,6 +40,9 @@ else:
     APP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app")
 # a copy of the app packed into the .exe, used when the first start has no internet
 BUNDLED = os.path.join(getattr(sys, "_MEIPASS", ""), "app") if FROZEN else None
+# the user's own videos for the passenger screen (films, safety video); they never leave this PC and home network
+MEDIA_DIR = os.path.join(os.path.expanduser("~"), "Videos", "VDGS")
+VIDEO_EXT = (".mp4", ".m4v", ".mov", ".webm")
 
 state = {"vdgsBridge": True, "sim": "MSFS", "connected": False, "error": "", "t": 0}
 lock = threading.Lock()
@@ -47,7 +51,8 @@ sim = {"sm": None, "aq": None}
 
 def update_app(url):
     """Fetch the current app from GitHub Pages; keep the old (or packed) copy if offline."""
-    for name in APP_FILES:
+    files = list(APP_FILES)
+    for name in files:
         dest = os.path.join(APP_DIR, *name.split("/"))
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         try:
@@ -61,9 +66,13 @@ def update_app(url):
                 print(f"  {name}: offline, using the copy in the program")
             else:
                 print(f"  could not update {name}: {e} (using the saved copy)")
-                continue
-        with open(dest, "wb") as f:
-            f.write(data)
+                data = None
+        if data is not None:
+            with open(dest, "wb") as f:
+                f.write(data)
+        if name == "vendor/fonts.css" and os.path.exists(dest):  # then every font file it names
+            with open(dest, encoding="utf-8") as f:
+                files += ["vendor/" + u for u in sorted(set(re.findall(r"url\((fonts/[^)]+\.woff2)\)", f.read())))]
     if not os.path.exists(os.path.join(APP_DIR, "index.html")):
         print("No app files. Check the internet connection and start again.")
         input("Press Enter to close.")  # keep the window open when started by double-click
@@ -183,6 +192,10 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/sim":
             with lock:
                 return self._json(200, dict(state, age=round(time.time() - state["t"], 1) if state["t"] else None))
+        if path == "/media/list":
+            return self._json(200, {"files": media_files()})
+        if path.startswith("/media/"):
+            return self._media(urllib.parse.unquote(path[len("/media/"):]))
         if path == "/connect":
             body = connect_page("http://%s:%d/" % (lan_ip(), self.server.server_address[1])).encode()
             self.send_response(200)
@@ -191,6 +204,51 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             return self.wfile.write(body)
         return super().do_GET()
+
+    def _media(self, name):
+        """One video from MEDIA_DIR, with byte ranges (Safari on the iPad only plays videos served that way)."""
+        if name != os.path.basename(name) or name not in media_files(names_only=True):
+            return self._json(404, {"ok": False, "error": "no such video"})
+        fp = os.path.join(MEDIA_DIR, name)
+        size = os.path.getsize(fp)
+        start, end = 0, size - 1
+        rng = self.headers.get("Range", "")
+        if rng.startswith("bytes="):
+            a, _, b = rng[6:].split(",")[0].partition("-")
+            try:
+                if a:
+                    start, end = int(a), int(b) if b else size - 1
+                else:  # suffix range: the last N bytes
+                    start = max(0, size - int(b))
+            except ValueError:
+                pass
+            end = min(end, size - 1)
+            if start > end:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.end_headers()
+                return
+            self.send_response(206)
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        else:
+            self.send_response(200)
+        ext = os.path.splitext(name)[1].lower()
+        self.send_header("Content-Type", {".webm": "video/webm", ".mov": "video/quicktime"}.get(ext, "video/mp4"))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.end_headers()
+        try:
+            with open(fp, "rb") as f:
+                f.seek(start)
+                left = end - start + 1
+                while left > 0:
+                    chunk = f.read(min(256 * 1024, left))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+        except (ConnectionError, OSError):  # the player often stops reading mid-file; that is normal
+            pass
 
     def do_POST(self):
         try:
@@ -212,6 +270,14 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(404, {"ok": False, "error": "unknown"})
         except Exception as e:
             return self._json(500, {"ok": False, "error": str(e)})
+
+
+def media_files(names_only=False):
+    try:
+        names = sorted(n for n in os.listdir(MEDIA_DIR) if n.lower().endswith(VIDEO_EXT) and os.path.isfile(os.path.join(MEDIA_DIR, n)))
+    except OSError:
+        names = []
+    return names if names_only else [{"name": n, "size": os.path.getsize(os.path.join(MEDIA_DIR, n))} for n in names]
 
 
 def qr_svg(text):
@@ -271,9 +337,17 @@ def main():
     ap.add_argument("--app-dir", help="serve the app from this folder instead of downloading it")
     ap.add_argument("--test", action="store_true", help="no simulator: a pretend aircraft, to try the setup")
     ap.add_argument("--no-browser", action="store_true", help="do not open the connect page (QR code) on start")
+    ap.add_argument("--media", help="folder with your videos for the passenger screen (default: Videos\\VDGS)")
+    ap.add_argument("--open-media", action="store_true", help="open the video folder in Explorer and exit")
     args = ap.parse_args()
-    global APP_DIR, TEST
+    global APP_DIR, TEST, MEDIA_DIR
     TEST = args.test
+    if args.media:
+        MEDIA_DIR = os.path.abspath(args.media)
+    os.makedirs(MEDIA_DIR, exist_ok=True)
+    if args.open_media:
+        os.startfile(MEDIA_DIR)
+        return
 
     if args.app_dir:
         APP_DIR = os.path.abspath(args.app_dir)
@@ -293,6 +367,7 @@ def main():
     print()
     print("  Open on the iPad (same Wi-Fi):  http://%s:%d" % (lan_ip(), args.port))
     print("  QR code to scan:                http://localhost:%d/connect" % args.port)
+    print("  Videos for the passenger screen: %s (%d files)" % (MEDIA_DIR, len(media_files(names_only=True))))
     print("  If Windows asks: allow access for private networks.")
     print("  Stop with Ctrl+C or close this window.")
     print()

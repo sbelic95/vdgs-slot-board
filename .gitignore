@@ -3,3 +3,8 @@ bridge/app/
 __pycache__/
 bridge/installer/VDGS-Bridge.exe
 bridge/installer/Output/
+# videos are the user's own files and never go into the repository
+*.mp4
+*.m4v
+*.mov
+*.webm

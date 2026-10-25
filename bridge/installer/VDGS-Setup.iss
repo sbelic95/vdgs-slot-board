@@ -42,6 +42,8 @@ de.Guide=Anleitung
 en.Guide=Guide
 de.Licenses=Datenschutz und Lizenzen
 en.Licenses=Privacy and licenses
+de.Media=Videos für das Bordprogramm (Ordner)
+en.Media=Videos for the seat screen (folder)
 de.WebApp=VDGS im Browser (ohne Bridge)
 en.WebApp=VDGS in the browser (no bridge)
 de.Firewall=Zugriff aus dem Heimnetz erlauben (Firewall, nur private Netzwerke)
@@ -61,6 +63,7 @@ Source: "..\..\LIZENZEN.md"; DestDir: "{app}"; DestName: "LIZENZEN.txt"; Flags: 
 [Icons]
 Name: "{group}\{cm:Bridge}"; Filename: "{app}\VDGS-Bridge.exe"
 Name: "{group}\{cm:BridgeTest}"; Filename: "{app}\VDGS-Bridge.exe"; Parameters: "--test"
+Name: "{group}\{cm:Media}"; Filename: "{app}\VDGS-Bridge.exe"; Parameters: "--open-media"
 Name: "{group}\{cm:Guide}"; Filename: "{app}\ANLEITUNG.txt"
 Name: "{group}\{cm:Licenses}"; Filename: "{app}\LIZENZEN.txt"
 Name: "{group}\{cm:WebApp}"; Filename: "https://sbelic95.github.io/vdgs-slot-board/"

@@ -38,6 +38,7 @@
 
   --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
   --f-body: "B612", "Segoe UI", system-ui, sans-serif;   /* Airbus cockpit face */
+  --s-font: "Roboto", "Segoe UI", -apple-system, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; /* airline seat skin (Air Serbia brand typeface) */
   --f-num: "B612 Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
@@ -466,6 +467,84 @@ td.k { color: var(--sign); font-weight: 700; }
   .clocks { margin-left: 0; }
   .clock.sec { display: none; }
 }
+
+/* ---------- seatback IFE (airline skin, e.g. Air Serbia): light screen, tile menu, navy bar ---------- */
+.pax.seat { --seat-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%230059C2' stroke-opacity='.13' stroke-width='1.2'%3E%3Cpath d='M28 6l10 10-10 10-10-10z'/%3E%3Cpath d='M28 12l4 4-4 4-4-4z'/%3E%3Cpath d='M0 34l6 6-6 6M56 34l-6 6 6 6M28 30v22M17 41h22'/%3E%3Ccircle cx='28' cy='41' r='3'/%3E%3C/g%3E%3C/svg%3E"); --panel: #FFFFFF; --panel-2: #F1F4F8; --line: #D9DDE3; --fg: #002E5D; --dim: #75787B; --faint: #A7A8AA;
+  --sign: #E3001F; --sign-ink: #FFFFFF; --bg: #F4F6F9; --s-navy: #002E5D; --s-blue: #0059C2; --s-red: #E3001F;
+  --f-display: "Roboto Condensed", "Arial Narrow", sans-serif; --f-body: var(--s-font);
+  gap: 0; border-radius: 14px; overflow: hidden; color: var(--fg); position: relative; flex: none; height: calc(100vh - var(--pax-top, 96px) - 14px); min-height: 520px;
+  background: radial-gradient(120% 70% at 75% 0%, rgba(255,255,255,.95), rgba(255,255,255,0) 60%),
+    var(--seat-pattern), linear-gradient(180deg, #f7f9fd 0%, #dfe7f3 100%); }
+.pax.seat .brand-bar, .pax.seat .pnav { display: none; }
+.pax.seat > .panel, .pax.seat > .ife, .pax.seat > .dest, .pax.seat > .seat-page { margin: 0 22px; }
+.pax.seat .panel { box-shadow: 0 2px 10px rgba(15, 45, 99, .10); }
+.pax.seat #paneMap, .pax.seat #paneConn, .pax.seat #paneArr, .pax.seat #paneDest { flex: 1; margin-bottom: 18px; min-height: 0; }
+.pax.seat .ife { min-height: 0; } .pax.seat .ife-side, .pax.seat #paneDest, .pax.seat .seat-page { overflow: auto; min-height: 0; }
+.pax.seat .ife-cities .iata, .pax.seat .board-head .ttl { color: var(--s-navy); }
+.seat-top { display: none; }
+.pax.seat .seat-top { display: flex; align-items: flex-start; justify-content: space-between; padding: 0 22px 0 30px; min-height: 92px; }
+.seat-badge { background: #1b1f2a; color: #fff; padding: 12px 16px 10px; display: grid; gap: 4px; min-width: 120px; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.seat-badge b { font: italic 700 19px/1 var(--s-font); letter-spacing: .01em; }
+.seat-badge span { justify-self: start; background: var(--s-red); font: 700 12px/1 var(--f-display); letter-spacing: .12em; padding: 4px 7px 3px; text-transform: uppercase; }
+.seat-logo { padding-top: 18px; }
+.seat-logo img { height: 44px; width: auto; display: block; mix-blend-mode: multiply; }
+.seat-page { display: flex; flex-direction: column; gap: 22px; flex: 1; padding: 6px 8px 22px; }
+.seat-page > * { flex-shrink: 0; }
+.seat-ttl { font: 300 46px/1.05 var(--s-font); color: var(--s-navy); margin: 0; letter-spacing: .01em; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; max-width: 1120px; }
+.tile { appearance: none; border: 1px solid #fff; border-radius: 6px; padding: 0; cursor: pointer; display: grid; grid-template-rows: 1fr auto; min-height: 168px;
+  background: linear-gradient(180deg, #ffffff, #e9eef6); box-shadow: 0 4px 14px rgba(0, 46, 93, .16); color: var(--s-navy); overflow: hidden; text-align: center; }
+.tile .ic { display: grid; place-items: center; padding: 22px 10px 8px; }
+.tile .ic svg { width: 58px; height: 58px; fill: var(--s-navy); }
+.tile .tl { font: 500 17px/1.2 var(--s-font); padding: 12px 10px 16px; border-top: 3px solid transparent; }
+.tile:hover, .tile:focus-visible, .tile.sel { outline: none; }
+.tile:hover .tl, .tile:focus-visible .tl, .tile.sel .tl { background: var(--s-navy); color: #fff; font-weight: 700; border-top-color: var(--s-red); }
+.tile:hover .ic svg, .tile:focus-visible .ic svg, .tile.sel .ic svg { fill: var(--s-red); }
+.tile.vid .ic { padding: 0; background: #0f1830 center / cover no-repeat; min-height: 150px; position: relative; }
+.tile.vid .ic::after { content: ""; position: absolute; inset: 0; margin: auto; width: 54px; height: 54px; border-radius: 50%;
+  background: rgba(227, 0, 31, .92) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M8 5v14l11-7z'/%3E%3C/svg%3E") center / 30px no-repeat; }
+.tile.vid .tl small { display: block; font-weight: 400; font-size: 13px; opacity: .75; margin-top: 3px; }
+.seat-note { color: var(--dim); font-size: 14px; max-width: 760px; line-height: 1.5; }
+.seat-note .btn { margin: 8px 8px 0 0; }
+.seat-bar { display: none; }
+.pax.seat .seat-bar { display: flex; align-items: center; gap: 6px; margin-top: auto; min-height: 64px; padding: 0 22px 0 14px; color: #fff;
+  background: linear-gradient(180deg, var(--s-blue), var(--s-navy)); border-top: 3px solid var(--s-red); }
+.seat-bar button { appearance: none; background: none; border: 0; color: #fff; width: 58px; height: 58px; display: grid; place-items: center; cursor: pointer; border-radius: 8px; font: 700 26px/1 var(--s-font); }
+.seat-bar button:active { background: rgba(255,255,255,.15); }
+.seat-bar button svg { width: 28px; height: 28px; fill: #fff; }
+.seat-bar .si { margin-left: auto; font: 500 14px/1.3 var(--s-font); text-align: right; opacity: .95; }
+.seat-bar .si b { font-weight: 700; }
+.seat-bar .si i { font-style: normal; opacity: .55; margin: 0 8px; }
+.seat-welcome { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; padding: 0 60px; gap: 30px; }
+.seat-welcome h2 { font: 300 64px/1.05 var(--s-font); color: #002E5D; margin: 0 0 18px; }
+.seat-welcome p { font-size: 18px; color: var(--dim); margin: 0; line-height: 1.5; }
+.seat-welcome .art { justify-self: center; width: min(420px, 100%); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #dbe5f4 70%); box-shadow: inset 0 0 0 10px rgba(255,255,255,.7), 0 18px 50px rgba(15,45,99,.18); }
+.seat-welcome .art img { width: 76%; height: auto; mix-blend-mode: multiply; }
+.seat-bar .seat-start { display: none; }
+.pax.seat.welcome .seat-start { display: block; margin-left: auto; background: linear-gradient(180deg, #F2263F, #E3001F); color: #fff; border: 1px solid #fff; border-radius: 4px;
+  font: 600 17px/1 var(--s-font); letter-spacing: .06em; padding: 0 34px; height: 40px; width: auto; margin-right: 6px; cursor: pointer; }
+.pax.seat.welcome .seat-bar .nav, .pax.seat.welcome .seat-bar .si { display: none; }
+.seat-bar .brandmark { display: none; }
+.pax.seat.welcome .seat-bar .brandmark { display: block; height: 30px; filter: brightness(0) invert(1); margin-left: 16px; }
+.seat-help { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); background: var(--s-navy); color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 15px; max-width: 80%; box-shadow: 0 8px 30px rgba(0,0,0,.3); z-index: 5; }
+.seat-langs { position: absolute; left: 110px; bottom: 76px; z-index: 6; display: grid; min-width: 220px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(15,45,99,.35); }
+.seat-langs[hidden] { display: none; }
+.seat-langs button { appearance: none; border: 0; border-bottom: 1px solid #e3e8f1; background: #fff; color: var(--s-navy); text-align: left; padding: 14px 18px; font: 500 17px/1 var(--s-font); cursor: pointer; }
+.seat-langs button:hover { background: var(--s-navy); color: #fff; }
+.player { position: fixed; inset: 0; z-index: 900; background: #000; display: grid; grid-template-rows: auto 1fr; }
+.player[hidden] { display: none !important; }
+.player-head { display: flex; align-items: center; gap: 14px; padding: 10px 16px; color: #fff; background: linear-gradient(180deg, #0059C2, #002E5D); border-bottom: 3px solid #E3001F; font: 500 17px/1.2 var(--s-font); }
+.player-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-head button { appearance: none; border: 1px solid rgba(255,255,255,.6); background: none; color: #fff; border-radius: 6px; padding: 9px 16px; font: 600 15px/1 var(--s-font); cursor: pointer; }
+.player video { width: 100%; height: 100%; min-height: 0; background: #000; object-fit: contain; }
+@media (max-width: 820px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .seat-welcome { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  .seat-welcome .art { width: 220px; }
+  .seat-welcome h2 { font-size: 44px; }
+  .seat-bar .si { font-size: 12px; }
+}
 </style>
 </head>
 <body>
@@ -488,6 +567,8 @@ td.k { color: var(--sign); font-weight: 700; }
         <button data-lang="de" aria-pressed="true">DE</button>
         <button data-lang="en" aria-pressed="false">EN</button>
         <button data-lang="sr" aria-pressed="false">SR</button>
+        <button data-lang="ru" aria-pressed="false">RU</button>
+        <button data-lang="zh" aria-pressed="false" lang="zh-Hans">中文</button>
       </div>
       <button class="ibtn" id="btnRefresh" title="Jetzt aktualisieren">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
@@ -509,6 +590,7 @@ td.k { color: var(--sign); font-weight: 700; }
 
   <section class="pax" id="viewIfe" hidden aria-label="Passagier">
     <div class="brand-bar" id="brandBar" hidden></div>
+    <div class="seat-top"><div class="seat-badge" id="seatBadge"></div><div class="seat-logo" id="seatLogo"></div></div>
     <nav class="pnav" role="tablist" aria-label="Bordprogramm">
       <button role="tab" data-pane="map" aria-selected="true">Flugkarte</button>
       <button role="tab" data-pane="conn" aria-selected="false">Anschlussflüge</button>
@@ -571,7 +653,42 @@ td.k { color: var(--sign); font-weight: 700; }
       <div class="panel ife-grid" id="ifeGrid"></div>
     </aside>
     </div>
+
+    <section class="seat-page" id="paneHome" hidden aria-label="Bordprogramm">
+      <h2 class="seat-ttl" id="homeTtl">Bordprogramm</h2>
+      <div class="tiles" id="homeTiles"></div>
+    </section>
+    <section class="seat-page" id="paneMovies" hidden aria-label="Filme">
+      <h2 class="seat-ttl">Filme</h2>
+      <div class="tiles" id="movieTiles"></div>
+      <div class="seat-note" id="movieNote"></div>
+    </section>
+    <section class="seat-welcome" id="paneWelcome" hidden aria-label="Willkommen">
+      <div><h2>Willkommen an Bord</h2><p id="welcomeSub"></p></div>
+      <div class="art" id="welcomeArt"></div>
+    </section>
+    <div class="seat-bar" id="seatBar">
+      <img class="brandmark" id="seatMark" alt="" referrerpolicy="no-referrer">
+      <span class="nav"><button type="button" data-seat="back" title="Zurück" aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button></span>
+      <span class="nav"><button type="button" data-seat="home" title="Startseite" aria-label="Startseite"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></button></span>
+      <span class="nav"><button type="button" data-seat="lang" title="Sprache" aria-label="Sprache"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg></button></span>
+      <span class="nav"><button type="button" data-seat="help" title="Hilfe" aria-label="Hilfe">?</button></span>
+      <span class="nav"><button type="button" data-seat="map" title="Flugkarte" aria-label="Flugkarte"><svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></button></span>
+      <span class="si" id="seatInfo"></span>
+      <button type="button" class="seat-start" data-seat="start">START</button>
+    </div>
+    <div class="seat-help" id="seatHelp" hidden></div>
+    <div class="seat-langs" id="seatLangs" hidden>
+      <button type="button" data-seat="lang-sr">Srpski</button><button type="button" data-seat="lang-en">English</button><button type="button" data-seat="lang-de">Deutsch</button>
+      <button type="button" data-seat="lang-ru">Русский</button><button type="button" data-seat="lang-zh" lang="zh-Hans">中文</button>
+    </div>
+    <input type="file" id="vidPick" accept="video/*" multiple hidden>
   </section>
+
+  <div class="player" id="player" hidden>
+    <div class="player-head"><b id="playerTtl"></b><button type="button" id="playerClose">Schließen</button></div>
+    <video id="vid" playsinline controls preload="metadata"></video>
+  </div>
 
   <section class="fids" id="viewFids" hidden aria-label="Flughafen-Tafel">
     <div class="fids-head">
@@ -770,9 +887,9 @@ td.k { color: var(--sign); font-weight: 700; }
 
   // ---------- languages: German source, English and Serbian (Latin) ----------
   // The app renders German; a DOM pass swaps each text (or each " · " segment) for its translation.
-  const LANGS = ["de", "en", "sr"];
+  const LANGS = ["de", "en", "sr", "ru", "zh"];
   let lang = LANGS.includes(store.raw("vdgs.lang")) ? store.raw("vdgs.lang") : "de";
-  const LOC = () => ({ de: "de-DE", en: "en-GB", sr: "sr-Latn-RS" })[lang];
+  const LOC = () => ({ de: "de-DE", en: "en-GB", sr: "sr-Latn-RS", ru: "ru-RU", zh: "zh-CN" })[lang];
   const TX = {
     // header, views, buttons
     "Pilot": ["Pilot", "Pilot"], "Passagier": ["Passenger", "Putnik"], "Tafel": ["Board", "Tabla"],
@@ -889,12 +1006,85 @@ td.k { color: var(--sign); font-weight: 700; }
     "Lade Stand-Daten…": ["Loading stand data…", "Učitavanje podataka o stajankama…"], "Ihr Stand": ["Your stand", "Vaša stajanka"], "Geparkt": ["Parked", "Parkiran"],
     "Außenposition, Bus": ["Remote stand, bus", "Udaljena pozicija, autobus"], "zugeteilt": ["assigned", "dodeljeno"], "Schengen": ["Schengen", "Šengen"], "Non-Schengen": ["Non-Schengen", "Van Šengena"],
     "von VATSIM UK zugeteilt": ["assigned by VATSIM UK", "dodelio VATSIM UK"],
-    "COM1 AKTIV": ["COM1 ACTIVE", "COM1 AKTIVNO"], "Landebahn": ["Landing runway", "Pista za sletanje"], "laut ATIS": ["per ATIS", "prema ATIS-u"],
+    "COM1 AKTIV": ["COM1 ACTIVE", "COM1 AKTIVNO"], "Landebahn": ["Landing runway", "Pista za sletanje"], "Bordprogramm": ["Entertainment", "Zabavni program"], "Filme": ["Movies", "Filmovi"],
+    "Willkommen an Bord": ["Welcome on board", "Dobrodošli"], "Sicherheit an Bord": ["Safety on board", "Bezbednost u letu"], "Sicherheitsvideo": ["Safety video", "Bezbednosni video"],
+    "Zeit bis zum Ziel": ["Time to destination", "Vreme do odredišta"], "Entfernung zum Ziel": ["Distance to destination", "Udaljenost do odredišta"],
+    "vom PC": ["from the PC", "sa računara"], "auf diesem Gerät": ["on this device", "na ovom uređaju"], "Schließen": ["Close", "Zatvori"],
+    "Videos von diesem Gerät hinzufügen": ["Add videos from this device", "Dodaj video sa ovog uređaja"], "Videos auf diesem Gerät entfernen": ["Remove videos on this device", "Ukloni video sa ovog uređaja"],
+    "Noch keine Videos.": ["No videos yet.", "Još nema video snimaka."], "Videos in den Ordner Videos\\VDGS auf dem PC legen (MP4).": ["Put videos into the folder Videos\\VDGS on the PC (MP4).", "Stavite video snimke u folder Videos\\VDGS na računaru (MP4)."], "Zurück": ["Back", "Nazad"], "Startseite": ["Home", "Početna"], "Sprache": ["Language", "Jezik"], "Hilfe": ["Help", "Pomoć"],
+    "Ein Video mit „Safety“ im Namen startet automatisch beim Zurückschieben.": ["A video with “Safety” in its name starts automatically at pushback.", "Video sa „Safety“ u nazivu počinje automatski pri guranju unazad."],
+    "Kachel antippen zum Öffnen. Das Flugzeug-Symbol zeigt die Flugkarte. Das Sicherheitsvideo startet beim Zurückschieben.": ["Tap a tile to open it. The aircraft symbol shows the moving map. The safety video starts at pushback.", "Dodirnite pločicu da je otvorite. Simbol aviona prikazuje mapu leta. Bezbednosni video počinje pri guranju unazad."],
+    "Sicherheitsvideo: zum Starten auf ▶ tippen": ["Safety video: tap ▶ to start", "Bezbednosni video: dodirnite ▶ za početak"],
+    "Video konnte nicht gespeichert werden (Speicher voll?)": ["Could not save the video (storage full?)", "Video nije sačuvan (memorija puna?)"], "laut ATIS": ["per ATIS", "prema ATIS-u"],
     "Noch unbekannt: kein ATIS, kein Wind, kein Plan": ["Not known yet: no ATIS, no wind, no plan", "Još nepoznato: nema ATIS-a, vetra ni plana"],
     "Plan laut SimBrief (kein ATIS, Wind schwach)": ["SimBrief plan (no ATIS, light wind)", "Plan prema SimBrief-u (nema ATIS-a, slab vetar)"], "Inoffiziell · nicht mit der Airline verbunden · Logo © Inhaber": ["Unofficial · not affiliated with the airline · logo © owner", "Nezvanično · nije povezano sa avio-kompanijom · logo © vlasnik"], "✓ gesetzt": ["✓ set", "✓ postavljeno"], "COM1 im Simulator": ["COM1 in the simulator", "COM1 u simulatoru"],
     "Simulator (MSFS)": ["Simulator (MSFS)", "Simulator (MSFS)"], "Transponder im Simulator:": ["Transponder in the simulator:", "Transponder u simulatoru:"], "Cargo": ["Cargo", "Kargo"], "General Aviation": ["General aviation", "Generalna avijacija"],
   };
   // dynamic texts: [pattern, English, Serbian] ($1… = captured parts, translated again where they are words)
+
+  // Russian and Chinese ([ru, zh]) for the passenger side; anything missing here shows in English
+  const TX2 = {
+    "Pilot": ["Пилот", "飞行员"], "Passagier": ["Пассажир", "乘客"], "Tafel": ["Табло", "航班信息"], "Aktualisieren": ["Обновить", "刷新"],
+    "Jetzt aktualisieren": ["Обновить сейчас", "立即刷新"], "Wach": ["Не спать", "常亮"], "Vollbild": ["Во весь экран", "全屏"], "Flug": ["Рейс", "航班"],
+    "Deutschland": ["Германия", "德国"], "Live": ["Онлайн", "实时"], "Demo": ["Демо", "演示"], "Demo-Daten": ["Демо-данные", "演示数据"], "Verbinde…": ["Подключение…", "正在连接…"],
+    "Abflüge": ["Вылеты", "出发"], "Ankünfte": ["Прилёты", "到达"], "Zeit": ["Время", "时间"], "Nach": ["Куда", "目的地"], "Von": ["Откуда", "出发地"],
+    "Flugzeug": ["Самолёт", "机型"], "Status": ["Статус", "状态"], "Typ": ["Тип", "机型"], "Gestartet": ["Вылетел", "已起飞"], "Rollt": ["Руление", "滑行中"],
+    "Gate geschlossen": ["Выход закрыт", "登机口已关闭"], "Boarding": ["Посадка", "登机"], "Planmäßig": ["По расписанию", "按时"], "Verspätet": ["Задерживается", "延误"],
+    "Ihr Flug": ["Ваш рейс", "您的航班"], "Gelandet": ["Приземлился", "已降落"], "Am Gate": ["У выхода", "已停靠"], "Im Anflug": ["Заходит на посадку", "进近中"],
+    "Unterwegs": ["В пути", "飞行中"], "Geplant": ["Запланирован", "计划"], "Flughafen": ["Аэропорт", "机场"], "Anzeigen": ["Показать", "显示"], "Ortszeit": ["Местное время", "当地时间"],
+    "Lade VATSIM-Daten…": ["Загрузка данных VATSIM…", "正在加载 VATSIM 数据…"], "Keine Abflüge im VATSIM-Netz.": ["Нет вылетов в сети VATSIM.", "VATSIM 网络中暂无出发航班。"],
+    "Keine Ankünfte im VATSIM-Netz.": ["Нет прилётов в сети VATSIM.", "VATSIM 网络中暂无到达航班。"], "Keine weiteren Ankünfte im VATSIM-Netz.": ["Других прилётов в сети VATSIM нет.", "VATSIM 网络中暂无其他到达航班。"],
+    "Zeiten in Ortszeit": ["Время местное", "时间为当地时间"], "Ihre Ankunft": ["Ваше прибытие", "您的到达时间"],
+    "Wer gleichzeitig mit Ihnen landet. Zeiten in Ortszeit, geschätzt aus Entfernung und Geschwindigkeit (in der Luft) oder aus dem Flugplan. Quelle: VATSIM.":
+      ["Кто приземляется одновременно с вами. Местное время, по расстоянию и скорости (в полёте) или по плану полёта. Источник: VATSIM.", "与您同时降落的航班。当地时间，根据距离和速度（空中）或飞行计划估算。来源：VATSIM。"],
+    "Flugkarte": ["Карта полёта", "航线地图"], "Anschlussflüge": ["Стыковочные рейсы", "转机航班"], "Zielort": ["Пункт назначения", "目的地"], "Rundlauf": ["Автопоказ", "自动轮播"],
+    "Bildschirme automatisch wechseln wie im Flugzeug": ["Переключать экраны автоматически, как в самолёте", "像机上一样自动切换屏幕"], "Folgen": ["Следовать", "跟随"],
+    "Karte folgt dem Flugzeug": ["Карта следует за самолётом", "地图跟随飞机"], "Flugphase": ["Этап полёта", "飞行阶段"], "Rollen": ["Руление", "滑行"], "Steigflug": ["Набор высоты", "爬升"],
+    "Sinkflug": ["Снижение", "下降"], "Landeanflug": ["Заход на посадку", "进近"], "Angekommen": ["Прибыл", "已到达"], "Gelandet · Rollen": ["Приземлился · руление", "已降落 · 滑行"],
+    "Reiseflug": ["Крейсерский полёт", "巡航"], "Nicht verbunden": ["Не подключено", "未连接"], "Voraussichtliche Ankunft": ["Ожидаемое прибытие", "预计到达"],
+    "Noch keine Schätzung": ["Пока нет оценки", "暂无预计"], "Geschwindigkeit": ["Скорость", "速度"], "Flughöhe": ["Высота", "高度"], "Entfernung zum Ziel": ["Расстояние до пункта назначения", "距目的地"],
+    "Luftlinie": ["по прямой", "直线距离"], "Restflugzeit": ["Оставшееся время", "剩余飞行时间"], "Außentemperatur": ["Температура за бортом", "机外温度"],
+    "ca., Standardatmosphäre": ["прибл., стандартная атмосфера", "约，标准大气"], "Wind": ["Ветер", "风"], "Rückenwind, ca.": ["Попутный, прибл.", "顺风，约"], "Gegenwind, ca.": ["Встречный, прибл.", "逆风，约"],
+    "im Reiseflug": ["в крейсерском полёте", "巡航时"], "wird geladen": ["загрузка", "加载中"], "Kurs": ["Курс", "航向"], "aus aktueller Geschwindigkeit": ["по текущей скорости", "按当前速度"],
+    "TTOT + geplante Flugzeit": ["TTOT + плановое время", "TTOT + 计划飞行时间"], "SimBrief-Plan": ["План SimBrief", "SimBrief 计划"], "CDM-Plan": ["План CDM", "CDM 计划"],
+    "Willkommen an Bord": ["Добро пожаловать на борт", "欢迎登机"], "Deine Position erscheint, sobald du mit VATSIM verbunden bist.": ["Позиция появится после подключения к VATSIM.", "连接 VATSIM 后将显示位置。"],
+    "Karte konnte nicht geladen werden. Internetverbindung prüfen und „Aktualisieren“ tippen.": ["Карта не загрузилась. Проверьте интернет и нажмите «Обновить».", "地图无法加载。请检查网络连接并点击“刷新”。"],
+    "Das Ziel ist noch nicht bekannt.": ["Пункт назначения пока неизвестен.", "目的地暂未知。"], "Ihr Ziel": ["Ваш пункт назначения", "您的目的地"], "Entfernung": ["Расстояние", "距离"],
+    "Sicht": ["Видимость", "能见度"], "Luftdruck": ["Давление", "气压"], "Taupunkt": ["Точка росы", "露点"], "Wolkenuntergrenze": ["Нижняя граница облаков", "云底高"], "Luftfeuchte": ["Влажность", "湿度"],
+    "Ankunft": ["Прибытие", "到达"], "Gate / Stand": ["Выход / стоянка", "登机口 / 机位"], "Landebahn": ["Полоса посадки", "着陆跑道"], "Prognose": ["Прогноз", "预测"],
+    "Gate-Info ca. 30 min vor Ankunft": ["Выход — примерно за 30 мин до прибытия", "登机口信息约在到达前 30 分钟公布"], "Ihr Stand": ["Ваша стоянка", "您的机位"], "Geparkt": ["На стоянке", "已停靠"],
+    "Außenposition, Bus": ["Удалённая стоянка, автобус", "远机位，摆渡车"], "zugeteilt": ["назначено", "已分配"], "Schengen": ["Шенген", "申根"], "Non-Schengen": ["Не Шенген", "非申根"],
+    "Gewitter": ["Гроза", "雷暴"], "Schnee": ["Снег", "雪"], "Regenschauer": ["Ливень", "阵雨"], "Starker Regen": ["Сильный дождь", "大雨"], "Regen": ["Дождь", "雨"], "Nieselregen": ["Морось", "毛毛雨"],
+    "Nebel": ["Туман", "雾"], "Dunst": ["Дымка", "轻雾"], "Diesig": ["Мгла", "霾"], "Bedeckt": ["Пасмурно", "阴"], "Stark bewölkt": ["Облачно", "多云"], "Wolkig": ["Переменная облачность", "局部多云"],
+    "Leicht bewölkt": ["Малооблачно", "少云"], "Klar": ["Ясно", "晴"], "Windstill": ["Штиль", "无风"], "über 10 km": ["более 10 км", "10 公里以上"], "Sicht 10 km+": ["Видимость 10 км+", "能见度 10 公里以上"], "keine": ["нет", "无"],
+    "Bordprogramm": ["Развлечения", "机上娱乐"], "Filme": ["Фильмы", "电影"], "Sicherheit an Bord": ["Безопасность на борту", "机上安全"], "Sicherheitsvideo": ["Видео о безопасности", "安全须知视频"],
+    "Zeit bis zum Ziel": ["Время до прибытия", "距到达时间"], "vom PC": ["с компьютера", "来自电脑"], "auf diesem Gerät": ["на этом устройстве", "在此设备上"],
+    "Videos von diesem Gerät hinzufügen": ["Добавить видео с устройства", "从此设备添加视频"], "Videos auf diesem Gerät entfernen": ["Удалить видео с устройства", "删除此设备上的视频"],
+    "Noch keine Videos.": ["Видео пока нет.", "暂无视频。"], "Videos in den Ordner Videos\\VDGS auf dem PC legen (MP4).": ["Положите видео в папку Videos\\VDGS на компьютере (MP4).", "将视频放入电脑上的 Videos\\VDGS 文件夹（MP4）。"],
+    "Zurück": ["Назад", "返回"], "Startseite": ["Главная", "主页"], "Sprache": ["Язык", "语言"], "Hilfe": ["Помощь", "帮助"], "Schließen": ["Закрыть", "关闭"],
+    "Ein Video mit „Safety“ im Namen startet automatisch beim Zurückschieben.": ["Видео со словом «Safety» в названии запускается при буксировке.", "名称含“Safety”的视频会在推出时自动播放。"],
+    "Kachel antippen zum Öffnen. Das Flugzeug-Symbol zeigt die Flugkarte. Das Sicherheitsvideo startet beim Zurückschieben.": ["Нажмите на плитку, чтобы открыть. Значок самолёта — карта полёта. Видео о безопасности начинается при буксировке.", "点击图块打开。飞机图标显示航线地图。安全须知视频在推出时播放。"],
+    "Sicherheitsvideo: zum Starten auf ▶ tippen": ["Видео о безопасности: нажмите ▶", "安全须知视频：点击 ▶ 播放"], "Video konnte nicht gespeichert werden (Speicher voll?)": ["Не удалось сохранить видео (память заполнена?)", "无法保存视频（存储已满？）"],
+    "Inoffiziell · nicht mit der Airline verbunden · Logo © Inhaber": ["Неофициально · не связано с авиакомпанией · логотип © владелец", "非官方 · 与航空公司无关 · 标志 © 所有者"],
+    "Nur für Flugsimulation – nicht für echte Luftfahrt.": ["Только для авиасимуляторов, не для реальной авиации.", "仅用于飞行模拟，不用于真实航空。"],
+    "Airline-Namen und Logos gehören ihren Inhabern; inoffiziell.": ["Названия и логотипы авиакомпаний принадлежат владельцам; неофициально.", "航空公司名称和标志归其所有者所有；非官方。"], "Karte © Esri": ["Карта © Esri", "地图 © Esri"],
+  };
+  const TXP2 = [ // [pattern, ru, zh]
+    [/^noch ([\d.,\s]+) km$/, "ещё $1 км", "剩余 $1 公里"], [/^([\d.,\s]+) km geflogen$/, "пройдено $1 км", "已飞行 $1 公里"], [/^Strecke ([\d.,\s]+) km$/, "маршрут $1 км", "航程 $1 公里"],
+    [/^([\d.,\s]+) (nm|km) Luftlinie$/, "$1 $2 по прямой", "直线 $1 $2"], [/^([\d.,\s]+) (kt|km\/h) über Grund$/, "$1 $2 путевая скорость", "地速 $1 $2"], [/^geplant ([\d:]+ h)$/, "по плану $1", "计划 $1"],
+    [/^([\d:]+Z?) Ortszeit$/, "$1 местное время", "当地时间 $1"], [/^Wetter in (.+)$/, "Погода: $1", "$1 天气"], [/^Wetter (.+)$/, "Погода $1", "天气 $1"], [/^Ortszeit (.+)$/, "Местное время $1", "当地时间 $1"],
+    [/^Willkommen in (.+)$/, "Добро пожаловать в $1", "欢迎来到$1"], [/^Flug (\S+) nach (.+)$/, "Рейс $1 в $2", "$1 航班 飞往$2"], [/^Flugzeit ca\. (.+)$/, "Время полёта около $1", "飞行时间约 $1"],
+    [/^nach (.+)$/, "в $1", "飞往$1"], [/^Plan ([\d:]+)$/, "по плану $1", "计划 $1"], [/^am Boden, (\S*)$/, "на земле, $1", "地面，$1"],
+    [/^steigt ([\d.,]+ m\/s)$/, "набор $1", "爬升 $1"], [/^sinkt ([\d.,]+ m\/s)$/, "снижение $1", "下降 $1"], [/^wechselnd (.+)$/, "переменный $1", "风向不定 $1"],
+    [/^(.+), Böen (\d+)$/, "$1, порывы $2", "$1，阵风 $2"], [/^Sicht ([\d.,]+ km)$/, "Видимость $1", "能见度 $1"], [/^(-?\d+) °C, (.+)$/, "$1 °C, $2", "$1 °C，$2"],
+    [/^(\d+) Abflüge$/, "$1 вылетов", "$1 个出发航班"], [/^(\d+) Ankünfte$/, "$1 прилётов", "$1 个到达航班"], [/^(\d+) Flüge$/, "$1 рейсов", "$1 个航班"],
+    [/^Gate (\S+)$/, "Выход $1", "登机口 $1"], [/^Stand (\S+)$/, "Стоянка $1", "机位 $1"], [/^Gate \/ Stand (\S+)$/, "Выход / стоянка $1", "$1 登机口 / 机位"], [/^Flug (\S+)$/, "Рейс $1", "航班 $1"],
+    [/^Landebahn (\S+)$/, "Полоса посадки $1", "$1 着陆跑道"], [/^laut ATIS Information (\S+)$/, "по ATIS, информация $1", "依据 ATIS 通播 $1"], [/^vor (\d+) s$/, "$1 с назад", "$1 秒前"],
+    [/^Zurzeit keine Abflüge ab (\S+) im VATSIM-Netz\.$/, "Сейчас нет вылетов из $1 в сети VATSIM.", "VATSIM 网络中目前没有从 $1 出发的航班。"],
+    [/^Zurzeit keine weiteren Flüge nach (\S+) im VATSIM-Netz\.$/, "Сейчас нет других рейсов в $1 в сети VATSIM.", "VATSIM 网络中目前没有其他飞往 $1 的航班。"],
+    [/^Zeiten in Ortszeit (.+)\. Grau: Abflug vor Ihrer voraussichtlichen Ankunft\. Quelle: VATSIM-Flugpläne und vIFF-CDM, Aktualisierung jede Minute\.$/,
+      "Время местное: $1. Серым: вылет до вашего прибытия. Источник: планы полётов VATSIM и vIFF CDM, обновление каждую минуту.", "时间为$1当地时间。灰色：在您预计到达前起飞。来源：VATSIM 飞行计划和 vIFF CDM，每分钟更新。"],
+  ];
   const TXP = [
     [/^in ca\. (\d+) min$/, "in approx. $1 min", "za oko $1 min"], [/^noch ([\d.,]+) km$/, "$1 km to go", "još $1 km"],
     [/^vor (\d+) s$/, "$1 s ago", "pre $1 s"], [/^Veraltet \((\d+) min\)$/, "Outdated ($1 min)", "Zastarelo ($1 min)"],
@@ -934,16 +1124,18 @@ td.k { color: var(--sign); font-weight: 700; }
   ];
   function tr(src) {
     if (lang === "de" || !src) return src;
-    const i = lang === "en" ? 0 : 1;
+    const i = lang === "en" ? 0 : 1, j = lang === "ru" ? 0 : lang === "zh" ? 1 : -1;
+    const word = (k) => (j >= 0 && TX2[k] ? TX2[k][j] : TX[k] ? TX[k][j >= 0 ? 0 : i] : null);
     const one = (x) => {
       const k = x.trim(); if (!k) return null;
-      let out = TX[k]?.[i];
-      if (out == null) for (const [re, en, sr] of TXP) if (re.test(k)) { out = k.replace(re, i ? sr : en); break; }
+      let out = word(k);
+      if (out == null && j >= 0) for (const [re, ru, zh] of TXP2) if (re.test(k)) { out = k.replace(re, j ? zh : ru); break; }
+      if (out == null) for (const [re, en, sr] of TXP) if (re.test(k)) { out = k.replace(re, i && j < 0 ? sr : en); break; }
       return out == null ? null : x.replace(k, out);
     };
     // whole text first if it is a known phrase, then " · " segments, then patterns on the whole text
     const k = src.trim();
-    if (TX[k]) return src.replace(k, TX[k][i]);
+    if (word(k) != null) return src.replace(k, word(k));
     if (src.includes(" · ")) return src.split(" · ").map((p) => one(p) ?? p).join(" · ");
     return one(src) ?? src;
   }
@@ -990,7 +1182,7 @@ td.k { color: var(--sign); font-weight: 700; }
     lang = LANGS.includes(l) ? l : "de";
     store.rawSet("vdgs.lang", lang);
     if (lang !== "de") trDirty = true;
-    document.documentElement.lang = lang === "sr" ? "sr-Latn" : lang;
+    document.documentElement.lang = { sr: "sr-Latn", zh: "zh-Hans" }[lang] || lang;
     document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
     trTree(document.body);
   }
@@ -1357,7 +1549,7 @@ td.k { color: var(--sign); font-weight: 700; }
     UAE: ["EK", "Emirates", "#C8A35F", "#8C6D2E", "#1a1206"], ETD: ["EY", "Etihad Airways", "#BD8B13", "#7E5B0B", "#1a1206"], QTR: ["QR", "Qatar Airways", "#8A1538", "#5C0632", "#fff"],
     DLH: ["LH", "Lufthansa", "#FFAD1D", "#E59400", "#05164D"], CLH: ["LH", "Lufthansa CityLine", "#FFAD1D", "#E59400", "#05164D"], EWG: ["EW", "Eurowings", "#A3195B", "#6E0F3D", "#fff"],
     CFG: ["DE", "Condor", "#F9B000", "#D99400", "#1a1206"], AUA: ["OS", "Austrian Airlines", "#E4002B", "#A8001F", "#fff"], BEL: ["SN", "Brussels Airlines", "#E30613", "#002A5C", "#fff"],
-    ASL: ["JU", "Air Serbia", "#2E5FA8", "#E2231A", "#fff"], CTN: ["OU", "Croatia Airlines", "#1F3F8C", "#E2231A", "#fff"], THY: ["TK", "Turkish Airlines", "#C8102E", "#8B0A1F", "#fff"],
+    ASL: ["JU", "Air Serbia", "#002E5D", "#E3001F", "#fff"], CTN: ["OU", "Croatia Airlines", "#1F3F8C", "#E2231A", "#fff"], THY: ["TK", "Turkish Airlines", "#C8102E", "#8B0A1F", "#fff"],
     PGT: ["PC", "Pegasus Airlines", "#FDC300", "#E0A800", "#1a1206"], BAW: ["BA", "British Airways", "#2E5C99", "#1B3A66", "#fff"], SHT: ["BA", "British Airways", "#2E5C99", "#1B3A66", "#fff"],
     VIR: ["VS", "Virgin Atlantic", "#DA0530", "#8E0320", "#fff"], AFR: ["AF", "Air France", "#002157", "#E1001A", "#fff"], KLM: ["KL", "KLM Royal Dutch Airlines", "#00A1DE", "#0072A3", "#fff"],
     IBE: ["IB", "Iberia", "#D7192D", "#FFC72C", "#fff"], VLG: ["VY", "Vueling", "#FFCC00", "#E0B000", "#1a1206"], TAP: ["TP", "TAP Air Portugal", "#00A94F", "#E2231A", "#fff"],
@@ -1378,6 +1570,8 @@ td.k { color: var(--sign); font-weight: 700; }
   function renderBrand(arr) {
     const b = brandOf(S.callsign), sec = $("viewIfe"), bar = $("brandBar");
     sec.classList.toggle("branded", !!b);
+    const seat = !!(b && SEAT_SKINS[b.iata]);
+    if (seat !== sec.classList.contains("seat")) { sec.classList.toggle("seat", seat); seatSkinChanged(seat); }
     if (!b) { bar.hidden = true; S.brand = null; return; }
     S.brand = b;
     sec.style.setProperty("--air-1", b.c1); sec.style.setProperty("--air-2", b.c2); sec.style.setProperty("--air-ink", b.ink);
@@ -1417,7 +1611,7 @@ td.k { color: var(--sign); font-weight: 700; }
     return pts;
   }
   const nf = (v, d = 0) => Number(v).toLocaleString(LOC(), { maximumFractionDigits: d, minimumFractionDigits: d });
-  const compass = (deg) => ({ de: ["N", "NO", "O", "SO", "S", "SW", "W", "NW"], en: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"], sr: ["S", "SI", "I", "JI", "J", "JZ", "Z", "SZ"] })[lang][Math.round(deg / 45) % 8];
+  const compass = (deg) => ({ de: ["N", "NO", "O", "SO", "S", "SW", "W", "NW"], en: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"], sr: ["S", "SI", "I", "JI", "J", "JZ", "Z", "SZ"], ru: ["С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ"], zh: ["北", "东北", "东", "东南", "南", "西南", "西", "西北"] })[lang][Math.round(deg / 45) % 8];
 
   // Airport coordinates, city and time zone (compact copy of github.com/mwgg/Airports, loaded on demand)
   let APTS = null, aptsReq = null;
@@ -1571,6 +1765,7 @@ td.k { color: var(--sign); font-weight: 700; }
     ].join("");
 
     S.pax = { dep, arr, eta, etaSrc, remain };
+    renderSeat(now, { pl, gs, airborne, phaseTxt, remain, flown, leftMs, oat, dep, arr, depIcao, arrIcao, ofp });
     if (pane !== "map") return;
 
     // map
@@ -2310,17 +2505,215 @@ td.k { color: var(--sign); font-weight: 700; }
   function syncAuto() { $("btnAuto").setAttribute("aria-pressed", String(autoOn)); }
   $("btnAuto").addEventListener("click", () => { autoOn = !autoOn; store.rawSet("vdgs.auto", autoOn ? "1" : "0"); autoT = Date.now(); syncAuto(); });
   setInterval(() => {
-    if (!autoOn || view !== "ife" || Date.now() - autoT < (pane === "map" ? 40e3 : 20e3)) return;
+    if (!autoOn || view !== "ife" || $("viewIfe").classList.contains("seat") || Date.now() - autoT < (pane === "map" ? 40e3 : 20e3)) return;
     autoT = Date.now();
     setPane({ map: "dest", dest: "conn", conn: "arr", arr: "map" }[pane]);
   }, 1000);
 
+
+  // ---------- seatback IFE (airline skin) ----------
+  // Looks like the airline's seat screen: welcome page, tile menu, films, moving map, safety video at pushback.
+  // Videos never come from the internet or GitHub: they are the user's own files, either in the bridge's
+  // folder on the PC (Videos\VDGS) or added on this device (kept in the browser's IndexedDB).
+  const SEAT_SKINS = { JU: { menu: "Bordprogramm" } }; // Air Serbia
+  const SVG = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+  const IC = {
+    movies: "M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z",
+    map: "M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z",
+    conn: "M2.5 19h19v2h-19zm19.57-9.36c-.21-.8-1.04-1.28-1.84-1.06L14.92 10l-6.9-6.43-1.93.51 4.14 7.17-4.97 1.33-1.97-1.54-1.45.39 2.59 4.49L21 11.49c.81-.23 1.28-1.05 1.07-1.85z",
+    arr: "M2.5 19h19v2h-19zm7.18-5.73l4.35 1.16 5.31 1.42c.8.21 1.62-.26 1.84-1.06.21-.8-.26-1.62-1.06-1.84l-5.31-1.42-2.76-9.02L10.12 2v8.28L5.15 8.95l-.93-2.32-1.45-.39v5.17l1.6.43 5.31 1.43z",
+    dest: "M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z",
+    safety: "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z",
+  };
+  function fitSeat() { const r = $("viewIfe").getBoundingClientRect(); if (r.top > 0) document.documentElement.style.setProperty("--pax-top", Math.round(r.top + window.scrollY) + "px"); }
+  window.addEventListener("resize", fitSeat);
+  function seatSkinChanged(on) {
+    if (on) setTimeout(fitSeat, 0);
+    if (on) { if (view === "ife") setPane(S.seatStarted ? (["map", "conn", "arr", "dest", "movies"].includes(pane) ? pane : "home") : "welcome"); loadMedia(); }
+    else if (["home", "movies", "welcome"].includes(pane)) setPane("map");
+  }
+
+  // ----- videos -----
+  let MEDIA = null, mediaLoading = false, mediaT = 0;
+  const POSTERS = new Map(); // id -> data URL (first frames, made in the browser)
+  const vidTitle = (n) => n.replace(/\.(mp4|m4v|mov|webm)$/i, "").replace(/\.publer\.com$/i, "")
+    .replace(/\s_\s|│|\|/g, " · ").replace(/_\s/g, ": ").replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  const isSafety = (n) => /safety|sigurnost|sicherheit|bezbednost/i.test(n);
+  function idb() {
+    return new Promise((ok, no) => {
+      const r = indexedDB.open("vdgs-media", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("videos", { keyPath: "id" });
+      r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+    });
+  }
+  async function idbAll() {
+    try {
+      const db = await idb();
+      return await new Promise((ok, no) => { const q = db.transaction("videos").objectStore("videos").getAll(); q.onsuccess = () => ok(q.result || []); q.onerror = () => no(q.error); });
+    } catch { return []; }
+  }
+  async function idbPut(rec) { const db = await idb(); await new Promise((ok, no) => { const t = db.transaction("videos", "readwrite"); t.objectStore("videos").put(rec); t.oncomplete = ok; t.onerror = () => no(t.error); }); }
+  async function idbClear() { const db = await idb(); await new Promise((ok, no) => { const t = db.transaction("videos", "readwrite"); t.objectStore("videos").clear(); t.oncomplete = ok; t.onerror = () => no(t.error); }); }
+  async function loadMedia(force) {
+    if (mediaLoading || (!force && MEDIA && Date.now() - mediaT < 60e3)) return;
+    mediaLoading = true;
+    const list = [];
+    if (BRIDGE) {
+      try {
+        const d = await getJSON("media/list", 5000);
+        for (const f of d?.files || []) list.push({ id: "pc:" + f.name, name: f.name, url: "media/" + encodeURIComponent(f.name), src: "pc" });
+      } catch {}
+    }
+    for (const r of await idbAll()) {
+      const old = MEDIA?.find((m) => m.id === r.id);
+      list.push({ id: r.id, name: r.name, url: old?.url || URL.createObjectURL(r.blob), src: "device" });
+    }
+    for (const m of MEDIA || []) if (m.src === "device" && !list.some((x) => x.id === m.id)) URL.revokeObjectURL(m.url);
+    for (const m of list) { m.title = vidTitle(m.name); m.safety = isSafety(m.name); }
+    list.sort((a, b) => (b.safety - a.safety) || a.title.localeCompare(b.title));
+    MEDIA = list; mediaT = Date.now(); mediaLoading = false;
+    makePosters();
+    render();
+  }
+  let posterBusy = false;
+  async function makePosters() {
+    if (posterBusy) return; posterBusy = true;
+    for (const m of MEDIA || []) {
+      if (POSTERS.has(m.id)) continue;
+      POSTERS.set(m.id, await new Promise((ok) => {
+        const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = m.url;
+        const done = (u) => { v.removeAttribute("src"); v.load(); ok(u); };
+        const t = setTimeout(() => done(""), 15000);
+        // a frame a quarter in (intros are often black); if it is still dark, try the middle
+        let tries = [];
+        v.addEventListener("loadedmetadata", () => { const d = v.duration || 8; tries = [Math.min(20, d * 0.25), d * 0.5]; v.currentTime = tries.shift(); }, { once: true });
+        v.addEventListener("seeked", function shot() {
+          try {
+            const c = document.createElement("canvas"); c.width = 384; c.height = 216; const g = c.getContext("2d"); g.drawImage(v, 0, 0, 384, 216);
+            const px = g.getImageData(0, 0, 384, 216).data; let sum = 0; for (let i = 0; i < px.length; i += 400) sum += px[i] + px[i + 1] + px[i + 2];
+            if (sum / (px.length / 400) / 3 < 28 && tries.length) { v.currentTime = tries.shift(); return; }
+            v.removeEventListener("seeked", shot); clearTimeout(t); done(c.toDataURL("image/jpeg", 0.75));
+          } catch { v.removeEventListener("seeked", shot); clearTimeout(t); done(""); }
+        });
+        v.addEventListener("error", () => { clearTimeout(t); done(""); }, { once: true });
+      }));
+      $("movieTiles").dataset.html = ""; render();
+    }
+    posterBusy = false;
+  }
+  $("vidPick").addEventListener("change", async (e) => {
+    const files = [...e.target.files]; e.target.value = "";
+    for (const f of files) { try { await idbPut({ id: "dev:" + f.name + ":" + f.size, name: f.name, blob: f, added: Date.now() }); } catch { toast("Video konnte nicht gespeichert werden (Speicher voll?)"); } }
+    loadMedia(true);
+  });
+  function toast(t) { const h = $("seatHelp"); h.textContent = t; h.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { h.hidden = true; }, 6000); }
+
+  // ----- player: one <video> element, unlocked by the first tap so it may play with sound later (iPad rule) -----
+  const vid = $("vid");
+  let unlocked = false, playing = null;
+  // 0.4 s of black and silence: played once inside a tap, so the safety video may later start on its own
+  const SILENT = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAWvbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAABWIgAAInQAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAll0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAInQAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAACJ0AAAAAAABAAAAAAHRbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAoAAAAEABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABfG1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAATxzdGJsAAAAuHN0c2QAAAAAAAAAAQAAAKhhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABFExhdmM2My4xLjEwMiBsaWJ4MjY0AAAAAAAAAAAAAAAAGP//AAAALmF2Y0MBQsAK/+EAFmdCwArZHsBEAAADAAQAAAMAKDxImSABAAVoy4PLIAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAADLwAAAAAAAAABhzdHRzAAAAAAAAAAEAAAACAAAIAAAAABRzdHNzAAAAAAAAAAEAAAABAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAABAAAAAQAAABxzdHN6AAAAAAAAAAAAAAACAAACgwAAAAkAAAAYc3RjbwAAAAAAAAACAAAF8gAACIkAAAKBdHJhawAAAFx0a2hkAAAAAwAAAAAAAAAAAAAAAgAAAAAAACJ0AAAAAAAAAAAAAAABAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAJGVkdHMAAAAcZWxzdAAAAAAAAAABAAAidAAABAAAAQAAAAAB+W1kaWEAAAAgbWRoZAAAAAAAAAAAAAAAAAAAViIAACZ0VcQAAAAAAC1oZGxyAAAAAAAAAABzb3VuAAAAAAAAAAAAAAAAU291bmRIYW5kbGVyAAAAAaRtaW5mAAAAEHNtaGQAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAWhzdGJsAAAAfnN0c2QAAAAAAAAAAQAAAG5tcDRhAAAAAAAAAAEAAAAAAAAAAAABABAAAAAAViIAAAAAADZlc2RzAAAAAAOAgIAlAAIABICAgBdAFQAAAAAAPoAAAAPZBYCAgAUTiFblAAaAgIABAgAAABRidHJ0AAAAAAAAPoAAAAPZAAAAIHN0dHMAAAAAAAAAAgAAAAkAAAQAAAAAAQAAAnQAAAA0c3RzYwAAAAAAAAADAAAAAQAAAAEAAAABAAAAAgAAAAUAAAABAAAAAwAAAAQAAAABAAAAPHN0c3oAAAAAAAAAAAAAAAoAAAATAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAAHHN0Y28AAAAAAAAAAwAABd8AAAh1AAAIkgAAABpzZ3BkAQAAAHJvbGwAAAACAAAAAf//AAAAHHNiZ3AAAAAAcm9sbAAAAAEAAAAKAAAAAQAAAGF1ZHRhAAAAWW1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAALGlsc3QAAAAkqXRvbwAAABxkYXRhAAAAAQAAAABMYXZmNjMuMS4xMDIAAAAIZnJlZQAAAsttZGF03ABMYXZjNjMuMS4xMDIAAjBADgAAAnAGBf//bNxF6b3m2Ui3lizYINkj7u94MjY0IC0gY29yZSAxNjUgcjMyMjMgMDQ4MGNiMCAtIEguMjY0L01QRUctNCBBVkMgY29kZWMgLSBDb3B5bGVmdCAyMDAzLTIwMjUgLSBodHRwOi8vd3d3LnZpZGVvbGFuLm9yZy94MjY0Lmh0bWwgLSBvcHRpb25zOiBjYWJhYz0wIHJlZj0zIGRlYmxvY2s9MTowOjAgYW5hbHlzZT0weDE6MHgxMTEgbWU9aGV4IHN1Ym1lPTcgcHN5PTEgcHN5X3JkPTEuMDA6MC4wMCBtaXhlZF9yZWY9MSBtZV9yYW5nZT0xNiBjaHJvbWFfbWU9MSB0cmVsbGlzPTEgOHg4ZGN0PTAgY3FtPTAgZGVhZHpvbmU9MjEsMTEgZmFzdF9wc2tpcD0xIGNocm9tYV9xcF9vZmZzZXQ9LTIgdGhyZWFkcz0xIGxvb2thaGVhZF90aHJlYWRzPTEgc2xpY2VkX3RocmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MCB3ZWlnaHRwPTAga2V5aW50PTI1MCBrZXlpbnRfbWluPTUgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAALZYiEBDyYoAA0G4ABGCAHARggBwEYIAcBGCAHARggBwAAAAVBmjgf6gEYIAcBGCAHARggBwEYIAc=";
+  function unlockVideo() {
+    if (unlocked || playing) return; unlocked = true;
+    vid.src = SILENT; const p = vid.play();
+    if (p) p.then(() => { if (!playing) { vid.pause(); vid.removeAttribute("src"); vid.load(); } }).catch(() => { unlocked = false; });
+  }
+  function playVideo(m, auto) {
+    if (!m) return;
+    playing = m; $("playerTtl").textContent = m.title; $("player").hidden = false;
+    vid.src = m.url; vid.currentTime = 0;
+    const p = vid.play();
+    if (p) p.catch(() => { if (auto) toast("Sicherheitsvideo: zum Starten auf ▶ tippen"); });
+  }
+  function closePlayer() { vid.pause(); vid.removeAttribute("src"); vid.load(); $("player").hidden = true; playing = null; seatIdle = Date.now(); }
+  $("playerClose").addEventListener("click", closePlayer);
+  vid.addEventListener("ended", () => { const wasSafety = playing?.safety; closePlayer(); if (wasSafety && view === "ife") setPane("map"); });
+
+  // ----- safety video when the aircraft starts moving back from the gate -----
+  function safetyCheck(c) {
+    if (!c.pl || c.airborne || !S.callsign || c.flown == null || c.flown > 6 || c.gs < 2 || (c.remain != null && c.remain < 12)) return;
+    const key = S.callsign + "|" + (c.depIcao || "") + "|" + new Date().toISOString().slice(0, 10);
+    if (store.raw("vdgs.safety") === key) return;
+    const m = (MEDIA || []).find((x) => x.safety);
+    if (!m) { if (!MEDIA) loadMedia(); return; }
+    store.rawSet("vdgs.safety", key);
+    S.seatStarted = true; playVideo(m, true);
+  }
+
+  // ----- drawing -----
+  let seatIdle = Date.now();
+  function renderSeat(now, c) {
+    const sec = $("viewIfe"); if (!sec.classList.contains("seat")) return;
+    const b = S.brand, fn = b ? b.iata + " " + S.callsign.slice(3) : S.callsign;
+    setHtml("seatBadge", `<b>${esc(fn)}</b><span>${esc([c.depIcao, c.arrIcao].filter(Boolean).join(" – ") || "Bordprogramm")}</span>`);
+    const logo = b ? `https://pics.avs.io/480/160/${b.iata}.png` : "";
+    setHtml("seatLogo", logo ? `<img src="${logo}" alt="${esc(b.name)}" referrerpolicy="no-referrer" onerror="this.hidden=true">` : "");
+    if ($("seatMark").getAttribute("src") !== logo) $("seatMark").src = logo;
+    setHtml("welcomeArt", logo ? `<img src="${logo}" alt="" referrerpolicy="no-referrer" onerror="this.hidden=true">` : "");
+    const flTime = c.ofp?.eteMs ? Math.floor(c.ofp.eteMs / 3600e3) + " h " + p2(Math.round((c.ofp.eteMs % 3600e3) / 60e3)) + " min" : "";
+    setHtml("welcomeSub", `${esc(b?.name || "")}<br>Flug ${esc(fn.replace(" ", ""))} nach ${esc(c.arr?.city || c.arrIcao || "")}${flTime ? "<br>Flugzeit ca. " + flTime : ""}`);
+    const hm = (ms) => { const m = Math.round(ms / 60e3); return Math.floor(m / 60) + ":" + p2(m % 60); };
+    setHtml("seatInfo", [
+      c.leftMs != null ? `<span>Zeit bis zum Ziel</span> <b>${hm(c.leftMs)} h</b>` : "",
+      c.remain != null ? `<span>Entfernung zum Ziel</span> <b>${nf(c.remain)} km</b>` : "",
+      c.oat != null ? `<span>Außentemperatur</span> <b>${c.oat} °C</b>` : "",
+    ].filter(Boolean).join("<i>|</i>"));
+    const tile = (k, ic, t, sel) => `<button type="button" class="tile${sel ? " sel" : ""}" data-seat="${k}"><span class="ic">${SVG(ic)}</span><span class="tl">${esc(t)}</span></button>`;
+    const safety = (MEDIA || []).find((m) => m.safety);
+    setHtml("homeTiles", [
+      tile("movies", IC.movies, "Filme", (S.seatSel || "movies") === "movies"),
+      tile("map", IC.map, "Flugkarte", S.seatSel === "map"),
+      tile("dest", IC.dest, "Zielort", S.seatSel === "dest"),
+      tile("conn", IC.conn, "Anschlussflüge", S.seatSel === "conn"),
+      tile("arr", IC.arr, "Ankünfte", S.seatSel === "arr"),
+      safety ? tile("safety", IC.safety, "Sicherheit an Bord", S.seatSel === "safety") : "",
+    ].join(""));
+    setHtml("homeTtl", esc(SEAT_SKINS[b?.iata]?.menu || "Bordprogramm"));
+    const films = (MEDIA || []).filter((m) => !m.safety);
+    setHtml("movieTiles", (MEDIA || []).map((m) => {
+      const pst = POSTERS.get(m.id);
+      return `<button type="button" class="tile vid" data-vid="${esc(m.id)}"><span class="ic"${pst ? ` style="background-image:url(${pst})"` : ""}></span><span class="tl">${esc(m.title)}<small>${m.safety ? "Sicherheitsvideo" : m.src === "pc" ? "vom PC" : "auf diesem Gerät"}</small></span></button>`;
+    }).join(""));
+    setHtml("movieNote", (MEDIA && !MEDIA.length ? "<span>Noch keine Videos.</span> " : "")
+      + (BRIDGE ? "<span>Videos in den Ordner Videos\\VDGS auf dem PC legen (MP4).</span> " : "")
+      + "<span>Ein Video mit „Safety“ im Namen startet automatisch beim Zurückschieben.</span>"
+      + `<br><button type="button" class="btn sm" data-seat="addvid">Videos von diesem Gerät hinzufügen</button>`
+      + ((MEDIA || []).some((m) => m.src === "device") ? `<button type="button" class="btn sm" data-seat="clearvid">Videos auf diesem Gerät entfernen</button>` : "")
+      + (films.length ? "" : ""));
+    safetyCheck(c);
+    // like the real screens: back to the moving map after a while without touching
+    if (!playing && ["home", "movies"].includes(pane) && now - seatIdle > 180e3) { seatIdle = now; setPane("map"); }
+  }
+  $("viewIfe").addEventListener("pointerdown", () => { seatIdle = Date.now(); });
+  $("viewIfe").addEventListener("click", (e) => {
+    const v = e.target.closest("[data-vid]");
+    if (v) { unlocked = true; playVideo((MEDIA || []).find((m) => m.id === v.dataset.vid)); return; }
+    const t = e.target.closest("[data-seat]"); if (!t) return;
+    const k = t.dataset.seat; unlockVideo();
+    if (k === "start") { S.seatStarted = true; setPane("home"); }
+    else if (k === "home") setPane("home");
+    else if (k === "back") setPane(pane === "home" ? "home" : ["map", "conn", "arr", "dest", "movies"].includes(S.seatPrev) && S.seatPrev !== pane ? S.seatPrev : "home");
+    else if (k === "lang") { const h = $("seatLangs"); h.hidden = !h.hidden; }
+    else if (k.startsWith("lang-")) { setLang(k.slice(5)); $("seatLangs").hidden = true; render(); }
+    else if (k === "help") toast("Kachel antippen zum Öffnen. Das Flugzeug-Symbol zeigt die Flugkarte. Das Sicherheitsvideo startet beim Zurückschieben.");
+    else if (k === "safety") { S.seatSel = k; playVideo((MEDIA || []).find((m) => m.safety)); }
+    else if (k === "addvid") $("vidPick").click();
+    else if (k === "clearvid") { idbClear().then(() => loadMedia(true)); }
+    else if (["movies", "map", "dest", "conn", "arr"].includes(k)) { S.seatSel = k; setPane(k); }
+  });
+
   // ---------- view switch ----------
   let view = ["ife", "fids"].includes(store.raw("vdgs.view")) ? store.raw("vdgs.view") : "slot";
-  let pane = ["map", "conn", "arr", "dest"].includes(store.raw("vdgs.pane")) ? store.raw("vdgs.pane") : "map";
+  let pane = ["map", "conn", "arr", "dest", "home", "movies"].includes(store.raw("vdgs.pane")) ? store.raw("vdgs.pane") : "map";
   function setPane(p) {
-    pane = p; store.rawSet("vdgs.pane", p);
+    const seat = $("viewIfe").classList.contains("seat");
+    if (!seat && ["home", "movies", "welcome"].includes(p)) p = "map"; // seat pages only exist in the airline skin
+    if (p !== pane) S.seatPrev = pane;
+    pane = p; if (p !== "welcome") store.rawSet("vdgs.pane", p);
     $("paneMap").hidden = p !== "map"; $("paneConn").hidden = p !== "conn"; $("paneArr").hidden = p !== "arr"; $("paneDest").hidden = p !== "dest";
+    $("paneHome").hidden = p !== "home"; $("paneMovies").hidden = p !== "movies"; $("paneWelcome").hidden = p !== "welcome";
+    $("viewIfe").classList.toggle("welcome", p === "welcome");
+    if (p === "movies") loadMedia();
     document.querySelectorAll(".pnav [data-pane]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.pane === p)));
     if (p === "map") { mapFitted = false; if (map) setTimeout(() => { map.invalidateSize(); mapFitted = false; render(); }, 50); }
     else { nextRun.conn = 0; nextRun.arrwx = 0; }
@@ -2331,7 +2724,7 @@ td.k { color: var(--sign); font-weight: 700; }
     view = v; store.rawSet("vdgs.view", v);
     $("viewIfe").hidden = v !== "ife"; $("viewSlot").hidden = v !== "slot"; $("viewFids").hidden = v !== "fids";
     for (const [id, k] of [["tabSlot", "slot"], ["tabIfe", "ife"], ["tabFids", "fids"]]) $(id).setAttribute("aria-selected", String(v === k));
-    if (v === "ife") { loadAirports(); nextRun.conn = 0; nextRun.arrwx = 0; setPane(pane); }
+    if (v === "ife") { loadAirports(); nextRun.conn = 0; nextRun.arrwx = 0; setPane($("viewIfe").classList.contains("seat") && !S.seatStarted ? "welcome" : pane); }
     if (v === "fids") { loadAirports(); nextRun.fids = 0; if (booted && !running && !settings.demo) { running = true; refreshAll(true); } render(); }
   }
   $("tabSlot").addEventListener("click", () => setView("slot"));
@@ -2891,9 +3284,9 @@ td.k { color: var(--sign); font-weight: 700; }
 
   // ---------- demo data (clearly flagged in the UI) ----------
   // ?demo=SWR1VG uses that callsign (airline look), ?demo=inflight (or SWR1VG,inflight) starts in the air
-  let DEMO_CS = "DEMO123", DEMO_AIR = false;
+  let DEMO_CS = "DEMO123", DEMO_AIR = false, DEMO_PUSH = false;
   // the own aircraft as the views see it (the in-flight demo counts as live)
-  function liveP() { return settings.demo ? (DEMO_AIR ? S.pilot : null) : S.pilot; }
+  function liveP() { return settings.demo ? (DEMO_AIR || DEMO_PUSH ? S.pilot : null) : S.pilot; }
   function loadDemo() {
     const n = Date.now(), m = 60e3, hm = (t) => { const d = new Date(t); return p2(d.getUTCHours()) + p2(d.getUTCMinutes()) + "00"; };
     const mk = (cs, arr, tobtOff, tsatOff, extra = {}) => norm({
@@ -2929,6 +3322,11 @@ td.k { color: var(--sign); font-weight: 700; }
       Object.assign(S.flight, { eobt: n - 80 * m, tobt: n - 75 * m, tsat: n - 72 * m, aobt: n - 70 * m, ttot: n - 62 * m, atot: n - 62 * m, ctot: null });
       S.pilot = { ...S.pilot, ...S.demoAir };
       S.arrMetar = "LEPA 251220Z 22011KT 9999 FEW030 23/14 Q1018 NOSIG (Demo)"; S.arrMetarApt = "LEPA";
+    }
+    if (DEMO_PUSH) { // pushing back from the gate in Frankfurt: the safety video starts
+      S.demoAir = { latitude: 50.0505, longitude: 8.5718, heading: 160, groundspeed: 3, altitude: 364, last_updated: new Date(n).toISOString() };
+      Object.assign(S.flight, { tsat: n - 2 * m, aobt: n - 1 * m });
+      S.pilot = { ...S.pilot, ...S.demoAir };
     }
     const cx = (cs, dest, type, min, st) => ({ cs, dest, type, time: n + min * m, st });
     S.demoConn = [
@@ -3015,6 +3413,7 @@ td.k { color: var(--sign); font-weight: 700; }
     settings.demo = true;
     for (const w of q.get("demo").toUpperCase().split(",")) {
       if (w === "INFLIGHT") DEMO_AIR = true;
+      else if (w === "PUSH") DEMO_PUSH = true;
       else if (/^[A-Z]{3}\d[A-Z0-9]{0,4}$/.test(w)) DEMO_CS = w;
     }
   }
