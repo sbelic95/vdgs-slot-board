@@ -116,6 +116,13 @@ def read_loop():
             }
             atc = g("ATC_ID")
             snap["atcId"] = atc.decode(errors="ignore") if isinstance(atc, bytes) else str(atc or "")
+            # parking brake and pushback: the passenger screen starts the safety video when the push begins
+            for key, var in (("parkingBrake", "BRAKE_PARKING_POSITION"), ("pushback", "PUSHBACK_STATE")):
+                try:
+                    v = g(var)
+                except Exception:  # not offered by every simulator version
+                    v = None
+                snap[key] = None if v is None else (bool(v) if key == "parkingBrake" else int(v) != 3)  # state 3 = no pushback
             with lock:
                 state.update(snap, connected=True, error="", t=time.time())
         except Exception as e:
@@ -146,6 +153,21 @@ def test_loop():
         with lock:
             state.update(lat=lat, lon=lon, alt=35000, gs=450, ias=270, hdg=round(hdg), vs=0, onGround=False,
                          connected=True, error="", t=time.time())
+        time.sleep(1)
+
+
+def test_push_loop():
+    """--test-push: at a Frankfurt gate, again and again: parked 40 s (brake set), then brake off and 40 s pushback."""
+    with lock:
+        state.update(com1=121.900, com1sb=121.955, squawk="2341", title="Test aircraft (pushback)", atcId="TEST123")
+    lat0, lon0 = 50.0505, 8.5718
+    while True:
+        t = time.time() % 80
+        push = t >= 40
+        d = (t - 40) * 1.5 * 0.000005 if push else 0  # creeping backwards
+        with lock:
+            state.update(lat=lat0 - d, lon=lon0, alt=364, gs=2 if push else 0, ias=0, hdg=160, vs=0, onGround=True,
+                         parkingBrake=not push, pushback=push, connected=True, error="", t=time.time())
         time.sleep(1)
 
 
@@ -336,12 +358,13 @@ def main():
     ap.add_argument("--app-url", default=APP_URL)
     ap.add_argument("--app-dir", help="serve the app from this folder instead of downloading it")
     ap.add_argument("--test", action="store_true", help="no simulator: a pretend aircraft, to try the setup")
+    ap.add_argument("--test-push", action="store_true", help="no simulator: an aircraft at the gate that pushes back every 80 s")
     ap.add_argument("--no-browser", action="store_true", help="do not open the connect page (QR code) on start")
     ap.add_argument("--media", help="folder with your videos for the passenger screen (default: Videos\\VDGS)")
     ap.add_argument("--open-media", action="store_true", help="open the video folder in Explorer and exit")
     args = ap.parse_args()
     global APP_DIR, TEST, MEDIA_DIR
-    TEST = args.test
+    TEST = args.test or args.test_push
     if args.media:
         MEDIA_DIR = os.path.abspath(args.media)
     os.makedirs(MEDIA_DIR, exist_ok=True)
@@ -357,7 +380,7 @@ def main():
     if TEST:
         state["sim"] = "TEST"
         print("Test mode: pretend aircraft, no simulator needed.")
-    threading.Thread(target=test_loop if TEST else read_loop, daemon=True).start()
+    threading.Thread(target=test_push_loop if args.test_push else test_loop if TEST else read_loop, daemon=True).start()
     try:
         srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
     except OSError as e:

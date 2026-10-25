@@ -73,7 +73,7 @@ Tipp: In Safari auf Teilen → „Zum Home-Bildschirm“ tippen, dann hast du ei
 Fliegst du mit einem Callsign einer Airline, die ein eigenes Sitzdisplay hat (zurzeit **Air Serbia**, `ASL…`), sieht die Passagier-Ansicht aus wie der Bildschirm im Sitz: Willkommensseite mit START, Kachel-Menü, Filme, Flugkarte, Zielort.
 
 - MP4-Videos in den Ordner **`Videos\VDGS`** auf dem PC legen (Startmenü → „Videos für das Bordprogramm“ öffnet ihn). Die Bridge zeigt sie unter „Filme“.
-- Ein Video mit **„Safety“** im Namen ist das Sicherheitsvideo: Es startet automatisch, sobald das Flugzeug vom Gate zurückgeschoben wird.
+- Ein Video mit **„Safety“** im Namen ist das Sicherheitsvideo: Es startet bei **jedem** Pushback automatisch, sobald im Simulator die Parkbremse gelöst wird und das Flugzeug zurückgeschoben wird. Parkst du wieder (Parkbremse an), startet es beim nächsten Pushback erneut. Ausprobieren ohne Simulator: `VDGS-Bridge.exe --test-push`.
 - Auf dem iPad einmal **START** antippen: Erst dann darf das iPad das Sicherheitsvideo später von selbst mit Ton starten.
 - Die Videos bleiben auf deinem PC und in deinem Heimnetz. Ohne Bridge (GitHub-Version) kannst du unter „Filme“ Videos direkt vom iPad hinzufügen; sie bleiben im Browser des iPads.
 

@@ -564,9 +564,9 @@ td.k { color: var(--sign); font-weight: 700; }
     </div>
     <div class="tools">
       <div class="seg lang" role="group" aria-label="Sprache / Language / Jezik">
-        <button data-lang="de" aria-pressed="true">DE</button>
-        <button data-lang="en" aria-pressed="false">EN</button>
+        <button data-lang="en" aria-pressed="true">EN</button>
         <button data-lang="sr" aria-pressed="false">SR</button>
+        <button data-lang="de" aria-pressed="false">DE</button>
         <button data-lang="ru" aria-pressed="false">RU</button>
         <button data-lang="zh" aria-pressed="false" lang="zh-Hans">中文</button>
       </div>
@@ -888,7 +888,7 @@ td.k { color: var(--sign); font-weight: 700; }
   // ---------- languages: German source, English and Serbian (Latin) ----------
   // The app renders German; a DOM pass swaps each text (or each " · " segment) for its translation.
   const LANGS = ["de", "en", "sr", "ru", "zh"];
-  let lang = LANGS.includes(store.raw("vdgs.lang")) ? store.raw("vdgs.lang") : "de";
+  let lang = LANGS.includes(store.raw("vdgs.lang")) ? store.raw("vdgs.lang") : "en"; // English unless the user picked another
   const LOC = () => ({ de: "de-DE", en: "en-GB", sr: "sr-Latn-RS", ru: "ru-RU", zh: "zh-CN" })[lang];
   const TX = {
     // header, views, buttons
@@ -2427,6 +2427,7 @@ td.k { color: var(--sign); font-weight: 700; }
     return {
       callsign: cs, latitude: s.lat, longitude: s.lon, altitude: s.alt, groundspeed: s.gs, heading: s.hdg,
       transponder: s.squawk, last_updated: new Date().toISOString(), sim: true,
+      parkingBrake: s.parkingBrake ?? null, pushback: s.pushback ?? null, onGround: s.onGround ?? null,
       flight_plan: S.prefile?.flight_plan || null,
     };
   }
@@ -2629,15 +2630,28 @@ td.k { color: var(--sign); font-weight: 700; }
   $("playerClose").addEventListener("click", closePlayer);
   vid.addEventListener("ended", () => { const wasSafety = playing?.safety; closePlayer(); if (wasSafety && view === "ife") setPane("map"); });
 
-  // ----- safety video when the aircraft starts moving back from the gate -----
-  function safetyCheck(c) {
-    if (!c.pl || c.airborne || !S.callsign || c.flown == null || c.flown > 6 || c.gs < 2 || (c.remain != null && c.remain < 12)) return;
-    const key = S.callsign + "|" + (c.depIcao || "") + "|" + new Date().toISOString().slice(0, 10);
-    if (store.raw("vdgs.safety") === key) return;
+  // ----- safety video at every pushback -----
+  // Armed while the aircraft stands at the departure gate (parking brake set in the simulator, or standing
+  // still on VATSIM); started when the brake is released and the push begins. Parked again = plays again.
+  const SAFE = { armed: true, still: 0 };
+  function safetyCheck(c, now) {
+    const pl = c.pl;
+    // at the departure gate; without a flight plan the simulator's "on ground" has to do
+    const atDep = c.flown != null ? c.flown <= 6 : pl?.onGround === true;
+    if (!pl || c.airborne || !S.callsign || !atDep || (c.remain != null && c.remain < 12)) return;
+    const brake = pl.parkingBrake ?? null; // only known through the bridge
+    if ((brake === true || c.gs < 1) && pl.pushback !== true) {
+      if (!SAFE.still) SAFE.still = now;
+      if (brake === true || now - SAFE.still > 30e3) SAFE.armed = true;
+      return;
+    }
+    SAFE.still = 0;
+    const moving = pl.pushback === true || c.gs >= (brake == null ? 2 : 1);
+    if (!SAFE.armed || !moving) return;
     const m = (MEDIA || []).find((x) => x.safety);
     if (!m) { if (!MEDIA) loadMedia(); return; }
-    store.rawSet("vdgs.safety", key);
-    S.seatStarted = true; playVideo(m, true);
+    SAFE.armed = false; S.seatStarted = true;
+    if (!playing?.safety) playVideo(m, true);
   }
 
   // ----- drawing -----
@@ -2680,7 +2694,7 @@ td.k { color: var(--sign); font-weight: 700; }
       + `<br><button type="button" class="btn sm" data-seat="addvid">Videos von diesem Gerät hinzufügen</button>`
       + ((MEDIA || []).some((m) => m.src === "device") ? `<button type="button" class="btn sm" data-seat="clearvid">Videos auf diesem Gerät entfernen</button>` : "")
       + (films.length ? "" : ""));
-    safetyCheck(c);
+    safetyCheck(c, now);
     // like the real screens: back to the moving map after a while without touching
     if (!playing && ["home", "movies"].includes(pane) && now - seatIdle > 180e3) { seatIdle = now; setPane("map"); }
   }
