@@ -309,6 +309,8 @@ Die Karte zeigt **Aktuell** (Station und Frequenz), **Als nächstes** (mit Ausl�
   2. IATA/LID-Kürzel aus `VATSpy.dat` `[Airports]` (z. B. `AD_APP` für YPAD),
   3. die Anflugbereiche des SimAware TRACON Project (`tracons.json` auf dem Zweig `atc`, `pollTracon()`): Präfixe und Suffix eines Bereichs, der den Flughafen enthält (z. B. `IST_W_APP`, `NY_CAM_APP`).
 
+  4. Center: zuerst das Rufzeichen-Präfix aus `VATSpy.dat`, sonst der FIR-Code selbst (`LECB_CTR`, `LECM_CTR`: VATSpy führt dafür LEBL / LEMD; betrifft 156 FIRs).
+
   Mehrere Stationen derselben Art (z. B. EDDM_N_APP und EDDM_S_APP) werden alle gezeigt („auch: …“, `altLine()`), ebenso parallele Center (`ctrAt()` liefert `alts`). Lotsen ohne Frequenz (199.998, `onAir()`) werden übersprungen. Die ATC-Karte im Pilot-Modus listet alle Stationen des Flughafens plus das Center darüber. Live-Prüfung: alle 102 Stationen eines Abends zugeordnet.
 - **Grenzen:** Sektoren innerhalb einer FIR (z. B. mehrere `EDGG_…_CTR`) unterscheidet die App nicht genau, weil VATSIM keine Sektorgrenzen veröffentlicht. Sie nimmt die erste passende Station. Die Übergabe-Entfernungen für Anflug und Tower sind Schätzwerte.
 
@@ -441,7 +443,7 @@ Angezeigt im Pilot-Modus im Flug neben dem Gate (`#enRwy`) und im Passagier-Ziel
 | `updateCallsign()` | Callsign nach Priorität bestimmen |
 | `render()` | Gesamte Anzeige (läuft jede Sekunde für Uhr und Countdown) |
 | `renderTimeline()`, `renderFlight()`, `renderWx()`, `renderBoard()` | Teilbereiche |
-| `loadDemo()` | Beispieldaten für `?demo` (als „Demo-Daten“ markiert) |
+| `loadDemo()` | Beispieldaten für `?demo` (als „Demo-Daten“ markiert). `?demo=SWR1VG` nimmt dieses Callsign (Airline-Look), `?demo=SWR1VG,inflight` startet im Reiseflug (Pilot-Ansicht im Flug). |
 | `chime()` | Gong über die Web Audio API |
 | `guard()`, `refreshAll()` | Abfragen ohne Überschneidung; alles sofort neu laden |
 | `start()` | Zustand zurücksetzen, Abfragen starten |

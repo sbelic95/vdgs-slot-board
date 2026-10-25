@@ -925,7 +925,7 @@ td.k { color: var(--sign); font-weight: 700; }
     [/^(-?\d+) °C, (.+)$/, "$1 °C, $2", "$1 °C, $2"], [/^OFP erstellt (.+)$/, "OFP created $1", "OFP napravljen $1"], [/^Aktualisiert: (.+)$/, "Updated: $1", "Ažurirano: $1"],
     [/^Daten: (.+)$/, "Data: $1", "Podaci: $1"], [/^Flughäfen: (.+)$/, "Airports: $1", "Aerodromi: $1"], [/^Bis (.+)$/, "To $1", "Do $1"], [/^von (\S+)$/, "from $1", "od $1"],
     [/^Per CPDLC$/, "By CPDLC", "Preko CPDLC"],
-    [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Squawk (\d{4}) setzen$/, "Set squawk $1", "Postavi squawk $1"], [/^auch: (.+)$/, "also: $1", "takođe: $1"], [/^Landebahn (\S+)$/, "Landing runway $1", "Pista za sletanje $1"],
+    [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Squawk (\d{4}) setzen$/, "Set squawk $1", "Postavi squawk $1"], [/^auch: (.+)$/, "also: $1", "takođe: $1"], [/^Flug (\S+)$/, "Flight $1", "Let $1"], [/^Landebahn (\S+)$/, "Landing runway $1", "Pista za sletanje $1"],
     [/^laut ATIS Information (\S+)$/, "per ATIS information $1", "prema ATIS informaciji $1"],
     [/^aus dem Wind (.+) \(kein ATIS online\)$/, "from the wind $1 (no ATIS online)", "iz vetra $1 (nema ATIS-a)"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"],
     [/^Zeiten in Ortszeit (.+)\. Grau: Abflug vor Ihrer voraussichtlichen Ankunft\. Quelle: VATSIM-Flugpläne und vIFF-CDM, Aktualisierung jede Minute\.$/,
@@ -1259,7 +1259,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const f = S.flight;
     const fp = S.pilot?.flight_plan || S.prefile?.flight_plan || null;
     const waiting = (settings.simbrief && S.sbOk === null) || (settings.cid && S.feedOk === null);
-    const ph = !S.callsign ? (waiting ? "loading" : "setup") : phase(f, now, settings.demo ? null : S.pilot);
+    const ph = !S.callsign ? (waiting ? "loading" : "setup") : phase(f, now, liveP());
     const apt = depApt();
     const ofp = S.ofp && (!S.callsign || S.ofp.callsign === S.callsign) ? S.ofp : null;
 
@@ -1321,7 +1321,7 @@ td.k { color: var(--sign); font-weight: 700; }
 
     // after take-off the slot is history: the pilot view turns into an in-flight view
     // (next frequency, CPDLC, destination ATIS) until the aircraft is at the gate at the destination
-    const live = settings.demo ? null : S.pilot;
+    const live = liveP();
     if (live && !APTS) loadAirports();
     const arrI = arrApt(), depI = depApt();
     const arrP = aptInfo(arrI, ofp, "arr")?.pos, depP = aptInfo(depI, ofp, "dep")?.pos;
@@ -1827,7 +1827,7 @@ td.k { color: var(--sign); font-weight: 700; }
     } catch {}
     const ofp = S.ofp?.arr === apt ? S.ofp : null;
     const name = ofp?.arrName ? ofp.arrName.replace(/\b\w+/g, (w) => w[0] + w.slice(1).toLowerCase()) : "";
-    const raw = settings.demo ? S.metar.replace("EDDF", apt) : S.arrMetarApt === apt ? S.arrMetar : "";
+    const raw = settings.demo && !DEMO_AIR ? S.metar.replace("EDDF", apt) : S.arrMetarApt === apt ? S.arrMetar : "";
     const w = raw ? decodeMetar(raw) : null;
     const kv = (l, v) => `<div><span class="lbl">${l}</span><span class="v num">${v}</span></div>`;
     const wind = w?.wspd != null ? (w.wspd < 2 ? "Windstill" : (w.wdir === "VRB" ? "wechselnd " : compass(+w.wdir) + " ") + w.wspd + " km/h" + (w.gust ? ", Böen " + w.gust : "")) : "—";
@@ -1917,7 +1917,9 @@ td.k { color: var(--sign); font-weight: 700; }
       const parts = c.callsign.split("_"); parts.pop();
       for (let n = parts.length; n > 0; n--) {
         const pre = parts.slice(0, n).join("_");
-        const hits = FIR.firs.filter((f) => f.prefix === pre);
+        // the listed callsign prefix first; then the FIR code itself (LECB_CTR, LECM_CTR: VATSpy lists LEBL / LEMD)
+        let hits = FIR.firs.filter((f) => f.prefix === pre);
+        if (!hits.length) hits = FIR.firs.filter((f) => f.icao === pre);
         if (hits.length) { new Set(hits.map((f) => f.bnd)).forEach((b) => add(b, c, 0, hits[0].name)); break; }
         const u = FIR.uirs.get(pre);
         if (u) { new Set(FIR.firs.filter((f) => u.firs.includes(f.icao)).map((f) => f.bnd)).forEach((b) => add(b, c, 1, u.name)); break; }
@@ -2081,7 +2083,7 @@ td.k { color: var(--sign); font-weight: 700; }
   const altLine = (st) => (st?.alt?.length ? "auch: " + st.alt.map((a) => a.cs + " " + a.mhz).join(" · ") : "");
 
   function freqPlan(now) {
-    const pl = settings.demo ? null : S.pilot, fp = pl?.flight_plan || S.prefile?.flight_plan;
+    const pl = liveP(), fp = pl?.flight_plan || S.prefile?.flight_plan;
     const ofp = S.ofp?.callsign === S.callsign ? S.ofp : null;
     const depI = depApt(), arrI = arrApt();
     const dep = aptInfo(depI, ofp, "dep"), arr = aptInfo(arrI, ofp, "arr");
@@ -2747,7 +2749,7 @@ td.k { color: var(--sign); font-weight: 700; }
 
   // gate info for the own flight: hidden until ~30 min before arrival (like a real airline), actual stand once parked
   function gateInfo(now, eta, landed) {
-    const arrI = arrApt(), pl = settings.demo ? null : S.pilot;
+    const arrI = arrApt(), pl = liveP();
     if (!arrI) return null;
     if (landed && pl && pl.groundspeed < 3 && S.stands && S.standsApt === arrI) {
       let best = null, bd = 1;
@@ -2888,6 +2890,10 @@ td.k { color: var(--sign); font-weight: 700; }
   $("btnDemo").addEventListener("click", () => { settings.demo = true; store.set(settings); $("sheet").hidden = true; start(); });
 
   // ---------- demo data (clearly flagged in the UI) ----------
+  // ?demo=SWR1VG uses that callsign (airline look), ?demo=inflight (or SWR1VG,inflight) starts in the air
+  let DEMO_CS = "DEMO123", DEMO_AIR = false;
+  // the own aircraft as the views see it (the in-flight demo counts as live)
+  function liveP() { return settings.demo ? (DEMO_AIR ? S.pilot : null) : S.pilot; }
   function loadDemo() {
     const n = Date.now(), m = 60e3, hm = (t) => { const d = new Date(t); return p2(d.getUTCHours()) + p2(d.getUTCMinutes()) + "00"; };
     const mk = (cs, arr, tobtOff, tsatOff, extra = {}) => norm({
@@ -2896,8 +2902,9 @@ td.k { color: var(--sign); font-weight: 700; }
       atfcmData: {}, atfcmStatus: extra.atfcm || "", aobt: extra.aobt ? hm(n + extra.aobt * m).slice(0, 4) : "", atot: extra.atot ? hm(n + extra.atot * m).slice(0, 4) : "",
       flightPlanning: { aircraft_short: extra.type || "A320" },
     });
-    S.callsign = "DEMO123";
-    S.flight = mk("DEMO123", "LEPA", 6, 9, { ctot: 25, reason: "LECB-ALL", atfcm: "SLC", type: "A21N" });
+    S.callsign = DEMO_CS;
+    // ?demo=inflight: the same flight, but already cruising (shows the pilot in-flight view)
+    S.flight = mk(DEMO_CS, "LEPA", 6, 9, { ctot: 25, reason: "LECB-ALL", atfcm: "SLC", type: "A21N" });
     S.board = [
       mk("SAMPLE1", "EGLL", -18, -12, { aobt: -11, atot: -2 }),
       mk("SAMPLE2", "LOWW", -8, -6, { aobt: -5, dep: "18/MARUN7F" }),
@@ -2911,13 +2918,18 @@ td.k { color: var(--sign); font-weight: 700; }
     S.atis = [{ atis_code: "K", frequency: "118.025", text_atis: ["Demo-ATIS · Frankfurt Information K · RWY 25C/25L for arrival, RWY 18 for departure"] }];
     S.atc = [{ facility: 2, callsign: "EDDF_DEL", frequency: "121.900" }, { facility: 3, callsign: "EDDF_S_GND", frequency: "121.955" }, { facility: 4, callsign: "EDDF_TWR", frequency: "119.905" }];
     // demo network for the frequency guide (flagged as demo data in the header)
-    S.feed = { pilots: [], prefiles: [], atis: [{ callsign: "LEPA_ATIS", atis_code: "D", frequency: "118.825" }], controllers: [
+    S.feed = { pilots: [], prefiles: [], atis: [{ callsign: "LEPA_ATIS", atis_code: "D", frequency: "118.825", text_atis: ["Demo-ATIS · Palma Information D · Runway 24L in use for arrivals, 24R for departure"] }], controllers: [
       ...S.atc, { facility: 5, callsign: "EDDF_N_APP", frequency: "120.805" }, { facility: 6, callsign: "EDGG_P_CTR", frequency: "136.230" },
-      { facility: 6, callsign: "LFMM_CTR", frequency: "133.470" }, { facility: 6, callsign: "LECB_CTR", frequency: "132.355" },
+      { facility: 6, callsign: "LSAS_CTR", frequency: "128.050" }, { facility: 6, callsign: "LFMM_CTR", frequency: "133.470" }, { facility: 6, callsign: "LECB_CTR", frequency: "132.355" }, { facility: 6, callsign: "LECP_CTR", frequency: "126.400" },
       { facility: 5, callsign: "LEPA_APP", frequency: "119.150" }, { facility: 4, callsign: "LEPA_TWR", frequency: "118.300" } ] };
     S.metar = "EDDF 241020Z 23012KT 9999 FEW030 12/04 Q1016 NOSIG (Demo)"; S.metarApt = "EDDF";
     // demo aircraft for the flight-info view: cruising between Frankfurt and Palma
     S.demoAir = { latitude: 45.6, longitude: 6.1, heading: 207, groundspeed: 452, altitude: 36000, last_updated: new Date(n).toISOString() };
+    if (DEMO_AIR) {
+      Object.assign(S.flight, { eobt: n - 80 * m, tobt: n - 75 * m, tsat: n - 72 * m, aobt: n - 70 * m, ttot: n - 62 * m, atot: n - 62 * m, ctot: null });
+      S.pilot = { ...S.pilot, ...S.demoAir };
+      S.arrMetar = "LEPA 251220Z 22011KT 9999 FEW030 23/14 Q1018 NOSIG (Demo)"; S.arrMetarApt = "LEPA";
+    }
     const cx = (cs, dest, type, min, st) => ({ cs, dest, type, time: n + min * m, st });
     S.demoConn = [
       cx("SAMPLE7", "LEBL", "A320", 25, ["gone", "Gestartet"]), cx("SAMPLE8", "EGKK", "B738", 38, ["taxi", "Rollt"]),
@@ -2928,10 +2940,10 @@ td.k { color: var(--sign); font-weight: 700; }
     const ax = (cs, from, type, min, st, me) => ({ cs, from, type, time: min == null ? null : n + min * m, st, me });
     S.demoArr = [
       ax("SAMPLE20", "LEMD", "A320", null, ["gone", "Gelandet"]), ax("SAMPLE21", "EGKK", "A321", 18, ["board", "Im Anflug"]),
-      ax("DEMO123", "EDDF", "A21N", 52, ["taxi", "Unterwegs"], true), ax("SAMPLE22", "LSZH", "A220", 61, ["taxi", "Unterwegs"]),
+      ax(DEMO_CS, "EDDF", "A21N", 52, ["taxi", "Unterwegs"], true), ax("SAMPLE22", "LSZH", "A220", 61, ["taxi", "Unterwegs"]),
       ax("SAMPLE23", "EHAM", "B738", 95, ["plan", "Geplant"]),
     ];
-    S.ofp = { callsign: "DEMO123", dep: "EDDF", arr: "LEPA", altn: "LEVC", depRwy: "18", arrRwy: "24L", type: "A21N", reg: "D-DEMO", units: "kgs",
+    S.ofp = { callsign: DEMO_CS, dep: "EDDF", arr: "LEPA", altn: "LEVC", depRwy: "18", arrRwy: "24L", type: "A21N", reg: "D-DEMO", units: "kgs",
       depPos: [50.0264, 8.5431], arrPos: [39.5517, 2.7388], depName: "Frankfurt", arrName: "Palma", depTzH: 2, arrTzH: 2, navlog: [], eteMs: 118 * m,
       fl: "36000", ci: "30", pax: "196", dist: "722", route: "OBOKA2G OBOKA Z10 ... (Demo-Route)", block: "9850", trip: "6420", tof: "9650",
       zfw: "68200", maxZfw: "73300", tow: "77850", maxTow: "97000", out: n + 1 * m, in: n + 140 * m, ete: "01:58:00", generated: n - 40 * m, pdf: "", prefile: "" };
@@ -2999,7 +3011,13 @@ td.k { color: var(--sign); font-weight: 700; }
   renderClock(Date.now()); syncWake(); syncAuto(); setView(view);
   // ?simbrief=Name, ?cs=DLH4AB or ?cid=1234567 in the URL pre-fill the flight (handy as an iPad home-screen bookmark)
   const q = new URLSearchParams(location.search);
-  if (q.get("demo") !== null) settings.demo = true;
+  if (q.get("demo") !== null) {
+    settings.demo = true;
+    for (const w of q.get("demo").toUpperCase().split(",")) {
+      if (w === "INFLIGHT") DEMO_AIR = true;
+      else if (/^[A-Z]{3}\d[A-Z0-9]{0,4}$/.test(w)) DEMO_CS = w;
+    }
+  }
   if (q.get("fids")) { fidsApt = q.get("fids").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4); store.rawSet("vdgs.fids", fidsApt); view = "fids"; setView("fids"); }
   if (q.get("simbrief")) { settings = { ...settings, simbrief: q.get("simbrief").trim(), callsign: "", demo: false }; store.set(settings); }
   if (q.get("cs")) { settings = { ...settings, callsign: q.get("cs").toUpperCase().replace(/[^A-Z0-9]/g, ""), cid: "", demo: false }; store.set(settings); }
