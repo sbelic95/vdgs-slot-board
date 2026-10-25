@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VDGS · Air Serbia</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VDGS Air Serbia">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<style>html, body { margin: 0; height: 100%; background: #0a0e13; }</style>
+</head>
+<body>
+<script>
+// Air Serbia edition: loads the same app as the main page (always the current version) and shows the
+// Air Serbia seat screen for every flight. Nothing is stored for it, so the normal version stays as it is.
+(async () => {
+  try {
+    const html = await (await fetch("../index.html", { cache: "no-store" })).text();
+    const head = '<head><base href="../"><script>window.VDGS_EDITION = "ASL";<\/script>';
+    const page = html.replace("<head>", head)
+      .replace('<link rel="manifest" href="manifest.webmanifest">', '<link rel="manifest" href="airserbia/manifest.webmanifest"><meta name="apple-mobile-web-app-title" content="VDGS Air Serbia">')
+      .replace("<title>VDGS Slot Board</title>", "<title>VDGS · Air Serbia</title>");
+    document.open(); document.write(page); document.close();
+  } catch (e) {
+    document.body.style.cssText = "color:#fff;font:16px system-ui;padding:24px";
+    document.body.textContent = "Could not load the app. Check the internet connection and reload.";
+  }
+})();
+</script>
+</body>
+</html>

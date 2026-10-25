@@ -7,6 +7,7 @@ Im Pilot-Modus zeigt ein Frequenz-Führer, welche Funkfrequenz gerade gilt und w
 Zwei Wege:
 
 - **Im Browser (GitHub Pages):** https://sbelic95.github.io/vdgs-slot-board/ – mit VATSIM, ohne Installation.
+- **Air-Serbia-Ausgabe (Browser):** https://sbelic95.github.io/vdgs-slot-board/airserbia/ – dieselbe App, Passagier-Ansicht immer als Air-Serbia-Sitzdisplay, Englisch. Teilt die Einstellungen mit der normalen Version, ändert sie aber nicht.
 - **Mit dem Simulator (Windows):** `VDGS-Setup.exe` installieren. Die Bridge liest MSFS 2020/2024, zeigt die App im Heim-WLAN (QR-Code scannen) und stellt COM1/Squawk vom Tablet. Siehe [bridge/ANLEITUNG-BRIDGE.md](bridge/ANLEITUNG-BRIDGE.md).
 
 Deine Eingaben (SimBrief, VATSIM-CID, Hoppie-Code) bleiben nur auf deinem Gerät. Kein Konto, kein eigener Server. Details und Lizenzen: [LIZENZEN.md](LIZENZEN.md).

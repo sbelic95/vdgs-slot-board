@@ -1563,9 +1563,17 @@ td.k { color: var(--sign); font-weight: 700; }
     KAL: ["KE", "Korean Air", "#00A3E0", "#00699A", "#fff"], ETH: ["ET", "Ethiopian Airlines", "#0E8A4F", "#F2B71F", "#fff"], RAM: ["AT", "Royal Air Maroc", "#C1272D", "#7E1A1E", "#fff"],
     SVA: ["SV", "Saudia", "#00754A", "#004D30", "#fff"], AIC: ["AI", "Air India", "#DA0A1D", "#8E0713", "#fff"], CCA: ["CA", "Air China", "#E30613", "#8A0A10", "#fff"],
   };
+  // airline edition: /airserbia/ (window.VDGS_EDITION) or ?airline=ASL shows that airline for any callsign;
+  // never stored, so the normal version on the same site stays as it is
+  const FORCE_AIRLINE = ((new URLSearchParams(location.search).get("airline") || window.VDGS_EDITION || "").toUpperCase());
   function brandOf(cs) {
-    const a = /^[A-Z]{3}\d/.test(cs || "") ? AIRLINES[cs.slice(0, 3)] : null;
-    return a ? { iata: a[0], name: a[1], c1: a[2], c2: a[3], ink: a[4] } : null;
+    cs = cs || "";
+    const icao = AIRLINES[FORCE_AIRLINE] ? FORCE_AIRLINE : /^[A-Z]{3}\d/.test(cs) ? cs.slice(0, 3) : "";
+    const a = AIRLINES[icao];
+    if (!a) return null;
+    // flight number as passengers know it: LX318 instead of SWR318
+    const fn = cs.startsWith(icao) && /\d/.test(cs[3] || "") ? a[0] + cs.slice(3) : cs;
+    return { icao, iata: a[0], name: a[1], c1: a[2], c2: a[3], ink: a[4], fn };
   }
   function renderBrand(arr) {
     const b = brandOf(S.callsign), sec = $("viewIfe"), bar = $("brandBar");
@@ -1575,7 +1583,7 @@ td.k { color: var(--sign); font-weight: 700; }
     if (!b) { bar.hidden = true; S.brand = null; return; }
     S.brand = b;
     sec.style.setProperty("--air-1", b.c1); sec.style.setProperty("--air-2", b.c2); sec.style.setProperty("--air-ink", b.ink);
-    const fn = b.iata + S.callsign.slice(3); // flight number as passengers know it: LX318 instead of SWR318
+    const fn = b.fn;
     setHtml("brandBar", `<span class="logo"><img src="https://pics.avs.io/240/80/${esc(b.iata)}.png" alt="${esc(b.name)}" referrerpolicy="no-referrer" onerror="this.parentNode.hidden=true"></span>`
       + `<div class="bt"><b>${esc(b.name)}</b><span>Flug ${esc(fn)}${arr?.city ? " · nach " + esc(arr.city) : ""}</span></div>`
       + `<span class="disc">Inoffiziell · nicht mit der Airline verbunden · Logo © Inhaber</span>`);
@@ -1775,7 +1783,7 @@ td.k { color: var(--sign); font-weight: 700; }
     // cabin messages like a real moving map: welcome at the gate, welcome at the destination
     const flTime = ofp?.eteMs ? Math.floor(ofp.eteMs / 3600e3) + " h " + p2(Math.round((ofp.eteMs % 3600e3) / 60e3)) + " min" : "";
     let welcome = "";
-    if (pl && phaseTxt === "Am Gate") welcome = `<b>Willkommen an Bord${S.brand ? " · " + esc(S.brand.name) : ""}</b>Flug ${esc(S.brand ? S.brand.iata + S.callsign.slice(3) : S.callsign)} nach ${esc(arr?.city || arrIcao || "")}${flTime ? " · Flugzeit ca. " + flTime : ""}`;
+    if (pl && phaseTxt === "Am Gate") welcome = `<b>Willkommen an Bord${S.brand ? " · " + esc(S.brand.name) : ""}</b>Flug ${esc(S.brand ? S.brand.fn : S.callsign)} nach ${esc(arr?.city || arrIcao || "")}${flTime ? " · Flugzeit ca. " + flTime : ""}`;
     else if (pl && (phaseTxt === "Angekommen" || phaseTxt === "Gelandet · Rollen")) welcome = `<b>Willkommen in ${esc(arr?.city || arrIcao || "")}</b>Ortszeit ${fmtAt(now, arr)}${dw?.temp != null ? " · " + dw.temp + " °C, " + esc(dw.cond) : ""}`;
     msg.classList.toggle("welcome", !!welcome);
     if (welcome) { if (msg.innerHTML !== welcome) msg.innerHTML = welcome; msg.hidden = false; }
@@ -2658,7 +2666,7 @@ td.k { color: var(--sign); font-weight: 700; }
   let seatIdle = Date.now();
   function renderSeat(now, c) {
     const sec = $("viewIfe"); if (!sec.classList.contains("seat")) return;
-    const b = S.brand, fn = b ? b.iata + " " + S.callsign.slice(3) : S.callsign;
+    const b = S.brand, fn = b ? b.fn.replace(new RegExp("^" + b.iata + "(?=\\d)"), b.iata + " ") : S.callsign;
     setHtml("seatBadge", `<b>${esc(fn)}</b><span>${esc([c.depIcao, c.arrIcao].filter(Boolean).join(" – ") || "Bordprogramm")}</span>`);
     const logo = b ? `https://pics.avs.io/480/160/${b.iata}.png` : "";
     setHtml("seatLogo", logo ? `<img src="${logo}" alt="${esc(b.name)}" referrerpolicy="no-referrer" onerror="this.hidden=true">` : "");
@@ -3302,6 +3310,7 @@ td.k { color: var(--sign); font-weight: 700; }
   // the own aircraft as the views see it (the in-flight demo counts as live)
   function liveP() { return settings.demo ? (DEMO_AIR || DEMO_PUSH ? S.pilot : null) : S.pilot; }
   function loadDemo() {
+    if (DEMO_CS === "DEMO123" && AIRLINES[FORCE_AIRLINE]) DEMO_CS = FORCE_AIRLINE + "500"; // airline edition: a flight of that airline
     const n = Date.now(), m = 60e3, hm = (t) => { const d = new Date(t); return p2(d.getUTCHours()) + p2(d.getUTCMinutes()) + "00"; };
     const mk = (cs, arr, tobtOff, tsatOff, extra = {}) => norm({
       callsign: cs, departure: "EDDF", arrival: arr, eobt: hm(n + (tobtOff - 5) * m).slice(0, 4), taxi: 14,
