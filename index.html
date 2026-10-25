@@ -102,6 +102,9 @@ button { font: inherit; color: inherit; }
 .tune-row b { color: var(--fg); font-size: 16px; }
 .en-gate { border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; }
 .en-gate:empty { display: none; }
+.en-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 720px) { .en-pair { grid-template-columns: minmax(0, 1fr); } }
+.en-rwy .gt-v { color: var(--fg); }
 .en-gate .lbl { grid-column: 1 / -1; }
 .en-gate .gt-v { font-size: 40px; font-weight: 700; line-height: 1; color: var(--sign); grid-row: 2; }
 .en-gate .gt-v.gt-wait { color: var(--faint); }
@@ -194,6 +197,17 @@ button { font: inherit; color: inherit; }
 
 /* Passenger mode: in-flight entertainment style sub-navigation */
 .pax { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+/* airline look: --sign (the accent) is replaced by the airline colour inside the passenger view */
+.pax.branded { --sign: var(--air-1); --sign-ink: var(--air-ink); }
+.pax.branded .pnav button[aria-selected="true"] { background: var(--air-1); color: var(--air-ink); border-color: var(--air-1); }
+.brand-bar { display: flex; align-items: center; gap: 18px; padding: 14px 18px; border-radius: 10px; background: linear-gradient(90deg, var(--air-1), var(--air-2)); color: var(--air-ink); }
+.brand-bar .logo { background: #fff; border-radius: 8px; padding: 8px 14px; display: grid; place-items: center; flex: none; }
+.brand-bar .logo img { height: 40px; width: auto; display: block; }
+.brand-bar .bt { display: grid; gap: 4px; min-width: 0; }
+.brand-bar .bt b { font: 700 26px/1.05 var(--f-display); letter-spacing: .04em; }
+.brand-bar .bt span { font-size: 14px; opacity: .9; }
+.brand-bar .disc { margin-left: auto; font-size: 10px; opacity: .75; max-width: 220px; text-align: right; }
+@media (max-width: 720px) { .brand-bar .disc { display: none; } .brand-bar .bt b { font-size: 20px; } }
 .pnav { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pnav button { height: 46px; padding: 0 20px; border-radius: 23px; border: 1px solid var(--line); background: var(--panel-2); color: var(--dim); cursor: pointer; font: 700 17px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; }
 .pnav button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
@@ -491,6 +505,7 @@ td.k { color: var(--sign); font-weight: 700; }
   </header>
 
   <section class="pax" id="viewIfe" hidden aria-label="Passagier">
+    <div class="brand-bar" id="brandBar" hidden></div>
     <nav class="pnav" role="tablist" aria-label="Bordprogramm">
       <button role="tab" data-pane="map" aria-selected="true">Flugkarte</button>
       <button role="tab" data-pane="conn" aria-selected="false">Anschlussflüge</button>
@@ -588,7 +603,7 @@ td.k { color: var(--sign); font-weight: 700; }
       </div>
       <div class="en-body">
         <div class="en-eta" id="enEta"></div>
-        <div class="en-gate" id="enGate"></div>
+        <div class="en-pair"><div class="en-gate en-rwy" id="enRwy"></div><div class="en-gate" id="enGate"></div></div>
         <div id="enNext"></div>
         <div class="en-strip" id="enStrip"></div>
         <div class="en-atis" id="enAtis"></div>
@@ -867,7 +882,9 @@ td.k { color: var(--sign); font-weight: 700; }
     "Lade Stand-Daten…": ["Loading stand data…", "Učitavanje podataka o stajankama…"], "Ihr Stand": ["Your stand", "Vaša stajanka"], "Geparkt": ["Parked", "Parkiran"],
     "Außenposition, Bus": ["Remote stand, bus", "Udaljena pozicija, autobus"], "zugeteilt": ["assigned", "dodeljeno"], "Schengen": ["Schengen", "Šengen"], "Non-Schengen": ["Non-Schengen", "Van Šengena"],
     "von VATSIM UK zugeteilt": ["assigned by VATSIM UK", "dodelio VATSIM UK"],
-    "COM1 AKTIV": ["COM1 ACTIVE", "COM1 AKTIVNO"], "✓ gesetzt": ["✓ set", "✓ postavljeno"], "COM1 im Simulator": ["COM1 in the simulator", "COM1 u simulatoru"],
+    "COM1 AKTIV": ["COM1 ACTIVE", "COM1 AKTIVNO"], "Landebahn": ["Landing runway", "Pista za sletanje"], "laut ATIS": ["per ATIS", "prema ATIS-u"],
+    "Noch unbekannt: kein ATIS, kein Wind, kein Plan": ["Not known yet: no ATIS, no wind, no plan", "Još nepoznato: nema ATIS-a, vetra ni plana"],
+    "Plan laut SimBrief (kein ATIS, Wind schwach)": ["SimBrief plan (no ATIS, light wind)", "Plan prema SimBrief-u (nema ATIS-a, slab vetar)"], "Inoffiziell · nicht mit der Airline verbunden · Logo © Inhaber": ["Unofficial · not affiliated with the airline · logo © owner", "Nezvanično · nije povezano sa avio-kompanijom · logo © vlasnik"], "✓ gesetzt": ["✓ set", "✓ postavljeno"], "COM1 im Simulator": ["COM1 in the simulator", "COM1 u simulatoru"],
     "Simulator (MSFS)": ["Simulator (MSFS)", "Simulator (MSFS)"], "Transponder im Simulator:": ["Transponder in the simulator:", "Transponder u simulatoru:"], "Cargo": ["Cargo", "Kargo"], "General Aviation": ["General aviation", "Generalna avijacija"],
   };
   // dynamic texts: [pattern, English, Serbian] ($1… = captured parts, translated again where they are words)
@@ -901,7 +918,9 @@ td.k { color: var(--sign); font-weight: 700; }
     [/^(-?\d+) °C, (.+)$/, "$1 °C, $2", "$1 °C, $2"], [/^OFP erstellt (.+)$/, "OFP created $1", "OFP napravljen $1"], [/^Aktualisiert: (.+)$/, "Updated: $1", "Ažurirano: $1"],
     [/^Daten: (.+)$/, "Data: $1", "Podaci: $1"], [/^Flughäfen: (.+)$/, "Airports: $1", "Aerodromi: $1"], [/^Bis (.+)$/, "To $1", "Do $1"], [/^von (\S+)$/, "from $1", "od $1"],
     [/^Per CPDLC$/, "By CPDLC", "Preko CPDLC"],
-    [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Squawk (\d{4}) setzen$/, "Set squawk $1", "Postavi squawk $1"], [/^auch: (.+)$/, "also: $1", "takođe: $1"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"],
+    [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Squawk (\d{4}) setzen$/, "Set squawk $1", "Postavi squawk $1"], [/^auch: (.+)$/, "also: $1", "takođe: $1"], [/^Landebahn (\S+)$/, "Landing runway $1", "Pista za sletanje $1"],
+    [/^laut ATIS Information (\S+)$/, "per ATIS information $1", "prema ATIS informaciji $1"],
+    [/^aus dem Wind (.+) \(kein ATIS online\)$/, "from the wind $1 (no ATIS online)", "iz vetra $1 (nema ATIS-a)"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"],
     [/^Zeiten in Ortszeit (.+)\. Grau: Abflug vor Ihrer voraussichtlichen Ankunft\. Quelle: VATSIM-Flugpläne und vIFF-CDM, Aktualisierung jede Minute\.$/,
       "Times in local time $1. Grey: departs before your estimated arrival. Source: VATSIM flight plans and vIFF CDM, updated every minute.",
       "Vremena u lokalnom vremenu $1. Sivo: polazi pre vašeg očekivanog dolaska. Izvor: VATSIM planovi leta i vIFF CDM, osvežava se svakog minuta."], [/^Gate (\S+)$/, "Gate $1", "Izlaz $1"], [/^Stand (\S+)$/, "Stand $1", "Stajanka $1"],
@@ -1314,12 +1333,52 @@ td.k { color: var(--sign); font-weight: 700; }
     if (view === "fids") renderFids(now);
 
     if (view === "ife") {
+      renderBrand(aptInfo(arrApt(), ofp, "arr"));
       renderIfe(now, f, fp, ofp);
       $("paxCs").textContent = [S.callsign, acName(fp?.aircraft_short || f?.type || ofp?.type), f?.arr || fp?.arrival || ofp?.arr ? "nach " + (S.pax?.arr?.city || arrApt()) : ""].filter(Boolean).join(" · ");
       if (pane === "conn") renderConn(now);
       if (pane === "arr") renderArr(now);
       if (pane === "dest") renderDest(now);
     }
+  }
+
+  // ---------- airline look for the passenger view ----------
+  // Colours per airline (ICAO code). Logos are loaded at display time from pics.avs.io and are not part of
+  // this app; trademarks belong to their owners. Unofficial fan project, not affiliated with any airline.
+  const AIRLINES = {
+    SWR: ["LX", "Swiss International Air Lines", "#E30613", "#B5000F", "#fff"], EDW: ["WK", "Edelweiss", "#D52B1E", "#A31B12", "#fff"],
+    UAE: ["EK", "Emirates", "#C8A35F", "#8C6D2E", "#1a1206"], ETD: ["EY", "Etihad Airways", "#BD8B13", "#7E5B0B", "#1a1206"], QTR: ["QR", "Qatar Airways", "#8A1538", "#5C0632", "#fff"],
+    DLH: ["LH", "Lufthansa", "#FFAD1D", "#E59400", "#05164D"], CLH: ["LH", "Lufthansa CityLine", "#FFAD1D", "#E59400", "#05164D"], EWG: ["EW", "Eurowings", "#A3195B", "#6E0F3D", "#fff"],
+    CFG: ["DE", "Condor", "#F9B000", "#D99400", "#1a1206"], AUA: ["OS", "Austrian Airlines", "#E4002B", "#A8001F", "#fff"], BEL: ["SN", "Brussels Airlines", "#E30613", "#002A5C", "#fff"],
+    ASL: ["JU", "Air Serbia", "#2E5FA8", "#E2231A", "#fff"], CTN: ["OU", "Croatia Airlines", "#1F3F8C", "#E2231A", "#fff"], THY: ["TK", "Turkish Airlines", "#C8102E", "#8B0A1F", "#fff"],
+    PGT: ["PC", "Pegasus Airlines", "#FDC300", "#E0A800", "#1a1206"], BAW: ["BA", "British Airways", "#2E5C99", "#1B3A66", "#fff"], SHT: ["BA", "British Airways", "#2E5C99", "#1B3A66", "#fff"],
+    VIR: ["VS", "Virgin Atlantic", "#DA0530", "#8E0320", "#fff"], AFR: ["AF", "Air France", "#002157", "#E1001A", "#fff"], KLM: ["KL", "KLM Royal Dutch Airlines", "#00A1DE", "#0072A3", "#fff"],
+    IBE: ["IB", "Iberia", "#D7192D", "#FFC72C", "#fff"], VLG: ["VY", "Vueling", "#FFCC00", "#E0B000", "#1a1206"], TAP: ["TP", "TAP Air Portugal", "#00A94F", "#E2231A", "#fff"],
+    ITY: ["AZ", "ITA Airways", "#0045A5", "#002B66", "#fff"], SAS: ["SK", "SAS Scandinavian Airlines", "#2C5AA0", "#14306B", "#fff"], FIN: ["AY", "Finnair", "#0B1560", "#0A6EBD", "#fff"],
+    NAX: ["DY", "Norwegian", "#D81939", "#9C0F27", "#fff"], LOT: ["LO", "LOT Polish Airlines", "#1E64C8", "#11397E", "#fff"], AEE: ["A3", "Aegean Airlines", "#4E8FCB", "#003366", "#fff"],
+    ICE: ["FI", "Icelandair", "#00599B", "#F2B71F", "#fff"], EIN: ["EI", "Aer Lingus", "#00856F", "#005A4B", "#fff"], RYR: ["FR", "Ryanair", "#073590", "#F1C933", "#fff"],
+    EZY: ["U2", "easyJet", "#FF6600", "#D45500", "#fff"], WZZ: ["W6", "Wizz Air", "#C6007E", "#2E2E85", "#fff"], TUI: ["X3", "TUI", "#70CBF4", "#1A6EB5", "#002F6C"],
+    DAL: ["DL", "Delta Air Lines", "#E01933", "#003366", "#fff"], UAL: ["UA", "United Airlines", "#005DAA", "#002244", "#fff"], AAL: ["AA", "American Airlines", "#0078D2", "#C30019", "#fff"],
+    ACA: ["AC", "Air Canada", "#D22630", "#8E1A21", "#fff"], SIA: ["SQ", "Singapore Airlines", "#F99F1C", "#1D2B56", "#1D2B56"], CPA: ["CX", "Cathay Pacific", "#006564", "#00403F", "#fff"],
+    QFA: ["QF", "Qantas", "#E40000", "#A30000", "#fff"], ANA: ["NH", "All Nippon Airways", "#13448F", "#0A2A5C", "#fff"], JAL: ["JL", "Japan Airlines", "#CC0000", "#8A0000", "#fff"],
+    KAL: ["KE", "Korean Air", "#00A3E0", "#00699A", "#fff"], ETH: ["ET", "Ethiopian Airlines", "#0E8A4F", "#F2B71F", "#fff"], RAM: ["AT", "Royal Air Maroc", "#C1272D", "#7E1A1E", "#fff"],
+    SVA: ["SV", "Saudia", "#00754A", "#004D30", "#fff"], AIC: ["AI", "Air India", "#DA0A1D", "#8E0713", "#fff"], CCA: ["CA", "Air China", "#E30613", "#8A0A10", "#fff"],
+  };
+  function brandOf(cs) {
+    const a = /^[A-Z]{3}\d/.test(cs || "") ? AIRLINES[cs.slice(0, 3)] : null;
+    return a ? { iata: a[0], name: a[1], c1: a[2], c2: a[3], ink: a[4] } : null;
+  }
+  function renderBrand(arr) {
+    const b = brandOf(S.callsign), sec = $("viewIfe"), bar = $("brandBar");
+    sec.classList.toggle("branded", !!b);
+    if (!b) { bar.hidden = true; S.brand = null; return; }
+    S.brand = b;
+    sec.style.setProperty("--air-1", b.c1); sec.style.setProperty("--air-2", b.c2); sec.style.setProperty("--air-ink", b.ink);
+    const fn = b.iata + S.callsign.slice(3); // flight number as passengers know it: LX318 instead of SWR318
+    setHtml("brandBar", `<span class="logo"><img src="https://pics.avs.io/240/80/${esc(b.iata)}.png" alt="${esc(b.name)}" referrerpolicy="no-referrer" onerror="this.parentNode.hidden=true"></span>`
+      + `<div class="bt"><b>${esc(b.name)}</b><span>Flug ${esc(fn)}${arr?.city ? " · nach " + esc(arr.city) : ""}</span></div>`
+      + `<span class="disc">Inoffiziell · nicht mit der Airline verbunden · Logo © Inhaber</span>`);
+    bar.hidden = false;
   }
 
   // ---------- flight info (IFE moving map) ----------
@@ -1409,7 +1468,7 @@ td.k { color: var(--sign); font-weight: 700; }
   }
 
   let map = null, mapL = {}, follow = true, mapFitted = false, routeKey = "";
-  const PLANE_SVG = `<svg viewBox="0 0 24 24"><path fill="#ffcc00" stroke="#0a0e13" stroke-width="0.8" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>`;
+  const PLANE_SVG = `<svg viewBox="0 0 24 24"><path id="acFill" fill="#ffcc00" stroke="#0a0e13" stroke-width="0.8" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>`;
   function ensureMap() {
     if (map || !window.L || $("viewIfe").hidden || $("paneMap").hidden) return map;
     map = L.map("map", { zoomControl: true, worldCopyJump: true, attributionControl: true }).setView([48, 10], 5);
@@ -1514,7 +1573,7 @@ td.k { color: var(--sign); font-weight: 700; }
     // cabin messages like a real moving map: welcome at the gate, welcome at the destination
     const flTime = ofp?.eteMs ? Math.floor(ofp.eteMs / 3600e3) + " h " + p2(Math.round((ofp.eteMs % 3600e3) / 60e3)) + " min" : "";
     let welcome = "";
-    if (pl && phaseTxt === "Am Gate") welcome = `<b>Willkommen an Bord</b>Flug ${esc(S.callsign)} nach ${esc(arr?.city || arrIcao || "")}${flTime ? " · Flugzeit ca. " + flTime : ""}`;
+    if (pl && phaseTxt === "Am Gate") welcome = `<b>Willkommen an Bord${S.brand ? " · " + esc(S.brand.name) : ""}</b>Flug ${esc(S.brand ? S.brand.iata + S.callsign.slice(3) : S.callsign)} nach ${esc(arr?.city || arrIcao || "")}${flTime ? " · Flugzeit ca. " + flTime : ""}`;
     else if (pl && (phaseTxt === "Angekommen" || phaseTxt === "Gelandet · Rollen")) welcome = `<b>Willkommen in ${esc(arr?.city || arrIcao || "")}</b>Ortszeit ${fmtAt(now, arr)}${dw?.temp != null ? " · " + dw.temp + " °C, " + esc(dw.cond) : ""}`;
     msg.classList.toggle("welcome", !!welcome);
     if (welcome) { if (msg.innerHTML !== welcome) msg.innerHTML = welcome; msg.hidden = false; }
@@ -1539,6 +1598,8 @@ td.k { color: var(--sign); font-weight: 700; }
     if (pos) {
       mapL.plane.setLatLng(pos).addTo(map);
       const rot = document.getElementById("acRot"); if (rot) rot.style.transform = `rotate(${hdg}deg)`;
+      const fill = document.getElementById("acFill"), col = S.brand?.c1 || "#ffcc00";
+      if (fill && fill.getAttribute("fill") !== col) { fill.setAttribute("fill", col); mapL.track.setStyle({ color: col }); }
     } else mapL.plane.remove();
     if (!mapFitted) {
       const b = [dep?.pos, arr?.pos, pos].filter(Boolean);
@@ -1773,7 +1834,7 @@ td.k { color: var(--sign); font-weight: 700; }
         <div class="time num">${fmtAt(now, arr)}</div>
         <div class="date">${esc(date)}</div>
         <div class="kv" style="margin-top:16px">
-          ${kv("Ankunft", eta ? fmtAt(eta, arr) : "—")}${kv("Gate / Stand", S.paxGate || "—")}${kv("Entfernung", S.pax?.remain != null ? nf(S.pax.remain) + " km" : "—")}${kv("Restflugzeit", S.pax?.remain != null && (S.demoAir || S.pilot)?.groundspeed > 100 ? (() => { const mm = Math.round(S.pax.remain / ((S.demoAir || S.pilot).groundspeed * KT_KMH) * 60); return Math.floor(mm / 60) + ":" + p2(mm % 60) + " h"; })() : "—")}
+          ${kv("Ankunft", eta ? fmtAt(eta, arr) : "—")}${kv("Gate / Stand", S.paxGate || "—")}${kv("Landebahn", (() => { const r = landingRunway(apt, ofp, arr?.pos); return r ? r.rwys.join(" / ") : "—"; })())}${kv("Entfernung", S.pax?.remain != null ? nf(S.pax.remain) + " km" : "—")}${kv("Restflugzeit", S.pax?.remain != null && (S.demoAir || S.pilot)?.groundspeed > 100 ? (() => { const mm = Math.round(S.pax.remain / ((S.demoAir || S.pilot).groundspeed * KT_KMH) * 60); return Math.floor(mm / 60) + ":" + p2(mm % 60) + " h"; })() : "—")}
         </div>
       </div>
       <div class="panel wx">
@@ -1869,6 +1930,69 @@ td.k { color: var(--sign); font-weight: 700; }
     return best && { ...best, alts: all.filter((x) => x.lvl === best.lvl && x.c.callsign !== best.c.callsign)
       .filter((x, i, a) => a.findIndex((y) => y.c.callsign === x.c.callsign) === i) };
   }
+
+  // ---------- landing runway at the destination ----------
+  // 1. the destination ATIS (arrival runway named there), 2. the wind from the METAR against the runway
+  //    directions (OurAirports, prepared daily on the "atc" branch), 3. the SimBrief plan.
+  let RUNWAYS = null;
+  async function pollRunways() {
+    if (RUNWAYS) return;
+    try { const d = await getJSON(`https://raw.githubusercontent.com/${GH}/atc/runways.json`, 30000); if (d && typeof d === "object") { RUNWAYS = d; render(); } } catch (e) {}
+  }
+  // runways named in an ATIS text, sorted by what the words just before them say (arrival / departure / both)
+  function atisRunways(text) {
+    const t = " " + String(text || "").toUpperCase().replace(/[^A-Z0-9/ ]/g, " ")
+      .replace(/\b(\d{1,2})\s+(LEFT|RIGHT|CENTER|CENTRE)\b/g, (m, n, side) => n + side[0]) // 30 RIGHT -> 30R
+      .replace(/\b(RWYS?|RUNWAYS?|RY)(\d)/g, "$1 $2") + " ";                               // RWY07 -> RWY 07
+    const out = { arr: [], dep: [], any: [] };
+    // RWY 25C / RUNWAYS IN USE FOR ARRIVALS 32L AND 32R / and approach procedures: ILS Z APCH 06R, ILS RWY 17L
+    const re = /\b(?:(RWYS?|RUNWAYS?|RY)\s+(?:(?:IN|USE|FOR|ARRIVALS?|DEPARTURES?|LANDING|TAKE|OFF|ARR|DEP|ACTIVE)\s+){0,4}|(?:ILS|RNP|RNAV|VOR|LOC|GLS)\s+(?:[A-Z]\s+)?(?:APCH\s+|APPROACH\s+)?)((?:[0-3]?\d[LRC]?)(?:\s*(?:AND|\/|,)\s*[0-3]?\d[LRC]?)*)\b/g;
+    const last = (ctx, words) => Math.max(...words.map((w) => ctx.lastIndexOf(w)));
+    let m;
+    while ((m = re.exec(t))) {
+      const ids = m[2].split(/\s*(?:AND|\/|,)\s*|\s+/).filter((x) => /^[0-3]?\d[LRC]?$/.test(x) && +x.replace(/\D/g, "") >= 1 && +x.replace(/\D/g, "") <= 36)
+        .map((x) => x.replace(/^(\d)(?!\d)/, "0$1"));
+      // the words before the runway (and inside "RUNWAYS IN USE FOR ARRIVALS") say what it is for
+      const ctx = t.slice(Math.max(0, m.index - 45), m.index) + " " + m[0].slice(0, m[0].length - m[2].length);
+      const a = last(ctx, ["ARR", "LANDING", "LDG", "APPROACH", "APCH", "ILS", "RNP", "RNAV", "EXPECT", "INBOUND", "VECTORS"]);
+      const d = last(ctx, ["DEP", "TAKE OFF", "TAKEOFF", "OUTBOUND", "LINE UP"]);
+      const bucket = !m[1] ? "arr" : a > d ? "arr" : d > a ? "dep" : "any";
+      for (const id of ids) if (!out[bucket].includes(id)) out[bucket].push(id);
+    }
+    return out;
+  }
+  function landingRunway(arrI, ofp, pos) {
+    if (!arrI) return null;
+    if (!RUNWAYS && Date.now() - (S.rwTried || 0) > 60e3) { S.rwTried = Date.now(); pollRunways(); }
+    const A = aptStations(arrI, pos);
+    for (const a of A.atisAll || []) {
+      const r = atisRunways((a.text_atis || []).join(" "));
+      const list = r.arr.length ? r.arr : r.any;
+      if (list.length) return { rwys: list, src: "atis", code: a.atis_code || "" };
+    }
+    const raw = S.arrMetarApt === arrI ? S.arrMetar : "";
+    const w = raw ? decodeMetar(raw) : null;
+    const rw = RUNWAYS?.[arrI];
+    if (rw && w && w.wdir && w.wdir !== "VRB" && w.wspd >= 9) { // from about 5 kt the wind decides
+      let best = null;
+      for (const [i1, h1, i2, h2, len] of rw) for (const [id, h] of [[i1, h1], [i2, h2]]) {
+        if (h == null || !id) continue;
+        const head = Math.cos(rad(+w.wdir - h)) * w.wspd;
+        if (!best || head > best.head + 1 || (Math.abs(head - best.head) <= 1 && len > best.len)) best = { id, head, len };
+      }
+      if (best) return { rwys: [best.id], src: "wind", wind: w.wdir + "° / " + Math.round(w.wspd / KT_KMH) + " kt" };
+    }
+    if (ofp?.arr === arrI && ofp.arrRwy) return { rwys: [ofp.arrRwy], src: "plan" };
+    return null;
+  }
+  function rwyHtml(r, arrI) {
+    if (!arrI) return "";
+    if (!r) return `<span class="lbl">Landebahn ${esc(arrI)}</span><div class="gt-s">Noch unbekannt: kein ATIS, kein Wind, kein Plan</div>`;
+    const src = r.src === "atis" ? "laut ATIS" + (r.code ? " Information " + r.code : "")
+      : r.src === "wind" ? "aus dem Wind " + r.wind + " (kein ATIS online)" : "Plan laut SimBrief (kein ATIS, Wind schwach)";
+    return `<span class="lbl">Landebahn ${esc(arrI)}</span><div class="gt-v num">${esc(r.rwys.join(" / "))}</div><div class="gt-s">${esc(src)}</div>`;
+  }
+
   // a controller with a real voice frequency (199.998 = logged in without frequency)
   const onAir = (c) => c.frequency && c.frequency !== "199.998";
 
@@ -1933,7 +2057,9 @@ td.k { color: var(--sign); font-weight: 700; }
       const [first, ...rest] = out.all[k];
       out[k] = first ? { ...first, _alts: rest } : null;
     }
-    out.atis = S.feed.atis.find((a) => pres.has(a.callsign.split("_")[0]));
+    out.atisAll = S.feed.atis.filter((a) => pres.has(a.callsign.split("_")[0]))
+      .sort((a, b) => (/_A_ATIS$|ARR/.test(b.callsign + " " + (b.text_atis || []).join(" ").slice(0, 30)) ? 1 : 0) - (/_A_ATIS$|ARR/.test(a.callsign + " " + (a.text_atis || []).join(" ").slice(0, 30)) ? 1 : 0));
+    out.atis = out.atisAll[0];
     return out;
   }
   const td = (...l) => l.find(Boolean) || null; // VATSIM top-down: the next higher station online covers the lower one
@@ -2343,6 +2469,7 @@ td.k { color: var(--sign); font-weight: 700; }
     // gate / stand (prediction), announced ~30 min before arrival
     const g = gateInfo(now, eta, landed);
     setHtml("enGate", gateHtml(g, arrI));
+    setHtml("enRwy", rwyHtml(landingRunway(arrI, ofp, arr?.pos), arrI));
     $("enGate").classList.toggle("flash", (S.gateToastUntil || 0) > now);
     announceGate(g, arrI);
 

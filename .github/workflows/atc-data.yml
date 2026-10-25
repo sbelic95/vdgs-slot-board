@@ -36,6 +36,33 @@ jobs:
           json.dump(out, open("pub/tracons.json", "w"), separators=(",", ":"))
           print(len(out), "approach areas")
           PY
+      - name: Build runways.json (OurAirports, public domain)
+        run: |
+          set -e
+          curl -sSfL --max-time 120 https://davidmegginson.github.io/ourairports-data/airports.csv -o airports.csv
+          curl -sSfL --max-time 120 https://davidmegginson.github.io/ourairports-data/runways.csv -o runways.csv
+          python3 - <<'PY'
+          import csv, json
+          sched = {r["ident"] for r in csv.DictReader(open("airports.csv", encoding="utf-8")) if r["scheduled_service"] == "yes" and len(r["ident"]) == 4}
+          def hdg(x, ident):
+              try:
+                  return round(float(x))
+              except ValueError:  # missing: take it from the runway number (25C -> 250)
+                  digits = "".join(c for c in ident if c.isdigit())
+                  return int(digits) * 10 if digits else None
+          out = {}
+          for r in csv.DictReader(open("runways.csv", encoding="utf-8")):
+              a = r["airport_ident"]
+              if a not in sched or r["closed"] == "1":
+                  continue
+              length = int(float(r["length_ft"] or 0))
+              if length < 3000:
+                  continue
+              out.setdefault(a, []).append([r["le_ident"], hdg(r["le_heading_degT"], r["le_ident"]),
+                                            r["he_ident"], hdg(r["he_heading_degT"], r["he_ident"]), length])
+          json.dump(out, open("pub/runways.json", "w"), separators=(",", ":"))
+          print(len(out), "airports with runways")
+          PY
       - name: Publish
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -46,5 +73,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -qm "TRACON areas from vatsimnetwork/simaware-tracon-project"
+          git commit -qm "TRACON areas (vatsimnetwork/simaware-tracon-project), runways (OurAirports)"
           git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" atc
