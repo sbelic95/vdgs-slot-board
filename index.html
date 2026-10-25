@@ -13,11 +13,10 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+<!-- fonts and map library are part of the app (no Google Fonts / CDN requests: privacy) -->
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<script src="vendor/leaflet.js" defer></script>
 <style>
 /* Layout: airport apron display — top status rail, VDGS slot panel left, flight/weather/ATC stack right, FIDS departure board across the bottom.
    Single dark look on purpose: it is an always-on screen (battery, glare, matches real VDGS/FIDS hardware). */
@@ -102,7 +101,11 @@ button { font: inherit; color: inherit; }
 .tune-row b { color: var(--fg); font-size: 16px; }
 .en-gate { border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; }
 .en-gate:empty { display: none; }
+.hintline.privacy { display: block; margin: 10px 0 0; }
 .en-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.en-pair .en-gate { grid-template-columns: minmax(0, 1fr); }
+.en-pair .en-gate .gt-v { white-space: nowrap; font-size: 36px; }
+.en-pair .en-gate .gt-s { grid-row: auto; justify-self: start; text-align: left; }
 @media (max-width: 720px) { .en-pair { grid-template-columns: minmax(0, 1fr); } }
 .en-rwy .gt-v { color: var(--fg); }
 .en-gate .lbl { grid-column: 1 / -1; }
@@ -689,6 +692,7 @@ td.k { color: var(--sign); font-weight: 700; }
     <span>TOBT setzen: <a href="https://vats.im/vdgs" target="_blank" rel="noopener">vats.im/vdgs</a></span>
     <span id="upd"></span>
     <span>Nur für Flugsimulation – nicht für echte Luftfahrt.</span>
+    <span>Airline-Namen und Logos gehören ihren Inhabern; inoffiziell.</span>
   </footer>
 </div>
 
@@ -732,6 +736,7 @@ td.k { color: var(--sign); font-weight: 700; }
       <label class="check"><input type="checkbox" id="inPushCpdlc" checked> Push: neue CPDLC-Nachricht</label>
       <label class="check"><input type="checkbox" id="inPushGate" checked> Push: Gate / Stand 30 min vor Ankunft</label>
     </details>
+    <span class="hintline privacy">Datenschutz: Alles, was du hier einträgst, bleibt nur auf diesem Gerät (im Browser gespeichert). Es gibt kein Konto und keinen eigenen Server. Die App fragt nur die öffentlichen Dienste direkt ab: VATSIM, vIFF, SimBrief, Hoppie und ntfy (wenn eingetragen), Wetter, Karte, Airline-Logos.</span>
     <div class="err" id="setupErr" hidden></div>
     <div class="row">
       <button type="submit" class="btn primary">Anzeigen</button>
@@ -877,6 +882,8 @@ td.k { color: var(--sign); font-weight: 700; }
     // footer
     "TOBT setzen:": ["Set TOBT:", "Postavi TOBT:"], "Nur für Flugsimulation – nicht für echte Luftfahrt.": ["Flight simulation only – not for real-world aviation.", "Samo za simulaciju leta – ne za stvarno vazduhoplovstvo."],
     "Karte © Esri": ["Map © Esri", "Mapa © Esri"],
+    "Airline-Namen und Logos gehören ihren Inhabern; inoffiziell.": ["Airline names and logos belong to their owners; unofficial.", "Nazivi i logotipi avio-kompanija pripadaju vlasnicima; nezvanično."],
+    "Datenschutz: Alles, was du hier einträgst, bleibt nur auf diesem Gerät (im Browser gespeichert). Es gibt kein Konto und keinen eigenen Server. Die App fragt nur die öffentlichen Dienste direkt ab: VATSIM, vIFF, SimBrief, Hoppie und ntfy (wenn eingetragen), Wetter, Karte, Airline-Logos.": ["Privacy: everything you enter here stays on this device only (stored in the browser). There is no account and no server of our own. The app only queries the public services directly: VATSIM, vIFF, SimBrief, Hoppie and ntfy (if set), weather, map, airline logos.", "Privatnost: sve što ovde unesete ostaje samo na ovom uređaju (sačuvano u pregledaču). Nema naloga ni sopstvenog servera. Aplikacija direktno pita samo javne servise: VATSIM, vIFF, SimBrief, Hoppie i ntfy (ako su uneti), vreme, mapu, logotipe avio-kompanija."],
     // gate / stand
     "Gate / Stand": ["Gate / stand", "Izlaz / stajanka"], "Prognose": ["Forecast", "Prognoza"], "Gate-Info ca. 30 min vor Ankunft": ["Gate info approx. 30 min before arrival", "Info o izlazu oko 30 min pre dolaska"],
     "Lade Stand-Daten…": ["Loading stand data…", "Učitavanje podataka o stajankama…"], "Ihr Stand": ["Your stand", "Vaša stajanka"], "Geparkt": ["Parked", "Parkiran"],
