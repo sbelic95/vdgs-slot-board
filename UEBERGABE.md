@@ -1,7 +1,7 @@
 # Übergabe: VDGS Slot Board
 
 Projektübergabe für die Weiterentwicklung (z. B. mit ChatGPT oder einem anderen Entwickler).
-Stand: 24.10.2026.
+Stand: 25.10.2026.
 
 ## 1. Was die App ist
 
@@ -27,7 +27,7 @@ Eine statische Web-App (HTML, CSS und JavaScript in einer Datei, ohne Build-Schr
 Live-Adresse: https://sbelic95.github.io/vdgs-slot-board/ · Code: https://github.com/sbelic95/vdgs-slot-board
 
 - Sprache der Oberfläche: Deutsch, Luftfahrtbegriffe auf Englisch
-- Design: dunkle Flughafen-Anzeige, Akzent Flughafen-Gelb `#ffcc00`, Schriften „Barlow Condensed“ (Überschriften), „B612“ / „B612 Mono“ (Text und Zahlen, Airbus-Cockpitschrift) von Google Fonts
+- Design: dunkle Flughafen-Anzeige, Akzent Flughafen-Gelb `#ffcc00`, Schriften „Barlow Condensed“ (Überschriften), „B612“ / „B612 Mono“ (Text und Zahlen, Airbus-Cockpitschrift) ; liegen als woff2 in `vendor/fonts/` (keine Anfragen an Google Fonts, Datenschutz)
 - Läuft als PWA: „Zum Home-Bildschirm“ auf dem iPad, Vollbild, App-Icon
 - Alle Daten kommen direkt im Browser von öffentlichen APIs (alle mit `Access-Control-Allow-Origin: *`), keine API-Schlüssel, keine Datenbank, kein Backend
 
@@ -35,19 +35,23 @@ Live-Adresse: https://sbelic95.github.io/vdgs-slot-board/ · Code: https://githu
 
 | Datei | Zweck |
 |---|---|
-| `index.html` | Die komplette App: Markup, CSS (im `<style>`), JavaScript (im `<script>`). Einzige Datei mit Logik. Lädt Leaflet 1.9.4 (Karte) von cdnjs. |
+| `index.html` | Die komplette App: Markup, CSS (im `<style>`), JavaScript (im `<script>`). Einzige Datei mit Logik. Lädt Leaflet 1.9.4 und die Schriften aus `vendor/`. |
 | `airports.json` | Kompakte Flughafen-Datenbank (29.306 Flughäfen): `{"ICAO": [lat, lon, "Stadt", "Zeitzone"]}`. Erzeugt aus github.com/mwgg/Airports (MIT-Lizenz). Wird erst im Passagier-Modus geladen. |
 | `manifest.webmanifest` | PWA-Manifest (Name, Farben, Icons, `display: standalone`) |
 | `sw.js` | Service Worker: lädt immer zuerst vom Server (ohne HTTP-Cache) und nutzt den Speicher nur offline. API-Daten werden nie gecacht. Bei neuer Version lädt die Seite einmal automatisch neu. |
 | `icon.svg` | App-Icon als Vektor (Favicon, Manifest) |
 | `icon-180.png` | Apple-Touch-Icon fürs iPad (180×180) |
 | `icon-512.png` | Manifest-Icon (512×512) |
+| `vendor/` | Leaflet 1.9.4 (`leaflet.js`, `leaflet.css`), `fonts.css` und `fonts/*.woff2` (B612, B612 Mono, Barlow Condensed; OFL). Alles lokal, damit keine IP-Adresse an Google/CDNs geht. |
+| `LIZENZEN.md` | Datenschutz-Hinweis und Lizenzen aller enthaltenen Teile |
 | `bridge/vdgs_bridge.py`, `bridge/ANLEITUNG-BRIDGE.md`, `bridge/requirements.txt` | Simulator-Bridge für MSFS (Python) und ihre Anleitung |
-| `.github/workflows/ukcp-stands.yml`, `.github/workflows/stands.yml`, `.github/scripts/stands.py` | GitHub-Jobs: VATSIM-UK-Stands (5 min), Stand-Daten (wöchentlich) |
+| `bridge/installer/VDGS-Setup.iss`, `info-de.txt`, `info-en.txt`, `icon.ico` | Inno-Setup-Skript für `VDGS-Setup.exe` (flightsim.to) |
+| `.github/workflows/ukcp-stands.yml`, `.github/workflows/stands.yml`, `.github/scripts/stands.py` | GitHub-Jobs: VATSIM-UK-Stands (5 min, Zweig `data`), Stand-Daten (täglich, Zweig `stands`) |
+| `.github/workflows/atc-data.yml` | GitHub-Job täglich: Anflugbereiche (`tracons.json`, SimAware TRACON Project) und Pisten (`runways.json`, OurAirports), Zweig `atc` |
 | `ANLEITUNG.md` | Bedienungsanleitung für den Piloten (Online stellen, iPad, Status) |
 | `UEBERGABE.md` | Diese Datei |
 
-Zum Hosten werden nur `index.html`, `manifest.webmanifest`, `sw.js` und die drei Icons gebraucht. Jeder statische Host funktioniert (GitHub Pages, Netlify, Cloudflare Pages). Wichtig: Die Seite muss über `https://` laufen (Service Worker, Wake Lock).
+Zum Hosten werden `index.html`, `airports.json`, `manifest.webmanifest`, `sw.js`, die drei Icons und der Ordner `vendor/` gebraucht. Jeder statische Host funktioniert (GitHub Pages, Netlify, Cloudflare Pages). Wichtig: Die Seite muss über `https://` laufen (Service Worker, Wake Lock).
 
 ## 3. Externe Datenquellen (APIs)
 
@@ -265,6 +269,12 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 - **Knöpfe:** „COM1 STBY“ / „COM1 AKTIV“ bei der nächsten Frequenz und bei der CPDLC-Anweisung. Darunter steht, was im Simulator in COM1 eingestellt ist (grün = passt). „Squawk XXXX setzen“ erscheint, wenn VATSIM einen Squawk zugeteilt hat und der Simulator anders steht.
 - **Grenzen:** Die Bridge wurde nur im Testmodus geprüft, nicht mit laufendem MSFS. MSFS 2024 ist nicht getestet. Wake Lock und Service Worker gibt es unter `http` nicht.
 
+### Installer und Heimnetz (seit 25.10.2026)
+
+- `VDGS-Setup.exe` (Inno Setup, `bridge/installer/VDGS-Setup.iss`): installiert `VDGS-Bridge.exe` nach `Programme\VDGS Bridge`, legt Startmenü-Einträge an (Bridge, Testmodus, Anleitung, Lizenzen, Web-Version), optional Desktop-Symbol, und eine Firewall-Regel nur für **private** Netzwerke (`netsh advfirewall`, beim Deinstallieren entfernt). Admin-Rechte nötig. Nicht signiert.
+- Die installierte exe speichert die geladene App in `%LOCALAPPDATA%\VDGS-Bridge\app` (Programme ist schreibgeschützt). In der exe steckt zusätzlich eine Kopie der App für den ersten Start ohne Internet.
+- Beim Start öffnet sich `http://localhost:8770/connect`: QR-Code (Paket `qrcode`, SVG) mit der Heimnetz-Adresse. Abschalten mit `--no-browser`. Beliebig viele Geräte können gleichzeitig zusehen.
+
 ## 5-L. Sprachen (`tr()`, `setLang()`)
 
 Oben rechts gibt es die Auswahl **DE / EN / SR** (Serbisch in lateinischer Schrift), gespeichert in `localStorage["vdgs.lang"]`.
@@ -294,6 +304,12 @@ Die Karte zeigt **Aktuell** (Station und Frequenz), **Als nächstes** (mit Ausl�
   Aufeinanderfolgende Schritte bei derselben Station werden zusammengefasst.
 - **Bald wechseln:** gelb pulsierend, wenn der nächste Wechsel in höchstens 3 min oder 25 km kommt.
 - **ATIS:** 300 km vor dem Ziel erscheint der Hinweis, die Ziel-ATIS (Buchstabe und Frequenz) zu hören.
+- **Alle Stationen (seit 25.10.2026, nach einem Event mit fehlenden Frequenzen):** `aptStations()` findet Flughafen-Lotsen über
+  1. den ICAO-Präfix (`EDDM_`, `EDDM_N_APP`), in den USA auch ohne „K“,
+  2. IATA/LID-Kürzel aus `VATSpy.dat` `[Airports]` (z. B. `AD_APP` für YPAD),
+  3. die Anflugbereiche des SimAware TRACON Project (`tracons.json` auf dem Zweig `atc`, `pollTracon()`): Präfixe und Suffix eines Bereichs, der den Flughafen enthält (z. B. `IST_W_APP`, `NY_CAM_APP`).
+
+  Mehrere Stationen derselben Art (z. B. EDDM_N_APP und EDDM_S_APP) werden alle gezeigt („auch: …“, `altLine()`), ebenso parallele Center (`ctrAt()` liefert `alts`). Lotsen ohne Frequenz (199.998, `onAir()`) werden übersprungen. Die ATC-Karte im Pilot-Modus listet alle Stationen des Flughafens plus das Center darüber. Live-Prüfung: alle 102 Stationen eines Abends zugeordnet.
 - **Grenzen:** Sektoren innerhalb einer FIR (z. B. mehrere `EDGG_…_CTR`) unterscheidet die App nicht genau, weil VATSIM keine Sektorgrenzen veröffentlicht. Sie nimmt die erste passende Station. Die Übergabe-Entfernungen für Anflug und Tower sind Schätzwerte.
 
 ## 5b. Passagier-Modus (Bordunterhaltungssystem)
@@ -353,6 +369,22 @@ Alle VATSIM-Flüge mit `arrival` = Zielflughafen:
 Der eigene Flug ist gelb markiert („Ihr Flug“).
 
 **Gespeicherte Ansicht:** `localStorage["vdgs.view"]` („slot“ = Pilot, „ife“ = Passagier, „fids“ = Tafel) und `localStorage["vdgs.pane"]` („map“, „conn“, „arr“, „dest“).
+
+## 5b-A. Airline-Look (`AIRLINES`, `brandOf()`, `renderBrand()`)
+
+- Tabelle `AIRLINES`: ICAO-Code → IATA, Name, zwei Farben, Schriftfarbe (ca. 50 Airlines, z. B. SWR, UAE, DLH, AUA, QTR, THY).
+- Passt der Callsign-Präfix, bekommt die Passagier-Ansicht die Klasse `branded` und die CSS-Variablen `--air-1`, `--air-2`, `--air-ink`. Kopfleiste, Flugzeug und Track auf der Karte und die Begrüßung nehmen die Airline-Farben.
+- Logo: `https://pics.avs.io/240/80/<IATA>.png`, zur Laufzeit geladen (nicht im Code enthalten), `referrerpolicy="no-referrer"`. Fehlt es, bleibt nur der Name.
+- Hinweis immer sichtbar: „Inoffiziell · nicht mit der Airline verbunden · Logo © Inhaber“.
+
+## 5b-R. Landebahn am Ziel (`atisRunways()`, `landingRunway()`, `rwyHtml()`)
+
+Reihenfolge der Quellen:
+1. **ATIS des Zielflughafens** (Arrival-ATIS zuerst): Pisten nach „RWY/RUNWAY/RY“, auch „30 RIGHT“ → 30R, „RWY 25R AND 25L“, „ILS APPROACH RWY 07“. Die Wörter davor entscheiden Landung (ARR, LANDING, APPROACH, ILS, EXPECT …) oder Start (DEP, TAKEOFF …).
+2. **Wind aus dem METAR** (ab ca. 5 kt): Piste mit dem größten Gegenwind aus `runways.json` (OurAirports, Zweig `atc`); bei Gleichstand die längste.
+3. **SimBrief-Plan** (`arrRwy`).
+
+Angezeigt im Pilot-Modus im Flug neben dem Gate (`#enRwy`) und im Passagier-Zielort („Landebahn“). Live-Prüfung: 110 von 124 ATIS lieferten eine Landebahn; die übrigen nennen nur Startbahnen oder sind geschlossen.
 
 ## 5c. Tafel (FIDS, `renderFids()`, `pollFids()`)
 
@@ -436,16 +468,20 @@ Der eigene Flug ist gelb markiert („Ihr Flug“).
 | `loadStands()`, `pollStands()`, `predictStand()`, `gateInfo()`, `gateHtml()`, `announceGate()` | Gate / Stand am Ziel |
 | `tr()`, `trTree()`, `setLang()`, `compass()` | Sprachen |
 | `pollSim()`, `simPilot()`, `simReady()`, `tuneBtn()` | Simulator-Bridge, COM1/Squawk vom Tablet |
+| `pollTracon()`, `onAir()`, `altLine()` | Anflugbereiche, Lotsen mit Frequenz, weitere Stationen |
+| `brandOf()`, `renderBrand()` | Airline-Look in der Passagier-Ansicht |
+| `pollRunways()`, `atisRunways()`, `landingRunway()`, `rwyHtml()` | Landebahn am Ziel |
 
 ## 8. Ideen für später
 
-**Erledigt:** automatischer Rundlauf, Ankunftstafel am Ziel, FIDS-Tafel für jeden Flughafen, Push aufs Handy (über ntfy.sh statt eigenem Backend), CPDLC-Anzeige.
+**Erledigt:** Installer `VDGS-Setup.exe` mit QR-Verbindungsseite, Airline-Look, Landebahn am Ziel, alle Frequenzen bei Events, automatischer Rundlauf, Ankunftstafel am Ziel, FIDS-Tafel für jeden Flughafen, Push aufs Handy (über ntfy.sh statt eigenem Backend), CPDLC-Anzeige.
 
 **Offen:**
 - vACDM (Deutschland) einbinden, sobald eine öffentliche API verfügbar wird (`app.vacdm.net` war am 24.10.2026 von außen nicht erreichbar)
 - Mehrere eigene Flüge gleichzeitig verfolgen
 - Push auch bei geschlossener App: Dafür bräuchte es ein kleines Backend, das die Daten selbst abfragt.
 - CPDLC-Antworten (WILCO/UNABLE) aus der App senden; bisher nur lesen
-- **Datenschutz:** Die App speichert nur lokal im Browser. Daten gehen nur an die genannten Dienste (VATSIM, vIFF, SimBrief, Hoppie, ntfy, Esri).
+- **Datenschutz:** Die App speichert nur lokal im Browser. Daten gehen nur an die genannten Dienste (siehe `LIZENZEN.md`).
+- Setup mit einem Code-Signing-Zertifikat signieren, damit SmartScreen nicht warnt.
 
 Nur für Flugsimulation, nicht für die echte Luftfahrt.

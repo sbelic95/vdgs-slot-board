@@ -1,3 +1,5 @@
 .omc/
 bridge/app/
 __pycache__/
+bridge/installer/VDGS-Bridge.exe
+bridge/installer/Output/

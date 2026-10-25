@@ -5,10 +5,12 @@ Runs on the simulator PC. It
   * serves the VDGS app in your home network, e.g. http://192.168.1.20:8770 (open that on the iPad),
   * lets the iPad tune COM1 and set the squawk.
 
-The app is downloaded from GitHub Pages at start (latest version) and kept in ./app as a fallback.
+The app is downloaded from GitHub Pages at start (latest version) and kept in ./app as a fallback
+(installed .exe: %LOCALAPPDATA%\\VDGS-Bridge\\app). At start a page with a QR code opens on the PC:
+scan it with the tablet or phone to open the app there.
 
-Setup (once):   py -m pip install SimConnect
-Start:          py vdgs_bridge.py            (options: --port 8770  --app-url https://.../)
+Setup (once):   py -m pip install SimConnect qrcode
+Start:          py vdgs_bridge.py            (options: --port 8770  --app-url https://.../  --no-browser  --test)
 
 Only for flight simulation. Anyone in your home network can open the page and tune the radios.
 """
@@ -21,13 +23,22 @@ import sys
 import threading
 import time
 import urllib.request
+import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 APP_URL = "https://sbelic95.github.io/vdgs-slot-board/"
-APP_FILES = ["index.html", "airports.json", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-512.png"]
-# next to the .exe when packaged (PyInstaller unpacks the script into a temporary folder)
-HERE = os.path.dirname(sys.executable if getattr(sys, "frozen", False) else os.path.abspath(__file__))
-APP_DIR = os.path.join(HERE, "app")
+FONTS = ["B612-400-latin", "B612-700-latin", "B612Mono-400-latin", "B612Mono-700-latin"] + [
+    f"BarlowCondensed-{w}-{s}" for w in (500, 600, 700) for s in ("latin", "latin-ext")]
+APP_FILES = ["index.html", "airports.json", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-512.png",
+             "vendor/fonts.css", "vendor/leaflet.css", "vendor/leaflet.js"] + [f"vendor/fonts/{f}.woff2" for f in FONTS]
+FROZEN = getattr(sys, "frozen", False)
+# installed under Program Files (read-only): keep the downloaded app in the user's local app data
+if FROZEN:
+    APP_DIR = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "VDGS-Bridge", "app")
+else:
+    APP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app")
+# a copy of the app packed into the .exe, used when the first start has no internet
+BUNDLED = os.path.join(getattr(sys, "_MEIPASS", ""), "app") if FROZEN else None
 
 state = {"vdgsBridge": True, "sim": "MSFS", "connected": False, "error": "", "t": 0}
 lock = threading.Lock()
@@ -35,16 +46,24 @@ sim = {"sm": None, "aq": None}
 
 
 def update_app(url):
-    """Fetch the current app from GitHub Pages; keep the old copy if offline."""
-    os.makedirs(APP_DIR, exist_ok=True)
+    """Fetch the current app from GitHub Pages; keep the old (or packed) copy if offline."""
     for name in APP_FILES:
+        dest = os.path.join(APP_DIR, *name.split("/"))
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
         try:
             with urllib.request.urlopen(url + name + "?bridge=" + str(int(time.time())), timeout=20) as r:
                 data = r.read()
-            with open(os.path.join(APP_DIR, name), "wb") as f:
-                f.write(data)
         except Exception as e:
-            print(f"  could not update {name}: {e} (using the saved copy)")
+            packed = os.path.join(BUNDLED, *name.split("/")) if BUNDLED else ""
+            if not os.path.exists(dest) and packed and os.path.exists(packed):
+                with open(packed, "rb") as f:
+                    data = f.read()
+                print(f"  {name}: offline, using the copy in the program")
+            else:
+                print(f"  could not update {name}: {e} (using the saved copy)")
+                continue
+        with open(dest, "wb") as f:
+            f.write(data)
     if not os.path.exists(os.path.join(APP_DIR, "index.html")):
         print("No app files. Check the internet connection and start again.")
         input("Press Enter to close.")  # keep the window open when started by double-click
@@ -160,9 +179,17 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path.split("?")[0] == "/sim":
+        path = self.path.split("?")[0]
+        if path == "/sim":
             with lock:
                 return self._json(200, dict(state, age=round(time.time() - state["t"], 1) if state["t"] else None))
+        if path == "/connect":
+            body = connect_page("http://%s:%d/" % (lan_ip(), self.server.server_address[1])).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            return self.wfile.write(body)
         return super().do_GET()
 
     def do_POST(self):
@@ -187,6 +214,45 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(500, {"ok": False, "error": str(e)})
 
 
+def qr_svg(text):
+    """The address as a QR code (SVG), or "" if the qrcode package is missing."""
+    try:
+        import qrcode
+        import qrcode.image.svg
+    except ImportError:
+        return ""
+    img = qrcode.make(text, image_factory=qrcode.image.svg.SvgPathImage, box_size=12, border=2)
+    return img.to_string(encoding="unicode")
+
+
+def connect_page(url):
+    """Page shown on the PC at start: scan the code with the tablet or phone to open the app."""
+    with lock:
+        sim_line = ("Simulator connected" if state["connected"] else "Simulator not connected yet – start MSFS, the bridge keeps trying")
+    return f"""<!doctype html><html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>VDGS Bridge</title>
+<style>
+body{{margin:0;background:#0b0f17;color:#e9eef7;font:16px/1.5 "Segoe UI",system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}}
+.box{{max-width:560px;padding:32px;text-align:center}}
+h1{{font-size:22px;letter-spacing:.08em;margin:0 0 4px;color:#ffd400}}
+.qr{{background:#fff;border-radius:14px;padding:14px;display:inline-block;margin:18px 0}}
+.qr svg{{width:280px;height:280px;display:block}}
+.url{{font:600 26px/1.2 Consolas,monospace;color:#fff;word-break:break-all}}
+p{{color:#aab4c3;margin:10px 0}} .s{{font-size:13px}}
+a{{color:#7cc4ff}}
+</style></head><body><div class="box">
+<h1>VDGS BRIDGE</h1>
+<p>Mit dem Tablet oder Handy im selben WLAN scannen · Scan with your tablet or phone on the same Wi-Fi</p>
+<div class="qr">{qr_svg(url) or ""}</div>
+<div class="url">{url}</div>
+<p>Oder die Adresse im Browser eintippen. Auf dem iPad: Teilen → „Zum Home-Bildschirm“.<br>
+Or type the address into the browser. On the iPad: Share → “Add to Home Screen”.</p>
+<p class="s">{sim_line}. Dieses Fenster darf zu bleiben, die Bridge läuft im Konsolenfenster weiter.<br>
+Funktioniert nicht? Windows-Firewall: Zugriff für private Netzwerke erlauben.</p>
+<p class="s"><a href="/">App hier auf dem PC öffnen</a></p>
+</div></body></html>"""
+
+
 def lan_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -204,6 +270,7 @@ def main():
     ap.add_argument("--app-url", default=APP_URL)
     ap.add_argument("--app-dir", help="serve the app from this folder instead of downloading it")
     ap.add_argument("--test", action="store_true", help="no simulator: a pretend aircraft, to try the setup")
+    ap.add_argument("--no-browser", action="store_true", help="do not open the connect page (QR code) on start")
     args = ap.parse_args()
     global APP_DIR, TEST
     TEST = args.test
@@ -225,9 +292,12 @@ def main():
         sys.exit(1)
     print()
     print("  Open on the iPad (same Wi-Fi):  http://%s:%d" % (lan_ip(), args.port))
+    print("  QR code to scan:                http://localhost:%d/connect" % args.port)
     print("  If Windows asks: allow access for private networks.")
-    print("  Stop with Ctrl+C.")
+    print("  Stop with Ctrl+C or close this window.")
     print()
+    if not args.no_browser:
+        webbrowser.open("http://localhost:%d/connect" % args.port)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

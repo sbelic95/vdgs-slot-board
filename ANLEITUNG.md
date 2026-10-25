@@ -83,9 +83,17 @@ In **Großbritannien** zeigt die App den **echten** Stand, den das VATSIM-UK-Sys
 
 Nach dem Parken zeigt die App deinen tatsächlichen Stand.
 
+## Landebahn am Ziel
+
+Im Flug steht neben dem Gate die **Landebahn**, die am Ziel gerade benutzt wird. Die App liest sie aus der ATIS des Zielflughafens. Ist keine ATIS online, nimmt sie die Piste mit dem meisten Gegenwind laut METAR, sonst die Piste aus dem SimBrief-Plan. Darunter steht immer, woher die Angabe kommt.
+
+## Airline-Look (Passagier)
+
+Fliegst du mit einem Airline-Callsign (z. B. SWR, UAE, DLH), zeigt die Passagier-Ansicht Logo und Farben der Airline. Das ist inoffiziell; Logos werden aus dem Internet geladen und gehören ihren Inhabern.
+
 ## Ohne VATSIM: direkt mit dem Simulator (MSFS)
 
-Mit der kleinen **Bridge** auf deinem Simulator-PC zeigt die App die Daten direkt aus MSFS an. Du kannst dann vom iPad aus **COM1 einstellen** und den **Squawk setzen**. Einrichtung: siehe `bridge/ANLEITUNG-BRIDGE.md`.
+Mit der kleinen **Bridge** auf deinem Simulator-PC zeigt die App die Daten direkt aus MSFS an. Du kannst dann vom iPad aus **COM1 einstellen** und den **Squawk setzen**. Am einfachsten: `VDGS-Setup.exe` installieren, Bridge starten, den QR-Code am PC mit Tablet oder Handy (selbes WLAN) scannen. Einrichtung: siehe `bridge/ANLEITUNG-BRIDGE.md`.
 
 ## Sprache
 

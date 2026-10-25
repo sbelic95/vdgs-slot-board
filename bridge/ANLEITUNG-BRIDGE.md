@@ -2,23 +2,35 @@
 
 Mit der Bridge zeigt die App deine Position, Höhe und Geschwindigkeit direkt aus dem Simulator an, auch wenn du **nicht mit VATSIM verbunden** bist. Außerdem kannst du vom iPad aus **COM1 einstellen** und den **Squawk setzen**.
 
-## Am einfachsten: VDGS-Bridge.exe
+## Am einfachsten: VDGS-Setup.exe installieren
 
-1. `VDGS-Bridge.exe` in einen festen Ordner legen, z. B. `C:\VDGS`. Daneben legt sie beim Start den Unterordner `app` an.
-2. **Doppelklick.** Python oder SimConnect musst du nicht installieren, beides ist enthalten.
-3. Beim ersten Start warnt Windows eventuell („Der Computer wurde durch Windows geschützt“), weil die Datei nicht signiert ist: **„Weitere Informationen“ → „Trotzdem ausführen“**. Fragt die Firewall, **private Netzwerke erlauben**.
-4. Im Fenster erscheint die Adresse für das iPad, z. B. `http://192.168.178.22:8770`.
-5. Testmodus ohne Simulator: Eingabeaufforderung im Ordner öffnen und `VDGS-Bridge.exe --test` eingeben.
+1. `VDGS-Setup.exe` starten. Windows warnt eventuell („Der Computer wurde durch Windows geschützt“), weil das Setup nicht signiert ist: **„Weitere Informationen“ → „Trotzdem ausführen“**.
+2. Sprache wählen, Hinweise lesen, **„Zugriff aus dem Heimnetz erlauben“** angehakt lassen (legt eine Firewall-Regel nur für private Netzwerke an).
+3. Nach der Installation startet die Bridge. Am PC öffnet sich eine Seite mit **QR-Code**: mit Tablet oder Handy im selben WLAN scannen, fertig.
+4. Im Startmenü unter „VDGS Bridge“: Bridge, Testmodus ohne Simulator, Anleitung, Datenschutz/Lizenzen, Web-Version.
+5. Mehrere Geräte gleichzeitig (iPad, Handy, zweites Tablet) gehen, alle mit derselben Adresse.
 
-Die exe wird mit PyInstaller aus `vdgs_bridge.py` gebaut:
+Python oder SimConnect musst du nicht installieren, beides ist enthalten. Deinstallieren über Windows-Einstellungen → Apps; das entfernt auch die Firewall-Regel.
 
-```bash
-py -m pip install SimConnect pyinstaller
-```
+### Selbst bauen (für Entwickler)
 
 ```bash
-py -m PyInstaller --onefile --console --name VDGS-Bridge --collect-all SimConnect vdgs_bridge.py
+py -m pip install SimConnect qrcode pyinstaller
 ```
+
+Zuerst einmal `py vdgs_bridge.py --test` starten (lädt die App in den Ordner `app`), dann:
+
+```bash
+py -m PyInstaller --onefile --console --name VDGS-Bridge --icon installer/icon.ico --collect-all SimConnect --hidden-import qrcode.image.svg --add-data "app;app" vdgs_bridge.py
+```
+
+`dist/VDGS-Bridge.exe` nach `installer/` kopieren und mit Inno Setup 6 bauen:
+
+```bash
+ISCC.exe installer/VDGS-Setup.iss
+```
+
+Ergebnis: `installer/Output/VDGS-Setup.exe`.
 
 ## Alternativ als Python-Skript (auf dem Simulator-PC)
 
@@ -26,7 +38,7 @@ py -m PyInstaller --onefile --console --name VDGS-Bridge --collect-all SimConnec
 2. Eingabeaufforderung öffnen (Windows-Taste, `cmd`, Enter) und eingeben:
 
 ```bash
-py -m pip install SimConnect
+py -m pip install SimConnect qrcode
 ```
 
 3. Die Datei `vdgs_bridge.py` in einen Ordner legen, z. B. `C:\VDGS`.
@@ -40,8 +52,8 @@ py -m pip install SimConnect
 py C:\VDGS\vdgs_bridge.py
 ```
 
-3. Es erscheint eine Adresse, z. B. `Open on the iPad (same Wi-Fi):  http://192.168.1.20:8770`.
-4. Diese Adresse auf dem **iPad in Safari** öffnen. iPad und PC müssen im **selben WLAN/Netzwerk** sein.
+3. Es erscheint eine Adresse, z. B. `Open on the iPad (same Wi-Fi):  http://192.168.1.20:8770`, und am PC öffnet sich die Seite mit dem QR-Code (abschalten mit `--no-browser`; wieder aufrufen unter `http://localhost:8770/connect`).
+4. QR-Code scannen oder die Adresse auf dem **iPad in Safari** öffnen. iPad und PC müssen im **selben WLAN/Netzwerk** sein.
 5. Fragt Windows nach der Firewall: **„Private Netzwerke“ erlauben**.
 
 Tipp: In Safari auf Teilen → „Zum Home-Bildschirm“ tippen, dann hast du ein eigenes Symbol für die Bridge-Version.
@@ -66,7 +78,8 @@ Dann fliegt ein Test-Flugzeug über Süddeutschland, und die COM1/Squawk-Knöpfe
 
 ## Gut zu wissen
 
-- **Neueste Version:** Die Bridge lädt beim Start immer die aktuelle App von GitHub und speichert sie im Unterordner `app`. Ohne Internet nimmt sie die gespeicherte Version.
+- **Neueste Version:** Die Bridge lädt beim Start immer die aktuelle App von GitHub und speichert sie (Skript: Unterordner `app`; installierte exe: `%LOCALAPPDATA%\VDGS-Bridge\app`). Ohne Internet nimmt sie die gespeicherte Version, beim allerersten Start die in der exe mitgelieferte.
+- **Datenschutz:** Deine Eingaben (SimBrief, VATSIM-CID, Hoppie, ntfy) bleiben im Browser des Tablets. Die Bridge speichert davon nichts und schickt nichts ins Internet. Details: `LIZENZEN.md`.
 - **Unterschiede zur GitHub-Adresse:** Über die Bridge-Adresse (`http://…`) gibt es keinen „Wach“-Knopf und keine Offline-Funktion, weil Safari diese Funktionen nur auf `https`-Seiten erlaubt. Stell auf dem iPad *Einstellungen → Anzeige & Helligkeit → Automatische Sperre → Nie* ein.
 - **Warum nicht über die GitHub-Adresse?** Safari verbietet einer `https`-Seite den Zugriff auf `http`-Geräte im Heimnetz. Deshalb liefert die Bridge die App selbst aus.
 - **Sicherheit:** Jeder im selben Netzwerk kann die Seite öffnen und COM1/Squawk verstellen. Zu Hause ist das in Ordnung, in öffentlichen WLANs nicht verwenden.

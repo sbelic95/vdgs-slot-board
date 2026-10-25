@@ -1,0 +1,21 @@
+﻿VDGS Slot Board Bridge
+
+Was das Programm macht
+- Es zeigt die VDGS-App (Slots TOBT/TSAT/CTOT, Frequenzen, CPDLC, Passagier-Ansicht mit Karte) auf deinem Tablet oder Handy im selben WLAN.
+- Es liest aus Microsoft Flight Simulator 2020/2024 (SimConnect) Position, Höhe, Geschwindigkeit, COM1 und Transponder. So funktioniert die App auch ohne VATSIM.
+- Vom Tablet aus kannst du COM1 und den Squawk im Simulator setzen.
+
+So geht's
+1. Bridge starten (der Simulator darf schon laufen oder später starten).
+2. Am PC öffnet sich eine Seite mit QR-Code. Mit dem Tablet oder Handy scannen.
+3. In der App SimBrief-Name und/oder VATSIM-CID eintragen.
+
+Datenschutz
+- Alles, was du in der App einträgst (SimBrief, VATSIM-CID, Hoppie-Code, ntfy), bleibt nur auf deinem Gerät im Browser. Es gibt kein Konto und keinen Server, der Daten sammelt.
+- Die Bridge läuft nur in deinem Heimnetz (Port 8770). Ins Internet lädt sie beim Start nur die aktuelle App von GitHub Pages.
+- Die Firewall-Regel erlaubt Zugriff nur aus privaten Netzwerken. Jeder in deinem Heimnetz kann die Seite öffnen und COM1/Squawk setzen.
+
+Hinweise
+- Inoffiziell, nicht mit VATSIM, vIFF, SimBrief, Hoppie, Microsoft oder einer Airline verbunden. Airline-Namen und Logos gehören ihren Inhabern.
+- Nur für Flugsimulation – nicht für echte Luftfahrt.
+- Das Setup ist nicht signiert. Windows SmartScreen kann warnen: "Weitere Informationen" -> "Trotzdem ausführen".
