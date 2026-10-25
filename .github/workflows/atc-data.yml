@@ -1,0 +1,50 @@
+# Daily: approach areas (TRACONs) from the VATSIM SimAware TRACON project, made compact for the app.
+# Needed to recognise approach stations whose callsign is not the airport ICAO (e.g. IST_W_APP, NY_CAM_APP).
+# Published as tracons.json on the "atc" branch (read via raw.githubusercontent.com).
+name: ATC data
+
+on:
+  schedule:
+    - cron: "41 2 * * *"   # daily 02:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Build tracons.json
+        run: |
+          set -e
+          curl -sSfL --max-time 120 https://github.com/vatsimnetwork/simaware-tracon-project/releases/latest/download/TRACONBoundaries.geojson -o tracons.geojson
+          mkdir pub
+          python3 - <<'PY'
+          import json
+          d = json.load(open("tracons.geojson"))
+          out = []
+          for f in d["features"]:
+              p, g = f["properties"], f["geometry"]
+              polys = [g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]
+              # outer rings only, 3 decimals (~100 m) is plenty to know which airport an approach covers
+              rings = [[[round(x, 3), round(y, 3)] for x, y in poly[0]] for poly in polys]
+              xs = [x for r in rings for x, _ in r]; ys = [y for r in rings for _, y in r]
+              out.append({"id": p.get("id", ""), "p": p.get("prefix") or [], "s": p.get("suffix") or "", "n": p.get("name", ""),
+                          "b": [min(xs), min(ys), max(xs), max(ys)], "r": rings})
+          json.dump(out, open("pub/tracons.json", "w"), separators=(",", ":"))
+          print(len(out), "approach areas")
+          PY
+      - name: Publish
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          cd pub
+          git init -q -b atc
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -qm "TRACON areas from vatsimnetwork/simaware-tracon-project"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" atc

@@ -182,6 +182,8 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { .fq-row.soon { animation: none; } }
 .fq-row .when { grid-column: 1 / -1; font-size: 13px; color: var(--fg); }
 .fq-row.unicom .mhz { color: var(--dim); }
+.fq-row .when.alt, .en-when.alt, .en-cur .alt { font-size: 12px; color: var(--dim); }
+.en-cur .alt { grid-column: 1 / -1; }
 #freqBody { display: grid; gap: 8px; }
 .fq-later { display: grid; gap: 1px; background: var(--line); border-radius: 6px; overflow: hidden; }
 .fq-later > div { background: var(--panel); display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 12px; font-size: 13px; }
@@ -733,7 +735,7 @@ td.k { color: var(--sign); font-weight: 700; }
     metar: "https://metar.vatsim.net/",
     simbrief: "https://www.simbrief.com/api/xml.fetcher.php",
   };
-  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3, fids: 60e3, cpdlc: 60e3, stands: 60e3, ukcp: 120e3, sim: 1000 };
+  const POLL = { flight: 20e3, board: 45e3, feed: 15e3, metar: 300e3, simbrief: 300e3, conn: 60e3, arrwx: 300e3, fir: 60e3, fids: 60e3, cpdlc: 60e3, stands: 60e3, ukcp: 120e3, sim: 1000, tracon: 6 * 3600e3 };
   const TSAT_WINDOW = 5 * 60e3;          // start-up window TSAT ±5 min
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -899,7 +901,7 @@ td.k { color: var(--sign); font-weight: 700; }
     [/^(-?\d+) °C, (.+)$/, "$1 °C, $2", "$1 °C, $2"], [/^OFP erstellt (.+)$/, "OFP created $1", "OFP napravljen $1"], [/^Aktualisiert: (.+)$/, "Updated: $1", "Ažurirano: $1"],
     [/^Daten: (.+)$/, "Data: $1", "Podaci: $1"], [/^Flughäfen: (.+)$/, "Airports: $1", "Aerodromi: $1"], [/^Bis (.+)$/, "To $1", "Do $1"], [/^von (\S+)$/, "from $1", "od $1"],
     [/^Per CPDLC$/, "By CPDLC", "Preko CPDLC"],
-    [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Squawk (\d{4}) setzen$/, "Set squawk $1", "Postavi squawk $1"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"],
+    [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Squawk (\d{4}) setzen$/, "Set squawk $1", "Postavi squawk $1"], [/^auch: (.+)$/, "also: $1", "takođe: $1"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"],
     [/^Zeiten in Ortszeit (.+)\. Grau: Abflug vor Ihrer voraussichtlichen Ankunft\. Quelle: VATSIM-Flugpläne und vIFF-CDM, Aktualisierung jede Minute\.$/,
       "Times in local time $1. Grey: departs before your estimated arrival. Source: VATSIM flight plans and vIFF CDM, updated every minute.",
       "Vremena u lokalnom vremenu $1. Sivo: polazi pre vašeg očekivanog dolaska. Izvor: VATSIM planovi leta i vIFF CDM, osvežava se svakog minuta."], [/^Gate (\S+)$/, "Gate $1", "Izlaz $1"], [/^Stand (\S+)$/, "Stand $1", "Stajanka $1"],
@@ -1804,15 +1806,16 @@ td.k { color: var(--sign); font-weight: 700; }
         for (const r of rings) for (const [x, y] of r) { if (x < b[0]) b[0] = x; if (y < b[1]) b[1] = y; if (x > b[2]) b[2] = x; if (y > b[3]) b[3] = y; }
         return { id: f.properties.id, bbox: b, rings };
       });
-      const firs = [], uirs = new Map(); let sec = "";
+      const firs = [], uirs = new Map(), lids = new Map(); let sec = "";
       for (const line of dat.split(/\r?\n/)) {
         if (line.startsWith("[")) { sec = line.trim(); continue; }
         if (!line.trim() || line.startsWith(";")) continue;
         const c = line.split("|");
         if (sec === "[FIRs]") firs.push({ icao: c[0], name: c[1], prefix: c[2] || c[0], bnd: c[3] || c[0] });
         else if (sec === "[UIRs]") uirs.set(c[0], { name: c[1], firs: (c[2] || "").split(",") });
+        else if (sec === "[Airports]" && c[4]) lids.set(c[0], c[4]); // IATA/LID, used as callsign prefix by some stations (e.g. JFK_TWR)
       }
-      FIR = { feats, firs, uirs };
+      FIR = { feats, firs, uirs, lids };
       S.ctrIdxFor = 0; S.seqKey = "";
       render();
     } catch (e) {}
@@ -1842,7 +1845,7 @@ td.k { color: var(--sign); font-weight: 700; }
     const idx = new Map();
     const add = (bnd, c, lvl, name) => { if (!idx.has(bnd)) idx.set(bnd, []); idx.get(bnd).push({ c, lvl, name }); };
     for (const c of S.feed?.controllers || []) {
-      if (c.facility !== 6 && c.facility !== 1) continue;
+      if ((c.facility !== 6 && c.facility !== 1) || !onAir(c)) continue;
       const parts = c.callsign.split("_"); parts.pop();
       for (let n = parts.length; n > 0; n--) {
         const pre = parts.slice(0, n).join("_");
@@ -1860,8 +1863,21 @@ td.k { color: var(--sign); font-weight: 700; }
     if (!FIR || !S.feed || !pt) return null;
     const idx = ctrIndex();
     let best = null;
-    for (const id of firsAt(pt)) for (const x of idx.get(id) || []) if (!best || x.lvl < best.lvl) best = x;
-    return best;
+    const all = [];
+    for (const id of firsAt(pt)) for (const x of idx.get(id) || []) { all.push(x); if (!best || x.lvl < best.lvl) best = x; }
+    // during events a FIR is split into sectors: keep the others as alternatives instead of hiding them
+    return best && { ...best, alts: all.filter((x) => x.lvl === best.lvl && x.c.callsign !== best.c.callsign)
+      .filter((x, i, a) => a.findIndex((y) => y.c.callsign === x.c.callsign) === i) };
+  }
+  // a controller with a real voice frequency (199.998 = logged in without frequency)
+  const onAir = (c) => c.frequency && c.frequency !== "199.998";
+
+  // Approach areas (TRACONs, VATSIM SimAware project), prepared daily by a GitHub job on the "atc" branch.
+  // They map approach callsigns that are not the airport ICAO (IST_W_APP, NY_CAM_APP, AD_APP) to airports.
+  let TRACONS = null;
+  async function pollTracon() {
+    if (TRACONS) return;
+    try { const d = await getJSON(`https://raw.githubusercontent.com/${GH}/atc/tracons.json`, 30000); if (Array.isArray(d)) { TRACONS = d; render(); } } catch (e) {}
   }
 
   // Centers along the rest of the route: [{x: station or null, km: distance from `from`}]
@@ -1894,33 +1910,49 @@ td.k { color: var(--sign); font-weight: 700; }
   }
 
   const FAC = { 1: "Radio", 2: "Delivery", 3: "Ground", 4: "Tower", 5: "Approach", 6: "Radar" };
-  function aptStations(icao) {
-    const out = {};
+  // All stations of an airport, by kind. Matches the ICAO prefix (EDDF_), the US short form (JFK_ for KJFK),
+  // the IATA/LID from VATSpy, and approach areas from the TRACON data (IST_W_APP). Several stations of one
+  // kind (events: 2x Ground, 3x Approach) are all kept: out.gnd is the main one, out.all.gnd every one.
+  function aptStations(icao, pos) {
+    const out = { all: { del: [], gnd: [], twr: [], app: [], dep: [] } };
     if (!icao || !S.feed) return out;
-    const pres = [icao + "_"]; if (/^K[A-Z]{3}$/.test(icao)) pres.push(icao.slice(1) + "_");
+    const pres = new Set([icao]);
+    if (/^K[A-Z]{3}$/.test(icao)) pres.add(icao.slice(1));
+    const lid = FIR?.lids?.get(icao); if (lid) pres.add(lid);
+    const kindOf = (c) => ({ 2: "del", 3: "gnd", 4: "twr", 5: c.callsign.endsWith("_DEP") ? "dep" : "app" })[c.facility];
+    const tracons = pos && TRACONS ? TRACONS.filter((t) => pos[1] >= t.b[0] && pos[1] <= t.b[2] && pos[0] >= t.b[1] && pos[0] <= t.b[3] && t.r.some((r) => inRing(pos, r))) : [];
     for (const c of S.feed.controllers) {
-      if (!pres.some((p) => c.callsign.startsWith(p))) continue;
-      const k = { 2: "del", 3: "gnd", 4: "twr", 5: c.callsign.endsWith("_DEP") ? "dep" : "app" }[c.facility];
-      if (k && !out[k]) out[k] = c;
+      const k = kindOf(c); if (!k || !onAir(c)) continue;
+      const pre = c.callsign.split("_")[0];
+      const byTracon = !pres.has(pre) && (c.facility === 5 || c.facility === 4) && tracons.some((t) => t.p.includes(pre) && (t.s ? c.callsign.endsWith("_" + t.s) : c.facility === 5));
+      if (pres.has(pre) || byTracon) out.all[k].push(c);
     }
-    out.atis = S.feed.atis.find((a) => pres.some((p) => a.callsign.startsWith(p)));
+    // main station first: the plain one (EDDF_TWR) before sectors (EDDF_W_TWR), then alphabetical
+    for (const k in out.all) {
+      out.all[k].sort((a, b) => a.callsign.split("_").length - b.callsign.split("_").length || a.callsign.localeCompare(b.callsign));
+      const [first, ...rest] = out.all[k];
+      out[k] = first ? { ...first, _alts: rest } : null;
+    }
+    out.atis = S.feed.atis.find((a) => pres.has(a.callsign.split("_")[0]));
     return out;
   }
   const td = (...l) => l.find(Boolean) || null; // VATSIM top-down: the next higher station online covers the lower one
   function stn(c, place) {
     if (!c) return { cs: "UNICOM", mhz: "122.800", name: "Kein Lotse online", unicom: true };
-    if (c.c) return stn(c.c, c.name); // center from ctrAt()
+    if (c.c) return { ...stn(c.c, c.name), alt: (c.alts || []).map((x) => ({ cs: x.c.callsign, mhz: x.c.frequency })) }; // center from ctrAt()
     let kind = c.callsign.endsWith("_DEP") ? "Departure" : FAC[c.facility] || "";
     if (place && /radar|control|cent(er|re)|radio|information|oceanic/i.test(place)) kind = ""; // VATSpy names often carry it already
-    return { cs: c.callsign, mhz: c.frequency, name: [place, kind].filter(Boolean).join(" ") };
+    return { cs: c.callsign, mhz: c.frequency, name: [place, kind].filter(Boolean).join(" "), alt: (c._alts || []).map((x) => ({ cs: x.callsign, mhz: x.frequency })) };
   }
+  // "also: EDDM_S_GND 121.705 · …" for stations that share the job
+  const altLine = (st) => (st?.alt?.length ? "auch: " + st.alt.map((a) => a.cs + " " + a.mhz).join(" · ") : "");
 
   function freqPlan(now) {
     const pl = settings.demo ? null : S.pilot, fp = pl?.flight_plan || S.prefile?.flight_plan;
     const ofp = S.ofp?.callsign === S.callsign ? S.ofp : null;
     const depI = depApt(), arrI = arrApt();
     const dep = aptInfo(depI, ofp, "dep"), arr = aptInfo(arrI, ofp, "arr");
-    const D = aptStations(depI), A = aptStations(arrI);
+    const D = aptStations(depI, dep?.pos), A = aptStations(arrI, arr?.pos);
     const dc = dep?.city || depI, ac = arr?.city || arrI;
     const pos = pl && pl.latitude != null ? livePos(pl, now) : null;
     const gs = pl?.groundspeed || 0, alt = pl?.altitude || 0;
@@ -1992,13 +2024,14 @@ td.k { color: var(--sign); font-weight: 700; }
     if (!S.callsign) { setHtml("freqBody", `<div class="empty">Flug einstellen, dann erscheinen hier die Funkfrequenzen.</div>`); return; }
     if (!S.feed && !settings.demo) { setHtml("freqBody", `<div class="empty">Lade VATSIM-Lotsen…</div>`); return; }
     if (!FIR && now - (S.firTried || 0) > 60e3) { S.firTried = now; pollFir(); }
+    if (!TRACONS && now - (S.trTried || 0) > 60e3) { S.trTried = now; pollTracon(); }
     const p = freqPlan(now);
     if (!p.cur) { setHtml("freqBody", `<div class="empty">Keine Daten.</div>`); return; }
     const dist = (s) => (s.km != null && s.km > 0.5 ? [s.min != null ? "in ca. " + s.min + " min" : "", "noch " + nf(s.km) + " km"].filter(Boolean).join(" · ") : "");
     const soon = p.next && p.airborne && ((p.next.min != null && p.next.min <= 3) || (p.next.km != null && p.next.km <= 25));
     const row = (s, cls, lbl, when) => `<div class="fq-row ${cls}${s.st.unicom ? " unicom" : ""}"><span class="lbl role">${lbl} · ${esc(s.role)}</span>`
       + `<span class="stn">${esc(s.st.name)}<small>${esc(s.st.cs)}</small></span><span class="mhz num">${esc(s.st.mhz)}</span>`
-      + (when ? `<span class="when">${esc(when)}</span>` : "") + `</div>`;
+      + (when ? `<span class="when">${esc(when)}</span>` : "") + (altLine(s.st) ? `<span class="when alt">${esc(altLine(s.st))}</span>` : "") + `</div>`;
     let html = "";
     // a frequency instruction received by CPDLC beats the estimate
     const cf = S.cpFreq && now - S.cpFreq.at < 15 * 60e3 ? S.cpFreq : null;
@@ -2006,7 +2039,7 @@ td.k { color: var(--sign); font-weight: 700; }
     html += row(p.cur, "", "Aktuell", "");
     if (p.next) html += row(p.next, "next" + (soon ? " soon" : ""), soon ? "Bald wechseln" : "Als nächstes", [p.next.when !== "jetzt" ? p.next.when : "", dist(p.next)].filter(Boolean).join(" · "))
       .replace(/<\/div>$/, simReady() ? `<span class="fq-tune">${tuneBtn("standby", p.next.st.mhz, "COM1 STBY")}</span></div>` : "</div>");
-    const later = p.later.map((s) => `<div><span class="n"><b>${esc(s.role)}</b>${esc(s.st.name)}</span><span class="t">${esc(s.km != null && s.km >= 1 ? (s.min != null ? s.min + " min" : nf(s.km) + " km") : "")}</span><span class="f">${esc(s.st.mhz)}</span></div>`);
+    const later = p.later.map((s) => `<div><span class="n"><b>${esc(s.role)}</b>${esc(s.st.name)}${s.st.alt?.length ? ` <small title="${esc(altLine(s.st))}">+${s.st.alt.length}</small>` : ""}</span><span class="t">${esc(s.km != null && s.km >= 1 ? (s.min != null ? s.min + " min" : nf(s.km) + " km") : "")}</span><span class="f">${esc(s.st.mhz)}</span></div>`);
     if (p.atisArr) later.unshift(`<div><span class="n"><b>ATIS ${esc(arrApt())}</b>Information ${esc(p.atisArr.atis_code || "")} vor dem Anflug hören</span><span class="t"></span><span class="f">${esc(p.atisArr.frequency)}</span></div>`);
     if (later.length) html += `<div class="fq-later">${later.join("")}</div>`;
     html += `<div class="empty">Ohne Lotsen: UNICOM 122.800. Zuständigkeit nach VATSIM-Regel „top-down“. Entfernungen sind Schätzungen entlang deiner Route.</div>`;
@@ -2261,16 +2294,22 @@ td.k { color: var(--sign); font-weight: 700; }
   // weather and ATC card: departure airport before take-off, destination once airborne
   function renderWx(apt, dest) {
     $("wxApt").textContent = apt ? "· " + apt + (dest ? " (Ziel)" : "") : "";
-    const a = dest ? aptStations(apt).atis : S.atis[0];
+    const ofpW = S.ofp?.callsign === S.callsign ? S.ofp : null;
+    const st = aptStations(apt, aptInfo(apt, ofpW, dest ? "arr" : "dep")?.pos);
+    const a = st.atis || (dest ? null : S.atis[0]);
     const atis = a ? `<div class="letter">${esc(a.atis_code || "?")}</div><div class="txt">${esc((a.text_atis || []).join(" ") || a.callsign)}<br><span class="num">${esc(a.frequency)}</span></div>`
       : `<div class="empty">Kein ATIS online${apt ? " für " + esc(apt) : ""}.</div>`;
     setHtml("atis", atis);
     const met = dest ? (S.arrMetarApt === apt ? S.arrMetar : "") : (S.metarApt === apt ? S.metar : "");
     $("metar").textContent = met || (apt ? "METAR wird geladen…" : "—");
     const names = { 2: "DEL", 3: "GND", 4: "TWR", 5: "APP" };
-    const atc = dest ? (S.feed?.controllers || []).filter((c) => c.callsign.startsWith(apt + "_") && c.facility >= 2 && c.facility <= 5).sort((x, y) => y.facility - x.facility) : S.atc;
+    // every station working this airport (all sectors), plus the center above it
+    const atc = ["app", "dep", "twr", "gnd", "del"].flatMap((k) => st.all[k]);
+    const above = FIR && apt ? ctrAt(aptInfo(apt, ofpW, dest ? "arr" : "dep")?.pos) : null;
+    if (above) atc.push(above.c, ...(above.alts || []).map((x) => x.c));
+    const posName = (c) => (c.facility === 5 && c.callsign.endsWith("_DEP") ? "DEP" : names[c.facility] || "CTR");
     setHtml("atc", atc.length
-      ? `<div class="atc">${atc.map((c) => `<div><span class="pos">${names[c.facility]}</span><span class="cs2">${esc(c.callsign)}</span><span class="fq num">${esc(c.frequency)}</span></div>`).join("")}</div>`
+      ? `<div class="atc">${atc.map((c) => `<div><span class="pos">${posName(c)}</span><span class="cs2">${esc(c.callsign)}</span><span class="fq num">${esc(c.frequency)}</span></div>`).join("")}</div>`
       : `<div class="empty">Kein DEL/GND/TWR/APP online${apt ? " an " + esc(apt) : ""}.${dest ? " Dann gilt das Center oder UNICOM." : " Ohne ATC gibt es meist keine TSAT."}</div>`);
   }
 
@@ -2321,9 +2360,9 @@ td.k { color: var(--sign); font-weight: 700; }
     let hero;
     const tune = (mhz) => (simReady() ? `<div class="en-tune">${tuneBtn("standby", mhz, "COM1 STBY")}${tuneBtn("active", mhz, "COM1 AKTIV")}</div>` : "");
     if (cf) hero = `<div class="en-next cp"><span class="lbl">Per CPDLC · ${esc(cf.verb)} · ${esc(hhmm(cf.at))}Z</span><div class="en-mhz num">${esc(cf.mhz)}</div><div class="en-stn">${esc(cf.station)}<small>von ${esc(cf.from)}</small></div>${tune(cf.mhz)}</div>`;
-    else if (nx) hero = `<div class="en-next${soon ? " soon" : ""}"><span class="lbl">${soon ? "Bald wechseln" : "Nächste Frequenz"} · ${esc(nx.role)}</span><div class="en-mhz num">${esc(nx.st.mhz)}</div><div class="en-stn">${esc(nx.st.name)}<small>${esc(nx.st.cs)}</small></div><div class="en-when">${esc(when)}</div>${tune(nx.st.mhz)}</div>`;
+    else if (nx) hero = `<div class="en-next${soon ? " soon" : ""}"><span class="lbl">${soon ? "Bald wechseln" : "Nächste Frequenz"} · ${esc(nx.role)}</span><div class="en-mhz num">${esc(nx.st.mhz)}</div><div class="en-stn">${esc(nx.st.name)}<small>${esc(nx.st.cs)}</small></div><div class="en-when">${esc(when)}</div>${altLine(nx.st) ? `<div class="en-when alt">${esc(altLine(nx.st))}</div>` : ""}${tune(nx.st.mhz)}</div>`;
     else hero = `<div class="en-next"><span class="lbl">Nächste Frequenz</span><div class="en-stn">Kein weiterer Wechsel bis zum Gate</div></div>`;
-    const cur = p.cur ? `<div class="en-cur${p.cur.st.unicom ? " unicom" : ""}"><span class="lbl">Aktuell · ${esc(p.cur.role)}</span><span class="n">${esc(p.cur.st.name)} <small>${esc(p.cur.st.cs)}</small></span><span class="num">${esc(p.cur.st.mhz)}</span></div>` : "";
+    const cur = p.cur ? `<div class="en-cur${p.cur.st.unicom ? " unicom" : ""}"><span class="lbl">Aktuell · ${esc(p.cur.role)}</span><span class="n">${esc(p.cur.st.name)} <small>${esc(p.cur.st.cs)}</small></span><span class="num">${esc(p.cur.st.mhz)}</span>${altLine(p.cur.st) ? `<span class="alt">${esc(altLine(p.cur.st))}</span>` : ""}</div>` : "";
     // what is set in the simulator right now; green when it matches the current station
     const radio = simReady() ? `<div class="en-radio"><span class="lbl">COM1 im Simulator</span><span class="num${Math.abs(S.sim.com1 - +(p.cur?.st.mhz || 0)) < 0.003 ? " ok" : ""}">${S.sim.com1.toFixed(3)}</span><span class="lbl">STBY</span><span class="num${nx && Math.abs(S.sim.com1sb - +nx.st.mhz) < 0.003 ? " ok" : ""}">${S.sim.com1sb.toFixed(3)}</span></div>` : "";
     setHtml("enNext", hero + cur + radio);
@@ -2338,7 +2377,7 @@ td.k { color: var(--sign); font-weight: 700; }
     ].join(""));
 
     // destination ATIS and weather
-    const A = aptStations(arrI);
+    const A = aptStations(arrI, arr?.pos);
     const raw = S.arrMetarApt === arrI ? S.arrMetar : "";
     const w = raw ? decodeMetar(raw) : null;
     const wx = w ? [w.wdir != null ? (w.wdir === "VRB" ? "VRB" : w.wdir + "°") + " " + Math.round(w.wspd / KT_KMH) + (w.gust ? "G" + Math.round(w.gust / KT_KMH) : "") + " kt" : "", w.visKm != null ? (w.visKm >= 10 ? "Sicht 10 km+" : "Sicht " + nf(w.visKm, 1) + " km") : "", w.qnh ? "QNH " + w.qnh : "", w.temp != null ? w.temp + " °C" : "", w.cond].filter(Boolean).join(" · ") : "";
@@ -2778,7 +2817,7 @@ td.k { color: var(--sign); font-weight: 700; }
   pollFeed = guard("feed", pollFeed); pollFlight = guard("flight", pollFlight); pollBoard = guard("board", pollBoard);
   pollMetar = guard("metar", pollMetar); pollSimbrief = guard("simbrief", pollSimbrief);
   pollConn = guard("conn", pollConn); pollArrWx = guard("arrwx", pollArrWx); pollFir = guard("fir", pollFir);
-  pollFids = guard("fids", pollFids); pollCpdlc = guard("cpdlc", pollCpdlc); pollStands = guard("stands", pollStands); pollUkcp = guard("ukcp", pollUkcp); pollSim = guard("sim", pollSim);
+  pollFids = guard("fids", pollFids); pollCpdlc = guard("cpdlc", pollCpdlc); pollStands = guard("stands", pollStands); pollUkcp = guard("ukcp", pollUkcp); pollSim = guard("sim", pollSim); pollTracon = guard("tracon", pollTracon);
   const JOBS = { feed: () => pollFeed(), flight: () => pollFlight(), board: () => pollBoard(), metar: () => pollMetar(), simbrief: () => pollSimbrief(),
     conn: () => pollConn(), arrwx: () => pollArrWx(), fids: () => pollFids(), cpdlc: () => pollCpdlc(), stands: () => { if (S.pilot) pollStands(); }, ukcp: () => pollUkcp(), sim: () => pollSim() };
   let running = false, lastRefreshAll = 0, booted = false;
