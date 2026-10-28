@@ -214,23 +214,51 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
    - Fracht (Callsign-Präfix in `CARGO`) → Fracht-Vorfeld
    - Privat/GA (Callsign ohne Airline-Code, z. B. DEHBH, N123AB) → GA-Vorfeld
    - sonst Außenpositionen
-2. **Feste Flughafen-Regeln** (`GATE_RULES`): nach Airline, Allianz und Schengen, entweder über Stand-Präfix (`pre`) oder OSM-Terminalnamen (`tn`).
+2. **Feste Flughafen-Regeln** (`GATE_RULES`), recherchiert aus Flughafen- und Wikipedia-Terminalseiten (Stand 2025/26) und mit den Stand-Namen in OpenStreetMap abgeglichen. Die erste passende Regel gewinnt.
+   - **Bedingungen:** `airlines` (ICAO-Codes), `alliance`, `star`, `schengen`, `intl` (Abflug aus einem anderen Land, `country()`), `wide` (Großraumflugzeug)
+   - **Stands:** Präfix (`pre`), Nummernmuster (`rx`) oder OSM-Terminalname (`tn`)
+   - Innerhalb einer Regel kommen Stands mit Fluggastbrücke zuerst. Stands, die eine Regel ausdrücklich für Großraumflugzeuge nennt (`wide: true`), brauchen keine Größenprüfung.
 
    | Flughafen | Regel |
    |---|---|
    | EDDF | A / B,C (Terminal 1, Star) · D / E (Terminal 2) |
-   | EGLL | 5xx BA · 2xx Star · 3xx oneworld u. a. · 4xx Rest |
-   | OMDB | Emirates A/B/C · flydubai F/G · Rest D |
+   | EDDM | Star und Lufthansa-Gruppe → Terminal 2 · Rest → Terminal 1 |
+   | EDDL | Lufthansa-Gruppe und Star → Pier A · Non-Schengen → Pier C · Rest → Pier B |
+   | EDDH | Star und Lufthansa-Gruppe → Terminal 2 · Rest → Terminal 1 |
+   | EDDB | Ryanair, Wizz → Terminal 2 · Non-Schengen → Hauptpier (B) · Rest → Terminal 1 |
+   | LOWW | Lufthansa-Gruppe und Star → Terminal 3, Pier Nord (F/G) · Non-Schengen → Pier Ost (D) · Rest → Pier West (C) |
    | LSZH | Schengen A/B · Non-Schengen E/D |
    | EHAM | Low-Cost M · Schengen B/C/D · Non-Schengen E/F/G/D |
-   | EDDM | Star → Terminal 2 · Rest → Terminal 1 |
-   | LEMD | oneworld, Iberia Express, Air Europa, Vueling → T4 · Rest → T1–3 |
-   | LIRF | SkyTeam/ITA Schengen → T1 · Rest → T3 |
-   | LPPT | Low-Cost → T2 · Rest → T1 |
-   | EIDW | Aer Lingus und Langstrecke → T2 · Rest → T1 |
-   | LEBL | easyJet → T2 · Rest → T1 |
    | EBBR | Schengen → Pier A · Non-Schengen → Pier B |
    | LFPG | SkyTeam → 2E/2F/2G · Star → T1 · Low-Cost → 2B/2D/3 · Rest → 2A/2C/1 |
+   | EGLL | 5xx BA · 2xx Star · 3xx oneworld u. a. · 4xx Rest |
+   | EIDW | Aer Lingus und Langstrecke → T2 · Rest → T1 |
+   | EKCH | easyJet, Ryanair, Wizz, Transavia → Pier F (CPH Go) · SAS-Langstrecke → Pier E · Non-Schengen → Pier C · SAS → A/B · Rest → A/B/D |
+   | ENGM | Inland → Pier West (2–28) · Non-Schengen → Pier Ost (40–53) · Rest → Pier Ost/Nord (36–44, 60–96) |
+   | ESSA | Air France, KLM, Czech, easyJet, Transavia, Vueling → T2 · Ryanair, Wizz → T4 · Rest → T5 |
+   | LEMD | oneworld, Iberia Express, Air Europa, Vueling → T4 · Rest → T1–3 |
+   | LEBL | easyJet → T2 · Rest → T1 |
+   | LPPT | Low-Cost → T2 · Rest → T1 |
+   | LIRF | Non-Schengen → Terminal 3, Area E · Rest → Terminal 1, Area A |
+   | LGAV | Non-Schengen → Halle A · Rest → Halle B |
+   | LKPR | Non-Schengen → Terminal 1 · Schengen → Terminal 2 |
+   | LYBE | Großraumflugzeuge → C7–C12 (Gates mit zwei Brücken) |
+   | LTFM | Inland → Pier G · Großraum international → A/D/F · Rest → A/B/D/F |
+   | OMDB | Emirates A/B/C (T3) · flydubai T2 · Rest Concourse D (T1) |
+   | LLBG | Inland und Low-Cost → T1 · Rest → T3 |
+   | KJFK | JetBlue, Aer Lingus → T5 · Delta, SkyTeam u. a. → T4 · American, oneworld → T8 · Star, Air France, Korean u. a. → T1 |
+   | KEWR | United → C · Air Canada, American, Delta, JetBlue → A · Rest → B |
+   | KBOS | Delta → A · Air Canada, Alaska, American, Southwest, United → B · Aer Lingus, JetBlue, TAP → C · international → E |
+   | KORD | Air Canada, JetBlue → T2 · international → T5 · United → T1/T2 · American, Alaska → T3 · Rest → T5 |
+   | KATL | international → Concourse E/F |
+   | KSFO | United international und Star → G · United → T3 · Air Canada, Southwest, WestJet, Breeze → T2 · international → A · Rest → T1 |
+   | KLAX | Southwest T1 · Delta T2/3 · American T4/5 · Alaska, Air Canada T6 · United T7/8 · international → Tom Bradley |
+   | CYYZ | Air Canada, Star, Emirates, Etihad, Royal Air Maroc → T1 · Rest → T3 |
+   | RJTT | international → T3 · JAL, Skymark, StarFlyer → T1 · ANA, Air Do, Solaseed → T2 |
+   | RJAA | JAL, oneworld → T2 · Jetstar Japan, Peach, Spring → T3 · Rest → T1 |
+   | RKSI | Korean Air, Asiana, SkyTeam, Jin Air, Air Busan, Air Seoul, Virgin → T2 · Rest → T1 |
+   | YSSY | international → T1 · Qantas → T3 · Rest → T2 |
+   | ZBAA | Air China, Star → T3 · Hainan → T1 · Rest → T2 |
 
 3. **Allgemeine Regeln für alle Flughäfen:**
    - Heimat-Airline (`HUBS`) → Kontaktstände im Hauptterminal (das Terminal mit den meisten Kontaktständen)
@@ -238,7 +266,8 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
    - andere Airlines → Kontaktstände in den übrigen Terminals
    - sonst beliebige Kontaktstände
 4. **Belegung:** Stands mit einem VATSIM-Flugzeug am Boden (< 5 kt, < 60 m) werden übersprungen.
-5. **Wahl:** fest pro Callsign (Hash) und bei der Bekanntgabe eingefroren.
+5. **Größe** (Feld `w`, Abstand zum nächsten Stand): A380/747 brauchen ≥ 70 m, andere Großraumflugzeuge ≥ 55 m, Schmalrumpf ≥ 30 m, Turboprops und GA beliebig. Kleinere Flugzeuge bevorzugen Stands, die nicht viel größer sind als nötig (unter 60 m bzw. 80 m), damit die großen frei bleiben. Passt nirgends etwas, ist die Größe nur eine Vorliebe (die Abstände aus der Karte können täuschen).
+6. **Wahl:** fest pro Callsign (Hash) und bei der Bekanntgabe eingefroren.
 
 **Ablauf:**
 - Bekanntgabe ca. 30 min vor Ankunft mit Gong, gelbem Blinken und Push (`settings.pushGate`).
