@@ -1,12 +1,11 @@
-# Hourly: stand/gate/terminal data from OpenStreetMap, one file per airport on the "stands" branch.
-# Covers every airport that flights on VATSIM are heading to right now plus a list of busy airports:
-# new airports first, then files older than 14 days. Several Overpass servers work in parallel.
-# The app reads these files first and only asks Overpass live for airports that have none yet.
+# Twice a day: stand/gate/terminal data from OpenStreetMap for every airport, one file per airport on the
+# "stands" branch. The world is fetched in 84 tiles (several Overpass servers in parallel), then split per airport.
+# The app reads these files first and only asks Overpass live for airports that have none.
 name: Stand data
 
 on:
   schedule:
-    - cron: "17 * * * *"   # hourly
+    - cron: "17 3,15 * * *"   # 03:17 and 15:17 UTC
   workflow_dispatch:
 
 permissions:
@@ -19,10 +18,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - name: Keep the files of the last run (airports that fail now keep their old data)
+      - name: Keep the files of the last run (airports in tiles that fail now keep their old data)
         run: |
           mkdir out
           if git fetch -q origin stands; then
@@ -32,7 +31,7 @@ jobs:
           ls out | wc -l
       - name: Build stand data
         env:
-          STANDS_MINUTES: "40"
+          STANDS_MINUTES: "60"
         run: python3 .github/scripts/stands.py airports.json out
       - name: Publish
         env:

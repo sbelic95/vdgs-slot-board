@@ -3035,7 +3035,7 @@ td.k { color: var(--sign); font-weight: 700; }
   // Sources in this order: 1. browser cache, 2. the "stands" branch on GitHub (prepared every hour for busy airports
   // and every airport flown to on VATSIM), 3. Overpass live for airports the job has not reached yet.
   // An empty list is a valid answer: OpenStreetMap has no numbered stands there.
-  const standsKey = (icao) => "vdgs.stands4." + icao;
+  const standsKey = (icao) => "vdgs.stands5." + icao; // 5: with stand spacing "w"
   function standsCached(icao) {
     try {
       const c = JSON.parse(localStorage.getItem(standsKey(icao)) || "null");
@@ -3085,7 +3085,7 @@ td.k { color: var(--sign); font-weight: 700; }
       .map((e) => ({ n: termName(e.tags), p: [e.center.lat, e.center.lon], cargo: CARGO_RE.test(e.tags.name || ""), ga: GA_RE.test(e.tags.name || "") }));
     const aprons = el.filter((e) => e.tags?.aeroway === "apron" && e.geometry)
       .map((e) => ({ cargo: CARGO_RE.test(e.tags.name), ring: e.geometry.map((g) => [g.lon, g.lat]) }));
-    return el.filter((e) => e.tags?.aeroway === "parking_position" && e.tags.ref).map((e) => {
+    const list = el.filter((e) => e.tags?.aeroway === "parking_position" && e.tags.ref).map((e) => {
       const ref = e.tags.ref.split(/[\s/;]/)[0];
       const [lat, lon] = pos(e);
       if (lat == null) return null;
@@ -3096,6 +3096,16 @@ td.k { color: var(--sign); font-weight: 700; }
       const c = gateRefs.has(ref) || gateNodes.some((g) => distKm([lat, lon], g.p) < 0.12);
       return { ref, lat, lon, gate: gateRefs.has(ref), c, t: cargo || ga ? "" : near?.n || "", cargo, ga };
     }).filter(Boolean);
+    // w: metres to the nearest other stand. Stands sit about one wingspan plus clearance apart: ~40-45 m for an A320,
+    // ~70 m for a 777, ~85 m for an A380. Positions closer than 25 m are alternatives on the same spot (12L / 12R / 12,
+    // or E71 / E72 / E73: one wide-body or two narrow-body stands), not neighbours, and are left out.
+    const base = (r) => r.replace(/(\d)[A-Z]+$/, "$1");
+    for (const s of list) {
+      let m = Infinity;
+      for (const o of list) if (base(o.ref) !== base(s.ref)) { const d = distKm([s.lat, s.lon], [o.lat, o.lon]); if (d >= 0.025) m = Math.min(m, d); }
+      if (m < Infinity) s.w = Math.round(m * 1000);
+    }
+    return list;
   }
 
   // real stand assignments for UK airports (VATSIM UK), copied every 5 min by a GitHub job to the "data" branch
@@ -3172,8 +3182,15 @@ td.k { color: var(--sign); font-weight: 700; }
     }
     steps.push(["", pax.filter((s) => !isRemote(s))], ["", pax], ["", sorted]);
 
+    // stand size from the spacing to the next stand (w): an A380 needs ~70 m+, a 777/A330 ~55 m+, an A320 ~30 m+.
+    // Smaller aircraft prefer stands that are not much bigger than needed, like airports keep big stands for big aircraft.
+    const t = type || "", need = kind === "ga" || PROP.test(t) ? 0 : /^(A38|B748|B74)/.test(t) ? 70 : WIDE.test(t) ? 55 : 30;
+    const roomy = need >= 70 ? Infinity : need >= 55 ? 80 : 60;
+    const sized = (c) => { const fit = c.filter((s) => s.w == null || s.w >= need); const snug = fit.filter((s) => s.w == null || s.w < roomy); return snug.length ? snug : fit; };
     let pool = [], label = term;
-    for (const [l, cand] of steps) { pool = cand.filter(free); if (pool.length) { label = term || l; break; } }
+    for (const [l, cand] of steps) { pool = sized(cand.filter(free)); if (pool.length) { label = term || l; break; } }
+    // the spacing comes from the map and can be off: if nothing fits anywhere, size is only a preference
+    if (!pool.length) for (const [l, cand] of steps) { pool = cand.filter(free); if (pool.length) { label = term || l; break; } }
     if (!pool.length) return null;
     let h = 0; for (const ch of cs + arrI) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
     const s = pool[h % pool.length];
