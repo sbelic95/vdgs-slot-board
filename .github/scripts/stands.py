@@ -96,6 +96,7 @@ CARGO_RE = re.compile("cargo|fracht|fret|frêt|carga", re.I)
 def term_name(t):
     """'T1 Satellite Concourse' (ref T1) and '一號客運大樓 Terminal 1' both become 'Terminal 1'."""
     name, ref = t.get("name", ""), t.get("ref", "")
+    ref = ref if re.fullmatch(r"T?[0-9A-Z]{1,2}", ref) else ""  # "118" at Vienna is a building number, not a terminal
     if ref and not CARGO_RE.search(name) and not GA_RE.search(name):
         return "Terminal " + re.sub(r"^T(?=\w)", "", ref)
     m = re.search(r"Terminal\s*([0-9A-Z]{1,3})\b", name)
@@ -186,14 +187,31 @@ def tile_key(t):
     return "%g,%g,%g,%g" % t
 
 
-def fetch_tiles(tiles, deadline, log):
-    """One worker per server, one request at a time each; a tile that fails moves on to the next server.
-    Returns {tile: elements} for the tiles that worked."""
+def split(t):
+    s, w, n, e = t
+    ms, mw = (s + n) / 2, (w + e) / 2
+    return [(s, w, ms, mw), (s, mw, ms, e), (ms, w, n, mw), (ms, mw, n, e)]
+
+
+def fetch_tiles(tiles, deadline, log, has_airports):
+    """One worker per server, one request at a time each. A tile that fails moves on to the next server; one that
+    failed on every server is split into four smaller tiles (smaller queries get through more often), or, once small,
+    tried again in a later round. Workers keep going until the time budget is used up.
+    Returns {tile: elements} for the tiles that worked (tiles without any airport count as empty, not fetched)."""
     lock = threading.Lock()
-    pending = [{"tile": t, "tried": set()} for t in tiles]
-    live, inflight, got = set(SERVERS), [0], {}
+    pending, inflight, got = [], [0], {}
     stats = {s: Counter() for s in SERVERS}
     host = lambda s: s.split("/")[2]
+
+    def add(t, front=False):  # caller holds the lock (or no thread runs yet)
+        if not has_airports(t):
+            got[t] = []  # ocean, ice: nothing to fetch
+            return
+        it = {"tile": t, "tried": set(), "round": 0}
+        pending.insert(0, it) if front else pending.append(it)
+
+    for t in tiles:
+        add(t)
 
     def nap(sec):  # pauses never run past the time budget
         time.sleep(max(0, min(sec, deadline - time.time())))
@@ -206,19 +224,27 @@ def fetch_tiles(tiles, deadline, log):
                     return pending.pop(k)
         return None
 
-    def give_up(it, err):  # caller holds the lock
-        log[tile_key(it["tile"])] = {"try": int(time.time()), "err": err[:160]}
-        print(f"tile {tile_key(it['tile'])}  failed on every server: {err[:100]}", flush=True)
-
     def failed(it, srv, err, busy=False):
         with lock:
             inflight[0] -= 1
             if not busy:
                 it["tried"].add(srv)
-            if live - it["tried"]:
+            if set(SERVERS) - it["tried"]:
                 pending.insert(0, it)  # keeps its place in the queue for the next server
+                return
+            t, key = it["tile"], tile_key(it["tile"])
+            if t[2] - t[0] > 4 and t[3] - t[1] > 4:
+                log[key] = {"split": int(time.time()), "err": err[:160]}
+                print(f"tile {key}  failed on every server, splitting it in four", flush=True)
+                for sub in reversed(split(t)):
+                    add(sub, front=True)
+            elif it["round"] < 2:
+                it["round"] += 1
+                it["tried"] = set()
+                pending.append(it)  # small already: one more round later
             else:
-                give_up(it, err)
+                log[key] = {"try": int(time.time()), "err": err[:160]}
+                print(f"tile {key}  failed in every round: {err[:100]}", flush=True)
 
     def worker(srv):
         streak = 0
@@ -226,10 +252,10 @@ def fetch_tiles(tiles, deadline, log):
             it = take(srv)
             if it is None:
                 with lock:
-                    idle = inflight[0] == 0
-                if idle:
-                    break  # whatever is left was already tried here
-                time.sleep(3)  # another server may hand a tile back
+                    done = not pending and inflight[0] == 0
+                if done:
+                    break
+                time.sleep(5)  # the others may hand a tile back or start a new round
                 continue
             key, t0 = tile_key(it["tile"]), time.time()
             try:
@@ -239,8 +265,6 @@ def fetch_tiles(tiles, deadline, log):
                 streak += 1
                 print(f"tile {key}  {host(srv)} rate limit, pausing this server", flush=True)
                 failed(it, srv, f"{host(srv)}: {e}", busy=True)
-                if streak >= 6:
-                    break
                 nap(60)
                 continue
             except Exception as e:
@@ -248,10 +272,7 @@ def fetch_tiles(tiles, deadline, log):
                 streak += 1
                 print(f"tile {key}  {host(srv)}: {str(e)[:100]} ({time.time() - t0:.0f} s)", flush=True)
                 failed(it, srv, f"{host(srv)}: {e}")
-                if streak >= 4:
-                    print(f"{host(srv)} failed {streak} times in a row, leaving it out for this run", flush=True)
-                    break
-                nap(min(20 * streak, 60))
+                nap(min(30 * streak, 240))  # a struggling server gets longer and longer breaks
                 continue
             with lock:
                 inflight[0] -= 1
@@ -261,11 +282,6 @@ def fetch_tiles(tiles, deadline, log):
             streak = 0
             print(f"tile {key}  {len(els)} elements  {host(srv)}  {time.time() - t0:.0f} s", flush=True)
             nap(2)  # be gentle with the public Overpass servers
-        with lock:
-            live.discard(srv)
-            for it in [x for x in pending if x["tried"] and not (live - x["tried"])]:
-                pending.remove(it)
-                give_up(it, "no server left: " + ", ".join(sorted(host(s) for s in it["tried"])))
 
     threads = [threading.Thread(target=worker, args=(s,), daemon=True) for s in SERVERS]
     for t in threads:
@@ -275,7 +291,7 @@ def fetch_tiles(tiles, deadline, log):
     for s in SERVERS:
         print(f"{host(s)}: {stats[s]['ok']} tiles ok, {stats[s]['fail']} failed, {stats[s]['busy']} rate limits", flush=True)
     for it in pending:
-        log.setdefault(tile_key(it["tile"]), {"try": int(time.time()), "err": "time budget used up"})
+        log[tile_key(it["tile"])] = {"try": int(time.time()), "err": "not reached in this run"}
     return got
 
 
@@ -326,12 +342,12 @@ def around(grid, lat, lon):
     return found
 
 
-def covered(tiles_ok, all_tiles, lat, lon):
-    """True if the airport's circle lies in fetched tiles only (and touches at least one)."""
+def covered(got, lat, lon):
+    """True if the airport's 4.5 km circle lies in fetched tiles only (tiles are degrees wide, so the corners decide)."""
     dlat = RADIUS_KM / 111.2
     dlon = dlat / max(math.cos(math.radians(lat)), 0.01)
-    touched = [t for t in all_tiles if lat - dlat < t[2] and lat + dlat > t[0] and lon - dlon < t[3] and lon + dlon > t[1]]
-    return bool(touched) and all(t in tiles_ok for t in touched)
+    inside = lambda la, lo: any(t[0] <= la <= t[2] and t[1] <= lo <= t[3] for t in got)
+    return all(inside(la, lo) for la in (lat - dlat, lat + dlat) for lo in (lon - dlon, lon + dlon))
 
 
 def main():
@@ -342,14 +358,17 @@ def main():
     deadline = time.time() + float(os.environ.get("STANDS_MINUTES", "60")) * 60  # stop in time so the results get published
     tiles = make_tiles()
     log = {}
+    icao = [(v[0], v[1]) for k, v in apts.items() if re.fullmatch(r"[A-Z]{4}", k)]
+    # a tile needs fetching only if an airport lies in it or close to its edge
+    has_airports = lambda t: any(t[0] - 0.1 <= la <= t[2] + 0.1 and t[1] - 0.2 <= lo <= t[3] + 0.2 for la, lo in icao)
     # dense tiles first: they take longest
     weight = Counter()
-    for k, v in apts.items():
+    for la, lo in icao:
         for t in tiles:
-            if t[0] <= v[0] < t[2] and t[1] <= v[1] < t[3]:
+            if t[0] <= la < t[2] and t[1] <= lo < t[3]:
                 weight[t] += 1
-    got = fetch_tiles(sorted(tiles, key=lambda t: -weight[t]), deadline, log)
-    print(f"{len(got)} of {len(tiles)} tiles fetched", flush=True)
+    got = fetch_tiles(sorted(tiles, key=lambda t: -weight[t]), deadline, log, has_airports)
+    print(f"{len(got)} tiles done ({sum(1 for v in got.values() if v)} with data)", flush=True)
 
     grid, n_el = index_elements(got)
     keep_empty = scheduled_airports() | set(AIRPORTS)
@@ -358,7 +377,7 @@ def main():
         if not re.fullmatch(r"[A-Z]{4}", icao):
             continue
         path = os.path.join(out_dir, icao + ".json")
-        if not covered(got, tiles, v[0], v[1]):
+        if not covered(got, v[0], v[1]):
             counts["kept_old" if os.path.exists(path) else "not_covered"] += 1
             continue
         els = around(grid, v[0], v[1])

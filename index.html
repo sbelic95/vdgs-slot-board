@@ -2974,6 +2974,12 @@ td.k { color: var(--sign); font-weight: 700; }
     ASA: "KSEA KPDX", AMX: "MMMX", LAN: "SCEL SPJC", TAM: "SBGR", AVA: "SKBO", CMP: "MPTO", ARG: "SAEZ SABE",
   };
   const isHub = (cs, apt) => (HUBS[String(cs).slice(0, 3)] || "").split(" ").includes(apt);
+  // country of an airport from its ICAO code, enough to tell domestic from international flights
+  const country = (icao) => {
+    const c = String(icao || "");
+    return /^(K|P[AFGHJOW])/.test(c) ? "US" : /^R[JO]/.test(c) ? "JP" : /^U[EHILNORSUW]/.test(c) ? "RU" : /^S[BDNSW]/.test(c) ? "BR"
+      : /^V[AEIO]/.test(c) ? "IN" : /^W[AIR]/.test(c) ? "ID" : /^(C|Y|Z(?![KM]))/.test(c) ? c[0] : c.slice(0, 2);
+  };
   const CARGO = /^(GEC|BOX|FDX|UPS|CLX|ABW|CKS|GTI|MPH|NCA|CAO|CKK|SQC|DHK|BCS|DAE|ICL|AZG|TAY|SWN|ABR|AHK|CLU|MSX|QAC|ETC|ICV|WGN|CVK)/;
   const WIDE = /^(A306|A30B|A310|A33|A34|A35|A38|B74|B76|B77|B78|MD1|IL9|B741|B742|B743|B744|B748)/;
   const PROP = /^(AT4|AT7|DH8|SF34|JS3|B190|D328|E120|C208|PC12|L410|SB20)/;
@@ -3072,7 +3078,7 @@ td.k { color: var(--sign); font-weight: 700; }
   // OSM elements -> stands; same as build() in .github/scripts/stands.py, keep both in step
   const GA_RE = /business|general aviation|executive|GAT|FBO|privat/i, CARGO_RE = /cargo|fracht|fret|frêt|carga/i;
   function termName(t) {
-    const name = t.name || "", ref = t.ref || "";
+    const name = t.name || "", ref = /^T?[0-9A-Z]{1,2}$/.test(t.ref || "") ? t.ref : ""; // "118" at Vienna is a building number
     if (ref && !CARGO_RE.test(name) && !GA_RE.test(name)) return "Terminal " + ref.replace(/^T(?=\w)/, "");
     const m = name.match(/Terminal\s*([0-9A-Z]{1,3})\b/);
     return m ? "Terminal " + m[1] : name || (ref ? "Terminal " + ref : "");
@@ -3157,17 +3163,19 @@ td.k { color: var(--sign); font-weight: 700; }
     const anyContact = sorted.some((x) => x.c);
     const isRemote = (s) => (GATE_RULES[arrI] && REMOTE.test(s.ref)) || (!s.c && anyContact);
     const steps = []; // candidate pools, best first: [label, stands]
-    let term = "";
 
     if (kind === "cargo") steps.push(["Cargo", sorted.filter((s) => s.cargo)], ["Cargo", sorted.filter(isRemote)]);
     if (kind === "ga") steps.push(["General Aviation", sorted.filter((s) => s.ga)], ["General Aviation", sorted.filter((s) => isRemote(s) && !s.cargo)]);
     const pax = sorted.filter((s) => !s.cargo && !s.ga);
+    // curated airport rules: conditions airlines / alliance / star / schengen / intl (other country) / wide (wide-body);
+    // stands by prefix (pre), by number pattern (rx) or by OSM terminal name (tn)
+    const wideBody = WIDE.test(type || ""), intlFlight = country(depI) !== country(arrI);
     const rule = kind === "pax" && (GATE_RULES[arrI] || []).find((r) =>
       (r.airlines ? r.airlines.includes(code) : true) && (r.alliance ? r.alliance === al : true) &&
-      (r.star !== undefined ? (al === "star") === r.star : true) && (r.schengen !== undefined ? r.schengen === schengenFlight : true));
+      (r.star !== undefined ? (al === "star") === r.star : true) && (r.schengen !== undefined ? r.schengen === schengenFlight : true) &&
+      (r.intl !== undefined ? r.intl === intlFlight : true) && (r.wide !== undefined ? r.wide === wideBody : true));
     if (rule) {
-      steps.push([rule.term, pax.filter((s) => rule.pre ? rule.pre.some((p) => s.ref.startsWith(p)) : rule.tn.test(s.t))]);
-      term = rule.term;
+      steps.push([rule.term, pax.filter((s) => rule.pre ? rule.pre.some((p) => s.ref.startsWith(p)) : rule.rx ? rule.rx.test(s.ref) : rule.tn.test(s.t))]);
     } else if (kind === "pax") {
       // terminals as mapped in OSM; the one with most gates is the main terminal
       const count = {}; for (const s of pax) if (s.t && s.c) count[s.t] = (count[s.t] || 0) + 1;
@@ -3187,10 +3195,10 @@ td.k { color: var(--sign); font-weight: 700; }
     const t = type || "", need = kind === "ga" || PROP.test(t) ? 0 : /^(A38|B748|B74)/.test(t) ? 70 : WIDE.test(t) ? 55 : 30;
     const roomy = need >= 70 ? Infinity : need >= 55 ? 80 : 60;
     const sized = (c) => { const fit = c.filter((s) => s.w == null || s.w >= need); const snug = fit.filter((s) => s.w == null || s.w < roomy); return snug.length ? snug : fit; };
-    let pool = [], label = term;
-    for (const [l, cand] of steps) { pool = sized(cand.filter(free)); if (pool.length) { label = term || l; break; } }
+    let pool = [], label = "";
+    for (const [l, cand] of steps) { pool = sized(cand.filter(free)); if (pool.length) { label = l; break; } }
     // the spacing comes from the map and can be off: if nothing fits anywhere, size is only a preference
-    if (!pool.length) for (const [l, cand] of steps) { pool = cand.filter(free); if (pool.length) { label = term || l; break; } }
+    if (!pool.length) for (const [l, cand] of steps) { pool = cand.filter(free); if (pool.length) { label = l; break; } }
     if (!pool.length) return null;
     let h = 0; for (const ch of cs + arrI) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
     const s = pool[h % pool.length];

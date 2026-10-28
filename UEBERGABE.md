@@ -46,7 +46,7 @@ Live-Adresse: https://sbelic95.github.io/vdgs-slot-board/ · Code: https://githu
 | `LIZENZEN.md` | Datenschutz-Hinweis und Lizenzen aller enthaltenen Teile |
 | `bridge/vdgs_bridge.py`, `bridge/ANLEITUNG-BRIDGE.md`, `bridge/requirements.txt` | Simulator-Bridge für MSFS (Python) und ihre Anleitung |
 | `bridge/installer/VDGS-Setup.iss`, `info-de.txt`, `info-en.txt`, `icon.ico` | Inno-Setup-Skript für `VDGS-Setup.exe` (flightsim.to) |
-| `.github/workflows/ukcp-stands.yml`, `.github/workflows/stands.yml`, `.github/scripts/stands.py` | GitHub-Jobs: VATSIM-UK-Stands (5 min, Zweig `data`), Stand-Daten (stündlich, Zweig `stands`) |
+| `.github/workflows/ukcp-stands.yml`, `.github/workflows/stands.yml`, `.github/scripts/stands.py` | GitHub-Jobs: VATSIM-UK-Stands (5 min, Zweig `data`), Stand-Daten (zweimal täglich, alle Flughäfen, Zweig `stands`) |
 | `.github/workflows/atc-data.yml` | GitHub-Job täglich: Anflugbereiche (`tracons.json`, SimAware TRACON Project) und Pisten (`runways.json`, OurAirports), Zweig `atc` |
 | `ANLEITUNG.md` | Bedienungsanleitung für den Piloten (Online stellen, iPad, Status) |
 | `UEBERGABE.md` | Diese Datei |
@@ -188,16 +188,16 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 2. **Prognose** für alle anderen Flughäfen.
 
 **Stand-Daten** (Stands, Gates, Terminals, Fracht- und GA-Vorfelder aus OpenStreetMap):
-- Ein stündlicher GitHub-Job baut sie vor (`.github/workflows/stands.yml` und `.github/scripts/stands.py`). Ergebnis: eine Datei `<ICAO>.json` pro Flughafen im Branch `stands`.
-  - **Welche Flughäfen:** jedes Ziel, das gerade auf VATSIM angeflogen wird (Flugplan „arrival“, auch Prefiles; die meisten Anflüge zuerst), dazu eine feste Liste von ~240 großen Flughäfen (`AIRPORTS`).
-  - **Reihenfolge:** erst Flughäfen ohne Datei, dann Dateien älter als 14 Tage (nur Liste und aktuelle VATSIM-Ziele).
-  - **Parallel:** je ein Arbeiter pro Overpass-Server (`overpass-api.de`, `overpass.private.coffee`, `maps.mail.ru`, `overpass.kumi.systems`), eine Anfrage gleichzeitig pro Server. Schlägt ein Flughafen auf einem Server fehl, übernimmt der nächste. Ein Server mit 6 Fehlern in Folge wird für diesen Lauf ausgelassen; bei HTTP 429 pausiert er 60 s.
+- Ein GitHub-Job baut sie zweimal täglich (03:17 und 15:17 UTC) für **alle Flughäfen der Welt** vor (`.github/workflows/stands.yml` und `.github/scripts/stands.py`). Ergebnis: eine Datei `<ICAO>.json` pro Flughafen im Branch `stands`.
+  - **Kacheln statt Einzelabfragen:** Die Welt wird in 84 Kacheln (7 Breitenbänder × 30° Länge) bei Overpass abgefragt: alle nummerierten Stands, alle Gates, Terminals und benannte Fracht-/GA-Vorfelder. Danach bekommt jeder Flughafen aus `airports.json` die Elemente im Umkreis von 4,5 km und `build()` macht daraus die Stands, genau wie die App für einen einzelnen Flughafen. (Früher eine Abfrage pro Flughafen: auf den überlasteten öffentlichen Servern liefen die meisten in Zeitüberschreitungen, es kamen nur ~15 Flughäfen pro Stunde zusammen.)
+  - **Parallel:** je ein Arbeiter pro Overpass-Server (`overpass-api.de`, `overpass.private.coffee`, `maps.mail.ru`, `overpass.kumi.systems`), eine Anfrage gleichzeitig pro Server, dichte Kacheln zuerst. Scheitert eine Kachel auf einem Server, übernimmt der nächste. Ein Server mit 4 Fehlern in Folge wird für diesen Lauf ausgelassen; bei HTTP 429 pausiert er 60 s.
   - **Kaputte Antworten:** Overpass antwortet bei Überlast manchmal mit 200 und einem `remark` („runtime error: Query timed out“) und unvollständigen Daten. Solche Antworten werden verworfen (Job und App).
-  - **`_status.json`** im Branch `stands`: pro Flughafen `ok` (Zeit), `n` (Anzahl Stands), `src` (Server) oder `try`, `fails`, `err` (letzter Fehler). Ein Flughafen, der auf allen Servern scheitert, wartet 30 min, 1 h, 2 h … höchstens 24 h. So blockieren Fehlschläge nicht mehr die Warteschlange.
-  - **Leere Datei `[]`:** OpenStreetMap hat dort keine nummerierten Stands. Die App zeigt dann sofort „Keine Stand-Daten“, ohne Overpass zu fragen.
-  - Zeitbudget 40 min pro Lauf (`STANDS_MINUTES`). Hat sich nichts geändert, wird nichts gepusht.
+  - **Fehlgeschlagene Kachel:** Flughäfen, deren 4,5-km-Kreis eine fehlgeschlagene Kachel berührt, behalten ihre alte Datei; der nächste Lauf versucht es wieder.
+  - **Leere Datei `[]`:** Flughäfen mit Linienverkehr (OurAirports, über `runways.json` aus dem ATC-Job) oder aus der Liste `AIRPORTS` ohne nummerierte Stands in OpenStreetMap. Die App zeigt dann sofort „Keine Stand-Daten“, ohne Overpass zu fragen.
+  - **`_status.json`** im Branch `stands`: pro Kachel Server, Dauer (`s`) und Anzahl Elemente (`n`) oder Fehler (`err`); dazu Summen des Laufs (`with_stands`, `empty`, `kept_old`, `not_covered`).
+  - Zeitbudget 60 min für die Kacheln (`STANDS_MINUTES`). Hat sich nichts geändert, wird nichts gepusht.
 - **In der App** (`pollStands()`), in dieser Reihenfolge:
-  1. Browser-Speicher: 7 Tage in `localStorage["vdgs.stands4.<ICAO>"]` (leere Liste nur 1 Tag)
+  1. Browser-Speicher: 7 Tage in `localStorage["vdgs.stands5.<ICAO>"]` (leere Liste nur 1 Tag)
   2. GitHub-Datei, jede Minute neu geprüft, solange es noch keine gibt
   3. Overpass live über dieselben vier Server nacheinander (je 35 s). Wenn alle scheitern, wartet die App 1, 2, 4, 8, dann je 10 min bis zum nächsten Overpass-Versuch und zeigt „Stand-Daten-Server ausgelastet · neuer Versuch HH:MMZ“.
 - **Felder pro Stand:**
@@ -206,6 +206,7 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
   - `c`: Kontaktstand, d. h. Gate gleichen Namens oder Gate unter 120 m entfernt
   - `t`: nächstes Terminal bis 1,5 km, Name vereinheitlicht zu „Terminal 1“
   - `cargo`, `ga`: Lage in einem benannten Fracht- oder GA-Vorfeld oder neben einem Fracht- bzw. Business-Aviation-Terminal
+  - `w`: Abstand zum nächsten anderen Stand in Metern, ein Maß für die Standgröße. Stands stehen etwa eine Spannweite plus Sicherheitsabstand auseinander: ~40–45 m für einen A320, ~70 m für eine 777, ~85 m für einen A380. Positionen unter 25 m Abstand sind Alternativen am selben Platz (12L/12R/12 oder E71/E72/E73: ein Großraum- oder zwei Schmalrumpf-Stands) und zählen nicht als Nachbarn.
 - `buildStands()` (JavaScript) und `build()` (Python) müssen gleich bleiben.
 
 **Prognose** (`predictStand()`), Ebenen in dieser Reihenfolge:
@@ -247,7 +248,7 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 **Navigraph:** Für Webseiten verlangt Navigraph eine Partnerschaft (Entwickler-Zugang beantragen), einen eigenen Server und ein Abo der Nutzer. Nicht eingebunden.
 
 **GitHub-Jobs:**
-- **Zeitplan:** `*/5 * * * *` (UK) und stündlich zur Minute 17 (Stand-Daten). Beide lassen sich unter „Actions“ von Hand starten („Run workflow“).
+- **Zeitplan:** `*/5 * * * *` (UK) und 03:17 / 15:17 UTC (Stand-Daten). Beide lassen sich unter „Actions“ von Hand starten („Run workflow“).
 - **Speicher:** Jeder Lauf schreibt genau einen Commit in seinen Branch (Force-Push), der Branch wächst also nicht.
 - **Hinweis:** GitHub kann zeitgesteuerte Jobs abschalten, wenn im Repository 60 Tage lang nichts passiert. Dann unter „Actions“ wieder einschalten.
 
