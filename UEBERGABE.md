@@ -193,9 +193,11 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
   - **Parallel:** je ein Arbeiter pro Overpass-Server (`overpass-api.de`, `overpass.private.coffee`, `maps.mail.ru`, `overpass.kumi.systems`), eine Anfrage gleichzeitig pro Server, dichte Kacheln zuerst. Scheitert eine Kachel auf einem Server, übernimmt der nächste. Ein Server mit 4 Fehlern in Folge wird für diesen Lauf ausgelassen; bei HTTP 429 pausiert er 60 s.
   - **Kaputte Antworten:** Overpass antwortet bei Überlast manchmal mit 200 und einem `remark` („runtime error: Query timed out“) und unvollständigen Daten. Solche Antworten werden verworfen (Job und App).
   - **Fehlgeschlagene Kachel:** Flughäfen, deren 4,5-km-Kreis eine fehlgeschlagene Kachel berührt, behalten ihre alte Datei; der nächste Lauf versucht es wieder.
+  - **Reihenfolge:** Kacheln, die noch nie oder am längsten nicht geholt wurden, zuerst (Zeit aus `_status.json` des letzten Laufs), dann die dichten. So kommt über mehrere Läufe die ganze Welt durch, auch wenn ein Lauf nicht alle Kacheln schafft.
+  - **Schutz vor halben Antworten:** Ein Server hat schon einmal für eine Kachel unvollständige Daten geliefert (Mailand plötzlich 0 statt 44 Stands). Hatte ein Flughafen ≥ 10 Stands und hätte jetzt weniger als die Hälfte, bleibt die alte Datei und der Fall steht in `_status.json` unter `suspicious` (z. B. „LIMC 44->0 overpass.kumi.systems“). Erst wenn ein späterer Lauf mit Daten von einem anderen Server den Rückgang bestätigt, wird die neue Datei geschrieben.
   - **Leere Datei `[]`:** Flughäfen mit Linienverkehr (OurAirports, über `runways.json` aus dem ATC-Job) oder aus der Liste `AIRPORTS` ohne nummerierte Stands in OpenStreetMap. Die App zeigt dann sofort „Keine Stand-Daten“, ohne Overpass zu fragen.
-  - **`_status.json`** im Branch `stands`: pro Kachel Server, Dauer (`s`) und Anzahl Elemente (`n`) oder Fehler (`err`); dazu Summen des Laufs (`with_stands`, `empty`, `kept_old`, `not_covered`).
-  - Zeitbudget 60 min für die Kacheln (`STANDS_MINUTES`). Hat sich nichts geändert, wird nichts gepusht.
+  - **`_status.json`** im Branch `stands`: pro Kachel Server, Dauer (`s`) und Anzahl Elemente (`n`) oder Fehler (`err`); dazu Summen des Laufs (`with_stands`, `empty`, `kept_old`, `not_covered`, `kept_suspicious`).
+  - Zeitbudget 80 min für die Kacheln (`STANDS_MINUTES`), Job-Limit 115 min. Hat sich nichts geändert, wird nichts gepusht.
 - **In der App** (`pollStands()`), in dieser Reihenfolge:
   1. Browser-Speicher: 7 Tage in `localStorage["vdgs.stands5.<ICAO>"]` (leere Liste nur 1 Tag)
   2. GitHub-Datei, jede Minute neu geprüft, solange es noch keine gibt
@@ -229,6 +231,7 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
    | LOWW | Lufthansa-Gruppe und Star → Terminal 3, Pier Nord (F/G) · Non-Schengen → Pier Ost (D) · Rest → Pier West (C) |
    | LSZH | Schengen A/B · Non-Schengen E/D |
    | EHAM | Low-Cost M · Schengen B/C/D · Non-Schengen E/F/G/D |
+   | EFHK | Schengen → Gates 11–31 · Non-Schengen → Gates 32–55, sonst Vorfeld (Bus) |
    | EBBR | Schengen → Pier A · Non-Schengen → Pier B |
    | LFPG | SkyTeam → 2E/2F/2G · Star → T1 · Low-Cost → 2B/2D/3 · Rest → 2A/2C/1 |
    | EGLL | 5xx BA · 2xx Star · 3xx oneworld u. a. · 4xx Rest |
@@ -250,7 +253,7 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
    | KEWR | United → C · Air Canada, American, Delta, JetBlue → A · Rest → B |
    | KBOS | Delta → A · Air Canada, Alaska, American, Southwest, United → B · Aer Lingus, JetBlue, TAP → C · international → E |
    | KORD | Air Canada, JetBlue → T2 · international → T5 · United → T1/T2 · American, Alaska → T3 · Rest → T5 |
-   | KATL | international → Concourse E/F |
+   | KATL | international → Concourse E/F · Delta → A/B/T · Rest → C/D |
    | KSFO | United international und Star → G · United → T3 · Air Canada, Southwest, WestJet, Breeze → T2 · international → A · Rest → T1 |
    | KLAX | Southwest T1 · Delta T2/3 · American T4/5 · Alaska, Air Canada T6 · United T7/8 · international → Tom Bradley |
    | CYYZ | Air Canada, Star, Emirates, Etihad, Royal Air Maroc → T1 · Rest → T3 |

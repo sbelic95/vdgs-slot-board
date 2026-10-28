@@ -234,7 +234,7 @@ def fetch_tiles(tiles, deadline, log, has_airports):
                 return
             t, key = it["tile"], tile_key(it["tile"])
             if t[2] - t[0] > 4 and t[3] - t[1] > 4:
-                log[key] = {"split": int(time.time()), "err": err[:160]}
+                log[key] = {**log.get(key, {}), "split": int(time.time()), "err": err[:160]}
                 print(f"tile {key}  failed on every server, splitting it in four", flush=True)
                 for sub in reversed(split(t)):
                     add(sub, front=True)
@@ -243,7 +243,7 @@ def fetch_tiles(tiles, deadline, log, has_airports):
                 it["tried"] = set()
                 pending.append(it)  # small already: one more round later
             else:
-                log[key] = {"try": int(time.time()), "err": err[:160]}
+                log[key] = {**log.get(key, {}), "try": int(time.time()), "err": err[:160]}
                 print(f"tile {key}  failed in every round: {err[:100]}", flush=True)
 
     def worker(srv):
@@ -291,7 +291,8 @@ def fetch_tiles(tiles, deadline, log, has_airports):
     for s in SERVERS:
         print(f"{host(s)}: {stats[s]['ok']} tiles ok, {stats[s]['fail']} failed, {stats[s]['busy']} rate limits", flush=True)
     for it in pending:
-        log[tile_key(it["tile"])] = {"try": int(time.time()), "err": "not reached in this run"}
+        key = tile_key(it["tile"])
+        log[key] = {**log.get(key, {}), "try": int(time.time()), "err": "not reached in this run"}
     return got
 
 
@@ -357,22 +358,36 @@ def main():
     started = int(time.time())
     deadline = time.time() + float(os.environ.get("STANDS_MINUTES", "60")) * 60  # stop in time so the results get published
     tiles = make_tiles()
-    log = {}
+    status_path = os.path.join(out_dir, "_status.json")
+    try:
+        prev = json.load(open(status_path, encoding="utf-8"))
+    except (OSError, ValueError):
+        prev = {}
+    # remember per tile when it last worked; the tiles waiting longest come first
+    log = {k: {"ok": v["ok"], "n": v.get("n"), "src": v.get("src")} for k, v in prev.get("tiles", {}).items() if v.get("ok")}
+    last_ok = lambda t: log.get(tile_key(t), {}).get("ok", 0)
     icao = [(v[0], v[1]) for k, v in apts.items() if re.fullmatch(r"[A-Z]{4}", k)]
     # a tile needs fetching only if an airport lies in it or close to its edge
     has_airports = lambda t: any(t[0] - 0.1 <= la <= t[2] + 0.1 and t[1] - 0.2 <= lo <= t[3] + 0.2 for la, lo in icao)
-    # dense tiles first: they take longest
+    # never or longest not fetched first, then dense tiles (they take longest)
     weight = Counter()
     for la, lo in icao:
         for t in tiles:
             if t[0] <= la < t[2] and t[1] <= lo < t[3]:
                 weight[t] += 1
-    got = fetch_tiles(sorted(tiles, key=lambda t: -weight[t]), deadline, log, has_airports)
+    got = fetch_tiles(sorted(tiles, key=lambda t: (last_ok(t), -weight[t])), deadline, log, has_airports)
     print(f"{len(got)} tiles done ({sum(1 for v in got.values() if v)} with data)", flush=True)
 
     grid, n_el = index_elements(got)
     keep_empty = scheduled_airports() | set(AIRPORTS)
-    counts = Counter()
+    counts, suspicious = Counter(), []
+    # "EKCH 139->0 kumi.systems": confirmed only by a later run whose data came from another server
+    seen_before = {x.split()[0]: x.split()[-1] for x in prev.get("suspicious", [])}
+    fetched = [t for t in got if log.get(tile_key(t), {}).get("src")]  # not the skipped ocean tiles
+
+    def source(lat, lon):  # server of the smallest fetched tile with the airport in it
+        ts = sorted((t for t in fetched if t[0] <= lat <= t[2] and t[1] <= lon <= t[3]), key=lambda t: (t[2] - t[0]) * (t[3] - t[1]))
+        return log.get(tile_key(ts[0]), {}).get("src") or "?" if ts else "?"
     for icao, v in apts.items():
         if not re.fullmatch(r"[A-Z]{4}", icao):
             continue
@@ -382,12 +397,26 @@ def main():
             continue
         els = around(grid, v[0], v[1])
         stands = build({"elements": els}) if els else []
+        # a server sometimes answers with part of the data: an airport that suddenly loses more than half of its
+        # stands keeps the old file, unless the next run (another server, usually) confirms the drop
+        try:
+            old = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else []
+        except ValueError:
+            old = []
+        src = source(v[0], v[1])
+        if len(old) >= 10 and len(stands) < len(old) / 2 and seen_before.get(icao) in (None, src):
+            suspicious.append(f"{icao} {len(old)}->{len(stands)} {src}")
+            counts["kept_suspicious"] += 1
+            continue
         if stands or icao in keep_empty or os.path.exists(path):
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(stands, f, ensure_ascii=False, separators=(",", ":"))
             counts["with_stands" if stands else "empty"] += 1
-    status = {"run": started, "took_s": int(time.time()) - started, "elements": n_el, **counts, "tiles": dict(sorted(log.items()))}
-    with open(os.path.join(out_dir, "_status.json"), "w", encoding="utf-8") as f:
+    status = {"run": started, "took_s": int(time.time()) - started, "elements": n_el, **counts,
+              "suspicious": suspicious, "tiles": dict(sorted(log.items()))}
+    if suspicious:
+        print("kept old files (sudden drop): " + ", ".join(suspicious[:30]), flush=True)
+    with open(status_path, "w", encoding="utf-8") as f:
         json.dump(status, f, ensure_ascii=False, indent=0, separators=(",", ":"))
     print("done: " + ", ".join(f"{k} {v}" for k, v in counts.items()), flush=True)
 

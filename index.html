@@ -3026,8 +3026,8 @@ td.k { color: var(--sign); font-weight: 700; }
     // ---- Benelux, France, UK, Ireland ----
     EHAM: [
       { alliance: "lowcost", schengen: true, pre: ["M"], term: "Pier M" },
-      { schengen: true, pre: ["B", "C", "D"], term: "Schengen" },
-      { schengen: false, pre: ["E", "F", "G", "D"], term: "Non-Schengen" },
+      { schengen: true, pre: ["B", "C", "D"], term: "Pier B/C/D" },
+      { schengen: false, pre: ["E", "F", "G", "D"], term: "Pier E/F/G/D" },
     ],
     EBBR: [{ schengen: true, tn: /Pier A/, term: "Pier A" }, { schengen: false, tn: /Pier B/, term: "Pier B" }],
     LFPG: [
@@ -3058,6 +3058,10 @@ td.k { color: var(--sign); font-weight: 700; }
       { intl: false, rx: /^([2-9]|1\d|2[0-8])[A-Z]?$/, term: "Pier West · Inland" },
       { schengen: false, rx: /^(4\d|5[0-3])[A-Z]?$/, term: "Pier Ost" },
       { rx: /^(3[6-9]|4[0-4]|[6-9]\d)[A-Z]?$/, term: "Pier Ost/Nord" },
+    ],
+    EFHK: [ // gates 11-31 Schengen, 32-55 non-Schengen (not mapped in OSM yet: then the apron stands, by bus)
+      { schengen: false, rx: /^(3[2-9]|4\d|5[0-5]|1[23]\d|60\d|8\d\d)[A-Z]?$/, term: "Gates 32–55" },
+      { rx: /^(1[1-9]|2\d|3[01])[A-Z]?$/, term: "Gates 11–31" },
     ],
     ESSA: [ // Terminal 5 SAS, Norwegian and most others; Terminal 2 Air France, KLM, Czech, easyJet, Transavia, Vueling; Terminal 4 Ryanair, Wizz
       { airlines: ["AFR", "KLM", "CSA", "EZY", "EJU", "EZS", "TRA", "TVF", "VLG"], tn: /Terminal 2/, term: "Terminal 2" },
@@ -3126,15 +3130,19 @@ td.k { color: var(--sign); font-weight: 700; }
       { airlines: ["AAL", "ASA"], tn: /Concourse [GHKL]/, term: "Terminal 3" },
       { tn: /Terminal 5/, term: "Terminal 5" },
     ],
-    KATL: [{ intl: true, tn: /Concourse [EF]|International/, term: "Concourse E/F" }],
+    KATL: [ // international E/F, Delta mainly A/B/T, other airlines C/D
+      { intl: true, tn: /Concourse [EF]/, term: "Concourse E/F" },
+      { airlines: ["DAL", "EDV"], tn: /Concourse [ABT]$/, term: "Concourse A/B/T" },
+      { tn: /Concourse [CD]$/, term: "Concourse C/D" },
+    ],
     KSFO: [
-      { airlines: ["EIN"], tn: /Terminal 1|Boarding Area C/, term: "Terminal 1" }, // US preclearance in Dublin: arrives as domestic
-      { airlines: ["UAL"], intl: true, tn: /I-G/, term: "International G" },
-      { airlines: ["CCA", "ANZ", "ANA", "DLH", "SWR"], tn: /I-G/, term: "International G" },
+      { airlines: ["EIN"], tn: /Terminal 1|^Boarding Area C/, term: "Terminal 1" }, // US preclearance in Dublin: arrives as domestic
+      { airlines: ["UAL"], intl: true, tn: /I-G|Area G/, term: "International G" },
+      { airlines: ["CCA", "ANZ", "ANA", "DLH", "SWR"], tn: /I-G|Area G/, term: "International G" },
       { airlines: ["UAL"], tn: /Terminal 3/, term: "Terminal 3" },
       { airlines: ["ACA", "SWA", "WJA", "MXY"], tn: /Terminal 2/, term: "Terminal 2" },
-      { intl: true, tn: /I-A/, term: "International A" },
-      { tn: /Terminal 1|Boarding Area C/, term: "Terminal 1" },
+      { intl: true, tn: /I-A|International Boarding Area A/, term: "International A" },
+      { tn: /Terminal 1|^Boarding Area C/, term: "Terminal 1" },
     ],
     KLAX: [
       { airlines: ["SWA"], tn: /^Terminal 1$/, term: "Terminal 1" },
@@ -3150,29 +3158,29 @@ td.k { color: var(--sign); font-weight: 700; }
       { tn: /Terminal 3/, term: "Terminal 3" },
     ],
     // ---- Asia, Oceania ----
-    RJTT: [ // Haneda: T3 international, T1 JAL group / Skymark / StarFlyer, T2 ANA group / Air Do / Solaseed
-      { intl: true, tn: /3|International|国際/, term: "Terminal 3" },
-      { airlines: ["JAL", "JTA", "SKY", "SFJ"], tn: /1|第1/, term: "Terminal 1" },
-      { airlines: ["ANA", "ADO", "SNJ"], tn: /2|第2/, term: "Terminal 2" },
+    RJTT: [ // Haneda: T3 international, T1 JAL group / Skymark / StarFlyer, T2 ANA group / Air Do / Solaseed (OSM names in Japanese)
+      { intl: true, tn: /第3/, term: "Terminal 3" },
+      { airlines: ["JAL", "JTA", "SKY", "SFJ"], tn: /第1/, term: "Terminal 1" },
+      { airlines: ["ANA", "ADO", "SNJ"], tn: /第2/, term: "Terminal 2" },
     ],
     RJAA: [ // Narita: T2 JAL and oneworld, T3 low-cost, T1 Star Alliance (ANA) and SkyTeam
-      { airlines: ["JAL"], tn: /2|第2/, term: "Terminal 2" }, { alliance: "oneworld", tn: /2|第2/, term: "Terminal 2" },
-      { airlines: ["JJP", "APJ", "SJO"], tn: /3|第3/, term: "Terminal 3" },
-      { tn: /1|第1/, term: "Terminal 1" },
+      { airlines: ["JAL"], tn: /第2/, term: "Terminal 2" }, { alliance: "oneworld", tn: /第2/, term: "Terminal 2" },
+      { airlines: ["JJP", "APJ", "SJO"], tn: /Terminal 3|第3/, term: "Terminal 3" },
+      { tn: /第1/, term: "Terminal 1" },
     ],
-    RKSI: [ // Incheon: T2 Korean Air, Asiana (since 2026), SkyTeam, Jin Air, Air Busan, Air Seoul, Virgin Atlantic; T1 the rest
-      { airlines: ["KAL", "AAR", "JNA", "ABL", "ASV", "SAS", "VIR"], tn: /2|제2/, term: "Terminal 2" }, { alliance: "skyteam", tn: /2|제2/, term: "Terminal 2" },
-      { tn: /1|제1|Concourse/, term: "Terminal 1" },
+    RKSI: [ // Incheon: T2 Korean Air, Asiana (since 2026), SkyTeam, Jin Air, Air Busan, Air Seoul, Virgin; T1 and its concourse the rest
+      { airlines: ["KAL", "AAR", "JNA", "ABL", "ASV", "SAS", "VIR"], tn: /제2/, term: "Terminal 2" }, { alliance: "skyteam", tn: /제2/, term: "Terminal 2" },
+      { tn: /제1|탑승동/, term: "Terminal 1" },
     ],
     YSSY: [ // T1 international, T3 Qantas domestic, T2 other domestic
-      { intl: true, tn: /1|International/, term: "Terminal 1" },
-      { airlines: ["QFA", "QLK"], tn: /3/, term: "Terminal 3" },
-      { tn: /2/, term: "Terminal 2" },
+      { intl: true, tn: /Terminal 1/, term: "Terminal 1" },
+      { airlines: ["QFA", "QLK"], tn: /Terminal 3/, term: "Terminal 3" },
+      { tn: /Terminal 2/, term: "Terminal 2" },
     ],
     ZBAA: [ // Beijing Capital: T3 Air China and Star, T1 Hainan, T2 others (SkyTeam)
-      { airlines: ["CCA"], tn: /3/, term: "Terminal 3" }, { alliance: "star", tn: /3/, term: "Terminal 3" },
-      { airlines: ["CHH"], tn: /1/, term: "Terminal 1" },
-      { tn: /2/, term: "Terminal 2" },
+      { airlines: ["CCA"], tn: /Terminal 3/, term: "Terminal 3" }, { alliance: "star", tn: /Terminal 3/, term: "Terminal 3" },
+      { airlines: ["CHH"], tn: /Terminal 1/, term: "Terminal 1" },
+      { tn: /Terminal 2/, term: "Terminal 2" },
     ],
   };
   const REMOTE = /^(V|W|NV|P|S|Q|BAY|TA|TB|TE|6|7)/; // apron / remote stands, used only if nothing else is free

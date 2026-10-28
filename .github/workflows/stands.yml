@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 115
     steps:
       - uses: actions/checkout@v4
       - name: Keep the files of the last run (airports in tiles that fail now keep their old data)
@@ -31,7 +31,7 @@ jobs:
           ls out | wc -l
       - name: Build stand data
         env:
-          STANDS_MINUTES: "60"
+          STANDS_MINUTES: "80"
         run: python3 .github/scripts/stands.py airports.json out
       - name: Publish
         env:
