@@ -1,11 +1,12 @@
-# Daily: stand/gate/terminal data from OpenStreetMap for ~250 busy airports, one file per airport
-# on the "stands" branch. The app reads these first (fast, reliable) and only asks Overpass live
-# for other airports.
+# Hourly: stand/gate/terminal data from OpenStreetMap, one file per airport on the "stands" branch.
+# Covers every airport that flights on VATSIM are heading to right now plus a list of busy airports:
+# new airports first, then files older than 14 days. Several Overpass servers work in parallel.
+# The app reads these files first and only asks Overpass live for airports that have none yet.
 name: Stand data
 
 on:
   schedule:
-    - cron: "17 3 * * *"   # daily 03:17 UTC (missing airports first)
+    - cron: "17 * * * *"   # hourly
   workflow_dispatch:
 
 permissions:
@@ -18,15 +19,20 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
       - name: Keep the files of the last run (airports that fail now keep their old data)
         run: |
           mkdir out
-          if git fetch -q origin stands; then git --work-tree=out checkout FETCH_HEAD -- . && git reset -q; fi
+          if git fetch -q origin stands; then
+            git --work-tree=out checkout FETCH_HEAD -- . && git reset -q
+            git rev-parse 'FETCH_HEAD^{tree}' > prev_tree
+          fi
           ls out | wc -l
       - name: Build stand data
+        env:
+          STANDS_MINUTES: "40"
         run: python3 .github/scripts/stands.py airports.json out
       - name: Publish
         env:
@@ -38,6 +44,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
+          if [ "$(git write-tree)" = "$(cat ../prev_tree 2>/dev/null)" ]; then echo "nothing new"; exit 0; fi
           git commit -qm "Stand data from OpenStreetMap (ODbL)"
           # one orphan commit, force-pushed: the branch never grows
           git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" stands

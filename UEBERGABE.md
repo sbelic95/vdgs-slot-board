@@ -1,7 +1,7 @@
 # Übergabe: VDGS Slot Board
 
 Projektübergabe für die Weiterentwicklung (z. B. mit ChatGPT oder einem anderen Entwickler).
-Stand: 25.10.2026.
+Stand: 28.10.2026.
 
 ## 1. Was die App ist
 
@@ -46,7 +46,7 @@ Live-Adresse: https://sbelic95.github.io/vdgs-slot-board/ · Code: https://githu
 | `LIZENZEN.md` | Datenschutz-Hinweis und Lizenzen aller enthaltenen Teile |
 | `bridge/vdgs_bridge.py`, `bridge/ANLEITUNG-BRIDGE.md`, `bridge/requirements.txt` | Simulator-Bridge für MSFS (Python) und ihre Anleitung |
 | `bridge/installer/VDGS-Setup.iss`, `info-de.txt`, `info-en.txt`, `icon.ico` | Inno-Setup-Skript für `VDGS-Setup.exe` (flightsim.to) |
-| `.github/workflows/ukcp-stands.yml`, `.github/workflows/stands.yml`, `.github/scripts/stands.py` | GitHub-Jobs: VATSIM-UK-Stands (5 min, Zweig `data`), Stand-Daten (täglich, Zweig `stands`) |
+| `.github/workflows/ukcp-stands.yml`, `.github/workflows/stands.yml`, `.github/scripts/stands.py` | GitHub-Jobs: VATSIM-UK-Stands (5 min, Zweig `data`), Stand-Daten (stündlich, Zweig `stands`) |
 | `.github/workflows/atc-data.yml` | GitHub-Job täglich: Anflugbereiche (`tracons.json`, SimAware TRACON Project) und Pisten (`runways.json`, OurAirports), Zweig `atc` |
 | `ANLEITUNG.md` | Bedienungsanleitung für den Piloten (Online stellen, iPad, Status) |
 | `UEBERGABE.md` | Diese Datei |
@@ -178,7 +178,7 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 
 **Oben in der Leiste:** UTC und deutsche Uhrzeit (Europe/Berlin), immer sichtbar.
 
-## 5-G. Gate / Stand am Ziel (`loadStands()`, `buildStands()`, `predictStand()`, `gateInfo()`, `announceGate()`)
+## 5-G. Gate / Stand am Ziel (`pollStands()`, `standsGithub()`, `standsOverpass()`, `buildStands()`, `predictStand()`, `gateInfo()`, `announceGate()`)
 
 **Quellen, in dieser Reihenfolge:**
 1. **Echte Zuteilung von VATSIM UK** für britische Flughäfen. Die Daten stehen im Branch `data` als Datei `ukcp.json`.
@@ -188,9 +188,18 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 2. **Prognose** für alle anderen Flughäfen.
 
 **Stand-Daten** (Stands, Gates, Terminals, Fracht- und GA-Vorfelder aus OpenStreetMap):
-- Für ~250 große Flughäfen baut ein täglicher GitHub-Job sie vor (fehlende Flughäfen zuerst) (`.github/workflows/stands.yml` und `.github/scripts/stands.py`). Ergebnis: eine Datei `<ICAO>.json` pro Flughafen im Branch `stands`.
-- Für andere Flughäfen fragt die App live bei Overpass an: zuerst `overpass-api.de`, sonst `maps.mail.ru`. Zwischen Fehlversuchen wartet sie doppelt so lange, höchstens 5 min.
-- Zwischenspeicher: 7 Tage in `localStorage["vdgs.stands4.<ICAO>"]`.
+- Ein stündlicher GitHub-Job baut sie vor (`.github/workflows/stands.yml` und `.github/scripts/stands.py`). Ergebnis: eine Datei `<ICAO>.json` pro Flughafen im Branch `stands`.
+  - **Welche Flughäfen:** jedes Ziel, das gerade auf VATSIM angeflogen wird (Flugplan „arrival“, auch Prefiles; die meisten Anflüge zuerst), dazu eine feste Liste von ~240 großen Flughäfen (`AIRPORTS`).
+  - **Reihenfolge:** erst Flughäfen ohne Datei, dann Dateien älter als 14 Tage (nur Liste und aktuelle VATSIM-Ziele).
+  - **Parallel:** je ein Arbeiter pro Overpass-Server (`overpass-api.de`, `overpass.private.coffee`, `maps.mail.ru`, `overpass.kumi.systems`), eine Anfrage gleichzeitig pro Server. Schlägt ein Flughafen auf einem Server fehl, übernimmt der nächste. Ein Server mit 6 Fehlern in Folge wird für diesen Lauf ausgelassen; bei HTTP 429 pausiert er 60 s.
+  - **Kaputte Antworten:** Overpass antwortet bei Überlast manchmal mit 200 und einem `remark` („runtime error: Query timed out“) und unvollständigen Daten. Solche Antworten werden verworfen (Job und App).
+  - **`_status.json`** im Branch `stands`: pro Flughafen `ok` (Zeit), `n` (Anzahl Stands), `src` (Server) oder `try`, `fails`, `err` (letzter Fehler). Ein Flughafen, der auf allen Servern scheitert, wartet 30 min, 1 h, 2 h … höchstens 24 h. So blockieren Fehlschläge nicht mehr die Warteschlange.
+  - **Leere Datei `[]`:** OpenStreetMap hat dort keine nummerierten Stands. Die App zeigt dann sofort „Keine Stand-Daten“, ohne Overpass zu fragen.
+  - Zeitbudget 40 min pro Lauf (`STANDS_MINUTES`). Hat sich nichts geändert, wird nichts gepusht.
+- **In der App** (`pollStands()`), in dieser Reihenfolge:
+  1. Browser-Speicher: 7 Tage in `localStorage["vdgs.stands4.<ICAO>"]` (leere Liste nur 1 Tag)
+  2. GitHub-Datei, jede Minute neu geprüft, solange es noch keine gibt
+  3. Overpass live über dieselben vier Server nacheinander (je 35 s). Wenn alle scheitern, wartet die App 1, 2, 4, 8, dann je 10 min bis zum nächsten Overpass-Versuch und zeigt „Stand-Daten-Server ausgelastet · neuer Versuch HH:MMZ“.
 - **Felder pro Stand:**
   - `ref`, `lat`, `lon`
   - `gate`: Gate mit gleicher Nummer
@@ -238,7 +247,7 @@ Sobald der eigene Flug in der Luft ist (VATSIM-Groundspeed über 60 kt oder ATOT
 **Navigraph:** Für Webseiten verlangt Navigraph eine Partnerschaft (Entwickler-Zugang beantragen), einen eigenen Server und ein Abo der Nutzer. Nicht eingebunden.
 
 **GitHub-Jobs:**
-- **Zeitplan:** `*/5 * * * *` (UK) und täglich 03:17 UTC (Stand-Daten). Beide lassen sich unter „Actions“ von Hand starten („Run workflow“).
+- **Zeitplan:** `*/5 * * * *` (UK) und stündlich zur Minute 17 (Stand-Daten). Beide lassen sich unter „Actions“ von Hand starten („Run workflow“).
 - **Speicher:** Jeder Lauf schreibt genau einen Commit in seinen Branch (Force-Push), der Branch wächst also nicht.
 - **Hinweis:** GitHub kann zeitgesteuerte Jobs abschalten, wenn im Repository 60 Tage lang nichts passiert. Dann unter „Actions“ wieder einschalten.
 
@@ -481,7 +490,7 @@ Angezeigt im Pilot-Modus im Flug neben dem Gate (`#enRwy`) und im Passagier-Ziel
 | `pollCpdlc()`, `renderCpdlc()` | CPDLC über Hoppie (peek) |
 | `renderEnroute()`, `renderPilotArr()` | Pilot-Modus im Flug: Ankunftszeit, nächste Frequenz, Ziel-ATIS, CPDLC, Ankünfte |
 | `fmtDE()` | Uhrzeit in deutscher Zeit (Europe/Berlin) |
-| `loadStands()`, `pollStands()`, `predictStand()`, `gateInfo()`, `gateHtml()`, `announceGate()` | Gate / Stand am Ziel |
+| `pollStands()`, `standsCached()`, `standsGithub()`, `standsOverpass()`, `predictStand()`, `gateInfo()`, `gateHtml()`, `announceGate()` | Gate / Stand am Ziel |
 | `tr()`, `trTree()`, `setLang()`, `compass()` | Sprachen |
 | `pollSim()`, `simPilot()`, `simReady()`, `tuneBtn()` | Simulator-Bridge, COM1/Squawk vom Tablet |
 | `pollTracon()`, `onAir()`, `altLine()` | Anflugbereiche, Lotsen mit Frequenz, weitere Stationen |

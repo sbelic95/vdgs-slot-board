@@ -1,25 +1,39 @@
-"""Builds stand data (OpenStreetMap) for the busiest airports, one JSON file per airport.
+"""Builds stand data (OpenStreetMap) for the app, one JSON file per airport on the "stands" branch.
 
-Output format matches what index.html expects from loadStands():
-  [{"ref", "lat", "lon", "gate", "t", "cargo", "ga"}, ...]
+Which airports, in this order:
+  1. airports without a file yet: destinations of flights on VATSIM right now (most inbound flights first),
+     then the fixed list of busy airports (AIRPORTS)
+  2. files older than REFRESH_DAYS, oldest first (only airports on the list or flown to right now)
+Several Overpass servers work in parallel, one request at a time each. An airport that fails on one server
+goes to the next one; if it fails on all of them it waits longer each time (30 min, 1 h, 2 h ... 24 h).
+_status.json keeps the last result per airport, so failures move to the back instead of blocking the run.
+
+Output per airport, same as buildStands() in index.html: [{"ref", "lat", "lon", "gate", "c", "t", "cargo", "ga"}, ...]
+An empty list means OpenStreetMap has no numbered stands there; the app then shows "no stand data" right away.
 Usage: python stands.py <airports.json> <out_dir>
-Airports that fail keep their previous file (the workflow copies the old files in first).
+Env: STANDS_MINUTES (time budget, default 40), OVERPASS_SERVERS (comma list), VATSIM_FEED (URL, empty = skip)
 """
 import json
 import math
 import os
 import re
 import sys
+import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
+from collections import Counter
 
-SERVERS = [
+SERVERS = [s for s in os.environ.get("OVERPASS_SERVERS", ",".join([
     "https://overpass-api.de/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
-]
+])).split(",") if s]
+VATSIM_FEED = os.environ.get("VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
+REFRESH_DAYS = 14
+UA = {"User-Agent": "vdgs-slot-board stand builder (GitHub Actions; github.com/%s)" % os.environ.get("GITHUB_REPOSITORY", "sbelic95/vdgs-slot-board")}
 
 # GitHub runners have no IPv6 route; resolve IPv4 only ("Network is unreachable" otherwise)
 import socket  # noqa: E402
@@ -49,24 +63,6 @@ KJFK KEWR KLGA KBOS KPHL KIAD KDCA KBWI KATL KMIA KFLL KMCO KTPA KCLT KORD KMDW 
 CYYZ CYUL CYVR CYYC CYOW
 MMMX MMUN SBGR SBGL SCEL SPJC SKBO SAEZ MPTO TNCM TJSJ
 """.split()
-
-
-def overpass(lat, lon):
-    a = f"(around:4500,{lat},{lon})"
-    q = (f'[out:json][timeout:60];(node{a}["aeroway"~"^(parking_position|gate)$"];way{a}["aeroway"="parking_position"];);out tags center;'
-         f'(way{a}["aeroway"="terminal"];relation{a}["aeroway"="terminal"];);out tags center;'
-         f'way{a}["aeroway"="apron"]["name"~"cargo|fracht|fret|frêt|carga|general aviation|^GA|GAT|business|executive",i];out tags geom;')
-    body = urllib.parse.urlencode({"data": q}).encode()
-    for attempt in range(4):
-        url = SERVERS[attempt % len(SERVERS)]
-        try:
-            req = urllib.request.Request(url, data=body, headers={"User-Agent": "vdgs-slot-board stand builder (GitHub Actions)"})
-            with urllib.request.urlopen(req, timeout=90) as r:
-                return json.load(r)
-        except Exception as e:  # busy or timeout: short pause, then the other server; the next weekly run retries
-            print(f"  {url.split('/')[2]}: {e}", flush=True)
-            time.sleep(10 * (attempt + 1))
-    return None
 
 
 def dist_km(a, b):
@@ -137,33 +133,184 @@ def build(d):
     return out
 
 
+class Busy(Exception):
+    """The server asks us to slow down (HTTP 429): not the airport's fault, try it again later."""
+
+
+def overpass(url, lat, lon):
+    a = f"(around:4500,{lat},{lon})"
+    q = (f'[out:json][timeout:90];(node{a}["aeroway"~"^(parking_position|gate)$"];way{a}["aeroway"="parking_position"];);out tags center;'
+         f'(way{a}["aeroway"="terminal"];relation{a}["aeroway"="terminal"];);out tags center;'
+         f'way{a}["aeroway"="apron"]["name"~"cargo|fracht|fret|frêt|carga|general aviation|^GA|GAT|business|executive",i];out tags geom;')
+    req = urllib.request.Request(url, data=urllib.parse.urlencode({"data": q}).encode(), headers=UA)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            d = json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            raise Busy("HTTP 429") from None
+        raise
+    # a busy server can answer 200 with a "runtime error" remark and only part of the data: never keep that
+    remark = d.get("remark") or ""
+    if not isinstance(d.get("elements"), list) or re.search(r"error|timed out|out of memory", remark, re.I):
+        raise RuntimeError(remark.strip()[:140] or "no elements in the answer")
+    return d
+
+
+def vatsim_destinations():
+    """Arrival airports of all flights on VATSIM right now (airborne and pre-filed), with the number of flights."""
+    if not VATSIM_FEED:
+        return Counter()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(VATSIM_FEED, headers=UA), timeout=60) as r:
+            feed = json.load(r)
+    except Exception as e:  # no feed: the fixed list still gets done
+        print(f"VATSIM feed not available: {e}", flush=True)
+        return Counter()
+    arr = Counter()
+    for p in feed.get("pilots", []) + feed.get("prefiles", []):
+        a = ((p.get("flight_plan") or {}).get("arrival") or "").strip().upper()
+        if re.fullmatch(r"[A-Z0-9]{4}", a):
+            arr[a] += 1
+    return arr
+
+
+def plan(apts, out_dir, status, now):
+    """Airports to do in this run, best first."""
+    have = lambda i: os.path.exists(os.path.join(out_dir, i + ".json"))
+    # files from before _status.json existed: age unknown, count them as a few days old
+    for f in os.listdir(out_dir):
+        if re.fullmatch(r"[A-Z0-9]{4}\.json", f):
+            status.setdefault(f[:4], {}).setdefault("ok", now - 3 * 86400)
+    inbound = vatsim_destinations()
+    wanted = [i for i in dict.fromkeys([i for i, _ in inbound.most_common()] + AIRPORTS) if i in apts]
+
+    def due(st):  # after failing on every server: wait 30 min, 1 h, 2 h ... at most 24 h
+        f = st.get("fails", 0)
+        return not f or now - st.get("try", 0) >= min(1800 * 2 ** (f - 1), 86400)
+    new = [i for i in wanted if not have(i) and due(status.get(i, {}))]
+    old = sorted((i for i in wanted if have(i) and now - status[i]["ok"] > REFRESH_DAYS * 86400 and due(status[i])),
+                 key=lambda i: status[i]["ok"])
+    print(f"VATSIM: {sum(inbound.values())} flights to {len(inbound)} airports. "
+          f"Due now: {len(new)} without data, {len(old)} to refresh. Servers: {len(SERVERS)}", flush=True)
+    return new + old
+
+
+def run(todo, apts, out_dir, status, deadline):
+    """One worker per server, one request at a time each; an airport that fails moves on to the next server."""
+    lock = threading.Lock()
+    pending = [{"icao": i, "tried": set()} for i in todo]
+    live, inflight = set(SERVERS), [0]
+    stats = {s: Counter() for s in SERVERS}
+    host = lambda s: s.split("/")[2]
+
+    def take(srv):
+        with lock:
+            for k, it in enumerate(pending):
+                if srv not in it["tried"]:
+                    inflight[0] += 1
+                    return pending.pop(k)
+        return None
+
+    def failed(it, srv, err, busy=False):
+        with lock:
+            inflight[0] -= 1
+            if not busy:
+                it["tried"].add(srv)
+            if live - it["tried"]:
+                pending.insert(0, it)  # keeps its place in the queue for the next server
+            else:
+                give_up(it, err)
+
+    def give_up(it, err):  # caller holds the lock
+        st = status.setdefault(it["icao"], {})
+        st["try"], st["fails"], st["err"] = int(time.time()), st.get("fails", 0) + 1, err[:160]
+        print(f"{it['icao']}  failed on every server, next try later: {err[:100]}", flush=True)
+
+    def nap(sec):  # pauses never run past the time budget
+        time.sleep(max(0, min(sec, deadline - time.time())))
+
+    def worker(srv):
+        streak = 0
+        while time.time() < deadline:
+            it = take(srv)
+            if it is None:
+                with lock:
+                    idle = inflight[0] == 0
+                if idle:
+                    break  # whatever is left was already tried here
+                time.sleep(3)  # another server may hand an airport back
+                continue
+            icao = it["icao"]
+            t0 = time.time()
+            try:
+                d = overpass(srv, apts[icao][0], apts[icao][1])
+            except Busy as e:
+                stats[srv]["busy"] += 1
+                streak += 1
+                print(f"{icao}  {host(srv)} rate limit, pausing this server", flush=True)
+                failed(it, srv, f"{host(srv)}: {e}", busy=True)
+                if streak >= 6:
+                    break
+                nap(60)
+                continue
+            except Exception as e:
+                stats[srv]["fail"] += 1
+                streak += 1
+                print(f"{icao}  {host(srv)}: {str(e)[:100]} ({time.time() - t0:.0f} s)", flush=True)
+                failed(it, srv, f"{host(srv)}: {e}")
+                if streak >= 6:
+                    print(f"{host(srv)} failed {streak} times in a row, leaving it out for this run", flush=True)
+                    break
+                nap(min(10 * streak, 60))
+                continue
+            stands = build(d)
+            with open(os.path.join(out_dir, icao + ".json"), "w", encoding="utf-8") as f:
+                json.dump(stands, f, ensure_ascii=False, separators=(",", ":"))
+            with lock:
+                inflight[0] -= 1
+                status[icao] = {"ok": int(time.time()), "n": len(stands), "src": host(srv)}
+            stats[srv]["ok"] += 1
+            streak = 0
+            print(f"{icao}  {len(stands)} stands  {host(srv)}  {time.time() - t0:.0f} s", flush=True)
+            nap(2)  # be gentle with the public Overpass servers
+        with lock:
+            live.discard(srv)
+            # airports that now have no server left to try count as failed
+            for it in [x for x in pending if x["tried"] and not (live - x["tried"])]:
+                pending.remove(it)
+                give_up(it, "no server left: " + ", ".join(sorted(host(s) for s in it["tried"])))
+
+    threads = [threading.Thread(target=worker, args=(s,), daemon=True) for s in SERVERS]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    for s in SERVERS:
+        print(f"{host(s)}: {stats[s]['ok']} ok, {stats[s]['fail']} failed, {stats[s]['busy']} rate limits", flush=True)
+    if pending:
+        why = "time budget used up" if time.time() >= deadline else "no working server left"
+        print(f"{why}: {len(pending)} airports wait for the next run", flush=True)
+
+
 def main():
     apts = json.load(open(sys.argv[1], encoding="utf-8"))
     out_dir = sys.argv[2]
     os.makedirs(out_dir, exist_ok=True)
-    ok = fail = 0
-    deadline = time.time() + float(os.environ.get("STANDS_MINUTES", "150")) * 60  # stop in time so the results get published
-    # missing airports first, then the oldest files: busy Overpass days still make progress over several runs
-    age = lambda i: os.path.getmtime(os.path.join(out_dir, i + ".json")) if os.path.exists(os.path.join(out_dir, i + ".json")) else 0
-    for icao in sorted(dict.fromkeys(AIRPORTS), key=age):
-        if icao not in apts:
-            continue
-        if time.time() > deadline:
-            print("time budget used up; the remaining airports keep their old files")
-            break
-        lat, lon = apts[icao][0], apts[icao][1]
-        print(icao, flush=True)
-        d = overpass(lat, lon)
-        if d is None:
-            fail += 1
-            continue
-        stands = build(d)
-        if stands:
-            with open(os.path.join(out_dir, icao + ".json"), "w", encoding="utf-8") as f:
-                json.dump(stands, f, ensure_ascii=False, separators=(",", ":"))
-            ok += 1
-        time.sleep(3)  # be gentle with the public Overpass servers
-    print(f"done: {ok} airports written, {fail} failed")
+    status_path = os.path.join(out_dir, "_status.json")
+    try:
+        status = json.load(open(status_path, encoding="utf-8"))
+    except (OSError, ValueError):
+        status = {}
+    now = int(time.time())
+    deadline = time.time() + float(os.environ.get("STANDS_MINUTES", "40")) * 60  # stop in time so the results get published
+    try:
+        run(plan(apts, out_dir, status, now), apts, out_dir, status, deadline)
+    finally:
+        with open(status_path, "w", encoding="utf-8") as f:
+            json.dump(dict(sorted(status.items())), f, ensure_ascii=False, separators=(",", ":"))
+    ok = sum(1 for f in os.listdir(out_dir) if re.fullmatch(r"[A-Z0-9]{4}\.json", f))
+    print(f"done: {ok} airports with stand data", flush=True)
 
 
 if __name__ == "__main__":

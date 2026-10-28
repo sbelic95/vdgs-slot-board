@@ -1003,7 +1003,7 @@ td.k { color: var(--sign); font-weight: 700; }
     "Datenschutz: Alles, was du hier einträgst, bleibt nur auf diesem Gerät (im Browser gespeichert). Es gibt kein Konto und keinen eigenen Server. Die App fragt nur die öffentlichen Dienste direkt ab: VATSIM, vIFF, SimBrief, Hoppie und ntfy (wenn eingetragen), Wetter, Karte, Airline-Logos.": ["Privacy: everything you enter here stays on this device only (stored in the browser). There is no account and no server of our own. The app only queries the public services directly: VATSIM, vIFF, SimBrief, Hoppie and ntfy (if set), weather, map, airline logos.", "Privatnost: sve što ovde unesete ostaje samo na ovom uređaju (sačuvano u pregledaču). Nema naloga ni sopstvenog servera. Aplikacija direktno pita samo javne servise: VATSIM, vIFF, SimBrief, Hoppie i ntfy (ako su uneti), vreme, mapu, logotipe avio-kompanija."],
     // gate / stand
     "Gate / Stand": ["Gate / stand", "Izlaz / stajanka"], "Prognose": ["Forecast", "Prognoza"], "Gate-Info ca. 30 min vor Ankunft": ["Gate info approx. 30 min before arrival", "Info o izlazu oko 30 min pre dolaska"],
-    "Lade Stand-Daten…": ["Loading stand data…", "Učitavanje podataka o stajankama…"], "Ihr Stand": ["Your stand", "Vaša stajanka"], "Geparkt": ["Parked", "Parkiran"],
+    "Lade Stand-Daten…": ["Loading stand data…", "Učitavanje podataka o stajankama…"], "Stand-Daten-Server ausgelastet": ["Stand data servers busy", "Serveri sa podacima o stajankama su zauzeti"], "Ihr Stand": ["Your stand", "Vaša stajanka"], "Geparkt": ["Parked", "Parkiran"],
     "Außenposition, Bus": ["Remote stand, bus", "Udaljena pozicija, autobus"], "zugeteilt": ["assigned", "dodeljeno"], "Schengen": ["Schengen", "Šengen"], "Non-Schengen": ["Non-Schengen", "Van Šengena"],
     "von VATSIM UK zugeteilt": ["assigned by VATSIM UK", "dodelio VATSIM UK"],
     "COM1 AKTIV": ["COM1 ACTIVE", "COM1 AKTIVNO"], "Landebahn": ["Landing runway", "Pista za sletanje"], "Bordprogramm": ["Entertainment", "Zabavni program"], "Filme": ["Movies", "Filmovi"],
@@ -1052,7 +1052,7 @@ td.k { color: var(--sign); font-weight: 700; }
     "Das Ziel ist noch nicht bekannt.": ["Пункт назначения пока неизвестен.", "目的地暂未知。"], "Ihr Ziel": ["Ваш пункт назначения", "您的目的地"], "Entfernung": ["Расстояние", "距离"],
     "Sicht": ["Видимость", "能见度"], "Luftdruck": ["Давление", "气压"], "Taupunkt": ["Точка росы", "露点"], "Wolkenuntergrenze": ["Нижняя граница облаков", "云底高"], "Luftfeuchte": ["Влажность", "湿度"],
     "Ankunft": ["Прибытие", "到达"], "Gate / Stand": ["Выход / стоянка", "登机口 / 机位"], "Landebahn": ["Полоса посадки", "着陆跑道"], "Prognose": ["Прогноз", "预测"],
-    "Gate-Info ca. 30 min vor Ankunft": ["Выход — примерно за 30 мин до прибытия", "登机口信息约在到达前 30 分钟公布"], "Ihr Stand": ["Ваша стоянка", "您的机位"], "Geparkt": ["На стоянке", "已停靠"],
+    "Gate-Info ca. 30 min vor Ankunft": ["Выход — примерно за 30 мин до прибытия", "登机口信息约在到达前 30 分钟公布"], "Ihr Stand": ["Ваша стоянка", "您的机位"], "Lade Stand-Daten…": ["Загрузка данных о стоянках…", "正在加载机位数据…"], "Stand-Daten-Server ausgelastet": ["Серверы данных о стоянках перегружены", "机位数据服务器繁忙"], "Geparkt": ["На стоянке", "已停靠"],
     "Außenposition, Bus": ["Удалённая стоянка, автобус", "远机位，摆渡车"], "zugeteilt": ["назначено", "已分配"], "Schengen": ["Шенген", "申根"], "Non-Schengen": ["Не Шенген", "非申根"],
     "Gewitter": ["Гроза", "雷暴"], "Schnee": ["Снег", "雪"], "Regenschauer": ["Ливень", "阵雨"], "Starker Regen": ["Сильный дождь", "大雨"], "Regen": ["Дождь", "雨"], "Nieselregen": ["Морось", "毛毛雨"],
     "Nebel": ["Туман", "雾"], "Dunst": ["Дымка", "轻雾"], "Diesig": ["Мгла", "霾"], "Bedeckt": ["Пасмурно", "阴"], "Stark bewölkt": ["Облачно", "多云"], "Wolkig": ["Переменная облачность", "局部多云"],
@@ -1078,6 +1078,7 @@ td.k { color: var(--sign); font-weight: 700; }
     [/^steigt ([\d.,]+ m\/s)$/, "набор $1", "爬升 $1"], [/^sinkt ([\d.,]+ m\/s)$/, "снижение $1", "下降 $1"], [/^wechselnd (.+)$/, "переменный $1", "风向不定 $1"],
     [/^(.+), Böen (\d+)$/, "$1, порывы $2", "$1，阵风 $2"], [/^Sicht ([\d.,]+ km)$/, "Видимость $1", "能见度 $1"], [/^(-?\d+) °C, (.+)$/, "$1 °C, $2", "$1 °C，$2"],
     [/^(\d+) Abflüge$/, "$1 вылетов", "$1 个出发航班"], [/^(\d+) Ankünfte$/, "$1 прилётов", "$1 个到达航班"], [/^(\d+) Flüge$/, "$1 рейсов", "$1 个航班"],
+    [/^neuer Versuch ([\d:]+Z)$/, "повтор в $1", "$1 重试"], [/^Keine Stand-Daten für (\S+)$/, "Нет данных о стоянках для $1", "$1 无机位数据"],
     [/^Gate (\S+)$/, "Выход $1", "登机口 $1"], [/^Stand (\S+)$/, "Стоянка $1", "机位 $1"], [/^Gate \/ Stand (\S+)$/, "Выход / стоянка $1", "$1 登机口 / 机位"], [/^Flug (\S+)$/, "Рейс $1", "航班 $1"], [/^(·\s)?(\S+) \(Ziel\)$/, "$1$2 (назначение)", "$1$2（目的地）"],
     [/^Landebahn (\S+)$/, "Полоса посадки $1", "$1 着陆跑道"], [/^laut ATIS Information (\S+)$/, "по ATIS, информация $1", "依据 ATIS 通播 $1"], [/^vor (\d+) s$/, "$1 с назад", "$1 秒前"],
     [/^Zurzeit keine Abflüge ab (\S+) im VATSIM-Netz\.$/, "Сейчас нет вылетов из $1 в сети VATSIM.", "VATSIM 网络中目前没有从 $1 出发的航班。"],
@@ -1117,7 +1118,7 @@ td.k { color: var(--sign); font-weight: 700; }
     [/^Per CPDLC$/, "By CPDLC", "Preko CPDLC"],
     [/^Gate \/ Stand (\S+)$/, "Gate / stand $1", "Izlaz / stajanka $1"], [/^Squawk (\d{4}) setzen$/, "Set squawk $1", "Postavi squawk $1"], [/^auch: (.+)$/, "also: $1", "takođe: $1"], [/^Flug (\S+)$/, "Flight $1", "Let $1"], [/^(·\s)?(\S+) \(Ziel\)$/, "$1$2 (destination)", "$1$2 (odredište)"], [/^Landebahn (\S+)$/, "Landing runway $1", "Pista za sletanje $1"],
     [/^laut ATIS Information (\S+)$/, "per ATIS information $1", "prema ATIS informaciji $1"],
-    [/^aus dem Wind (.+) \(kein ATIS online\)$/, "from the wind $1 (no ATIS online)", "iz vetra $1 (nema ATIS-a)"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"],
+    [/^aus dem Wind (.+) \(kein ATIS online\)$/, "from the wind $1 (no ATIS online)", "iz vetra $1 (nema ATIS-a)"], [/^Keine Stand-Daten für (\S+)$/, "No stand data for $1", "Nema podataka o stajankama za $1"], [/^neuer Versuch ([\d:]+Z)$/, "retry at $1", "novi pokušaj u $1"],
     [/^Zeiten in Ortszeit (.+)\. Grau: Abflug vor Ihrer voraussichtlichen Ankunft\. Quelle: VATSIM-Flugpläne und vIFF-CDM, Aktualisierung jede Minute\.$/,
       "Times in local time $1. Grey: departs before your estimated arrival. Source: VATSIM flight plans and vIFF CDM, updated every minute.",
       "Vremena u lokalnom vremenu $1. Sivo: polazi pre vašeg očekivanog dolaska. Izvor: VATSIM planovi leta i vIFF CDM, osvežava se svakog minuta."], [/^Gate (\S+)$/, "Gate $1", "Izlaz $1"], [/^Stand (\S+)$/, "Stand $1", "Stajanka $1"],
@@ -3030,33 +3031,42 @@ td.k { color: var(--sign); font-weight: 700; }
   };
   const REMOTE = /^(V|W|NV|P|S|Q|BAY|TA|TB|TE|6|7)/; // apron / remote stands, used only if nothing else is free
 
-  // OpenStreetMap: stands, gates, terminal buildings and named cargo / general-aviation aprons around the airport
-  function loadStands(icao, pos) {
-    const key = "vdgs.stands4." + icao;
-    try { const c = JSON.parse(localStorage.getItem(key) || "null"); if (c && Date.now() - c.t < 7 * 864e5) return Promise.resolve(c.list); } catch {}
-    if (!pos) return Promise.resolve(null);
+  // OpenStreetMap: stands, gates, terminal buildings and named cargo / general-aviation aprons around the airport.
+  // Sources in this order: 1. browser cache, 2. the "stands" branch on GitHub (prepared every hour for busy airports
+  // and every airport flown to on VATSIM), 3. Overpass live for airports the job has not reached yet.
+  // An empty list is a valid answer: OpenStreetMap has no numbered stands there.
+  const standsKey = (icao) => "vdgs.stands4." + icao;
+  function standsCached(icao) {
+    try {
+      const c = JSON.parse(localStorage.getItem(standsKey(icao)) || "null");
+      if (c && Array.isArray(c.list) && Date.now() - c.t < (c.list.length ? 7 : 1) * 864e5) return c.list;
+    } catch {}
+    return null;
+  }
+  function standsSave(icao, list) { try { localStorage.setItem(standsKey(icao), JSON.stringify({ t: Date.now(), list })); } catch {} return list; }
+  async function standsGithub(icao) {
+    try { const list = await getJSON(`https://raw.githubusercontent.com/${GH}/stands/${icao}.json`, 15000); return Array.isArray(list) ? standsSave(icao, list) : null; }
+    catch (e) { return null; } // not prepared yet (404) or offline
+  }
+  // the public Overpass servers are often busy: try them one after the other
+  const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+  async function standsOverpass(icao, pos) {
     const A = `(around:4500,${pos[0]},${pos[1]})`;
     const q = `[out:json][timeout:25];(node${A}["aeroway"~"^(parking_position|gate)$"];way${A}["aeroway"="parking_position"];);out tags center;`
       + `(way${A}["aeroway"="terminal"];relation${A}["aeroway"="terminal"];);out tags center;`
       + `way${A}["aeroway"="apron"]["name"~"cargo|fracht|fret|frêt|carga|general aviation|^GA|GAT|business|executive",i];out tags geom;`;
-    // the public Overpass servers are often busy: try the main one, then a mirror
-    const servers = ["https://overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
-    const ask = async () => {
-      for (const url of servers) {
-        const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), 40000);
-        try {
-          const r = await fetch(url, { method: "POST", body: new URLSearchParams({ data: q }), signal: ac.signal });
-          if (r.ok) return await r.json();
-        } catch (e) {} finally { clearTimeout(tm); }
-      }
-      throw new Error("overpass busy");
-    };
-    const save = (list) => { try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), list })); } catch {} return list; };
-    // 1. prepared weekly by a GitHub job for ~250 busy airports (fast, does not depend on Overpass)
-    return getJSON(`https://raw.githubusercontent.com/${GH}/stands/${icao}.json`, 15000)
-      .then((list) => { if (Array.isArray(list) && list.length) return save(list); throw new Error("none"); })
-      // 2. any other airport: ask Overpass live
-      .catch(() => ask().then((d) => save(buildStands(d.elements))));
+    for (const url of OVERPASS) {
+      const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), 35000);
+      try {
+        const r = await fetch(url, { method: "POST", body: new URLSearchParams({ data: q }), signal: ac.signal });
+        if (!r.ok) continue;
+        const d = await r.json();
+        // a busy server can answer 200 with a "runtime error" remark and only part of the data: never keep that
+        if (Array.isArray(d?.elements) && !/error|timed out|out of memory/i.test(d.remark || "")) return standsSave(icao, buildStands(d.elements));
+      } catch (e) {} finally { clearTimeout(tm); }
+    }
+    throw new Error("overpass busy");
   }
 
   // OSM elements -> stands; same as build() in .github/scripts/stands.py, keep both in step
@@ -3099,16 +3109,24 @@ td.k { color: var(--sign); font-weight: 700; }
     } catch (e) {}
     render();
   }
+  // GitHub is checked every minute (the hourly job may just have added the airport); Overpass only between
+  // growing pauses while its servers are busy (1, 2, 4, 8, then every 10 min), so we never hammer them
   async function pollStands() {
     const arrI = arrApt(); if (!arrI || settings.demo || S.standsApt === arrI) return;
+    if (S.standsFor !== arrI) Object.assign(S, { standsFor: arrI, standsFail: 0, standsNext: 0 });
+    const use = (list) => { S.stands = list; S.standsApt = arrI; render(); };
+    const list = standsCached(arrI) || await standsGithub(arrI);
+    if (list) return use(list);
     const ofp = S.ofp?.callsign === S.callsign ? S.ofp : null;
     const pos = aptInfo(arrI, ofp, "arr")?.pos;
-    if (!pos) return;
-    try {
-      const list = await loadStands(arrI, pos);
-      if (list) { S.stands = list; S.standsApt = arrI; S.standsWait = 0; }
-    } catch (e) { S.standsWait = Math.min((S.standsWait || 15e3) * 2, 5 * 60e3); } // back off while the servers are busy
-    render();
+    if (!pos || Date.now() < S.standsNext) return render();
+    try { use(await standsOverpass(arrI, pos)); }
+    catch (e) {
+      if (S.standsFor !== arrI) return;
+      S.standsFail++;
+      S.standsNext = Date.now() + Math.min(60e3 * 2 ** (S.standsFail - 1), 10 * 60e3);
+      render();
+    }
   }
 
   // pick a stand for any airport. Layers, most specific first:
@@ -3180,8 +3198,8 @@ td.k { color: var(--sign); font-weight: 700; }
     }
     if (!due) return { state: "later", at: eta ? eta - 30 * 60e3 : null };
     if (!S.stands || S.standsApt !== arrI) {
-      if (now - (S.standsTry || 0) > (S.standsWait || 15e3)) { S.standsTry = now; pollStands(); } // retry, e.g. once airport coordinates are loaded
-      return { state: "loading" };
+      if (now - (S.standsTry || 0) > 30e3) { S.standsTry = now; pollStands(); } // retry, e.g. once airport coordinates are loaded
+      return { state: "loading", retry: S.standsFor === arrI && S.standsFail ? S.standsNext : 0 };
     }
     if (!S.gateFix || S.gateFix.key !== S.callsign + arrI) {
       const p = predictStand(arrI, depApt(), S.callsign, S.pilot?.flight_plan?.aircraft_short || S.ofp?.type);
@@ -3194,7 +3212,7 @@ td.k { color: var(--sign); font-weight: 700; }
   function gateHtml(g, arrI) {
     if (!g) return "";
     if (g.state === "later") return `<span class="lbl">Gate / Stand ${esc(arrI)}</span><div class="gt-v gt-wait">—</div><div class="gt-s">Gate-Info ca. 30 min vor Ankunft${g.at ? " · " + hhmm(g.at) + "Z" : ""}</div>`;
-    if (g.state === "loading") return `<span class="lbl">Gate / Stand ${esc(arrI)}</span><div class="gt-s">Lade Stand-Daten…</div>`;
+    if (g.state === "loading") return `<span class="lbl">Gate / Stand ${esc(arrI)}</span><div class="gt-s">${g.retry ? "Stand-Daten-Server ausgelastet · neuer Versuch " + hhmm(g.retry) + "Z" : "Lade Stand-Daten…"}</div>`;
     if (g.state === "none") return `<span class="lbl">Gate / Stand ${esc(arrI)}</span><div class="gt-s">Keine Stand-Daten für ${esc(arrI)}</div>`;
     if (g.state === "parked") return `<span class="lbl">Ihr Stand</span><div class="gt-v num">${esc(gateLabel(g))}</div><div class="gt-s">Geparkt</div>`;
     const tags = [g.term, g.schengen === true ? "Schengen" : g.schengen === false ? "Non-Schengen" : "", g.remote ? "Außenposition, Bus" : ""].filter(Boolean).join(" · ");
@@ -3404,7 +3422,7 @@ td.k { color: var(--sign); font-weight: 700; }
       feedOk: null, cdmOk: null, sbOk: null, sbErr: "", feed: null, cidCallsign: "", ofp: null, track: null, demoAir: null,
       conn: null, connApt: "", arrMetar: "", arrMetarApt: "", pax: null, demoConn: null, ctrIdx: null, ctrIdxFor: 0, seq: null, seqKey: "",
       demoArr: null, fidsCdm: null, fidsCdmApt: "", cpMsgs: null, cpMaxId: null, cpErr: "", cpFreq: null, cpSeen: new Map(),
-      pushedFreq: "", pushedGo: "", lastTsat: null, stands: null, standsApt: "", gateFix: null, gateAnnounced: "", gateToastUntil: 0, paxGate: "", ukcp: null });
+      pushedFreq: "", pushedGo: "", lastTsat: null, stands: null, standsApt: "", standsFor: "", standsFail: 0, standsNext: 0, standsTry: 0, gateFix: null, gateAnnounced: "", gateToastUntil: 0, paxGate: "", ukcp: null });
     $("connBody").dataset.html = ""; $("paneDest").dataset.html = ""; $("freqBody").dataset.html = "";
     $("ofp").dataset.html = ""; routeKey = ""; mapFitted = false;
     if (settings.demo) { loadDemo(); render(); return; }
