@@ -905,7 +905,7 @@
       const daten = store.daten();
       const f = filterFuerStatistik();
       const s = C.statistik(daten, f);
-      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
       const B = 210, R = 14;
       let y = 18;
       const blau = [28, 92, 171];
@@ -940,7 +940,7 @@
         const b = bild(erzeugen, 900, hPx, B - 2 * R);
         if (y + b.mmH + 8 > 285) { doc.addPage(); y = 18; }
         ueberschrift(titel);
-        doc.addImage(b.url, "PNG", R, y, B - 2 * R, b.mmH); y += b.mmH + 8;
+        doc.addImage(b.url, "PNG", R, y, B - 2 * R, b.mmH, undefined, "FAST"); y += b.mmH + 8;
       };
       const hell = true;
       diagramm("Wohin geht das Geld? (nach Kategorie)", (c) => balkenChart(c, s.nachKategorie, (n) => katFarbe(n, hell), hell), Math.max(160, 40 + 34 * s.nachKategorie.length));
