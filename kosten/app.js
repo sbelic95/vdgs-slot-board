@@ -852,9 +852,9 @@
   // ======================================================================
   let xlsxLaden;
   const ladeSkript = (src) => new Promise((ok, fehl) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => fehl(new Error("Konnte " + src + " nicht laden")); document.head.appendChild(s); });
-  const ladeXLSX = () => (xlsxLaden = xlsxLaden || ladeSkript("vendor/xlsx.mini.min.js"));
+  const ladeXLSX = () => (xlsxLaden = xlsxLaden || (window.XLSX ? Promise.resolve() : ladeSkript("vendor/xlsx.mini.min.js")));
   let pdfLaden;
-  const ladePDF = () => (pdfLaden = pdfLaden || ladeSkript("vendor/jspdf.umd.min.js").then(() => ladeSkript("vendor/jspdf.plugin.autotable.min.js")));
+  const ladePDF = () => (pdfLaden = pdfLaden || (window.jspdf && window.jspdf.jsPDF.API.autoTable ? Promise.resolve() : ladeSkript("vendor/jspdf.umd.min.js").then(() => ladeSkript("vendor/jspdf.plugin.autotable.min.js"))));
 
   async function excelImport(file) {
     try {
@@ -1131,6 +1131,6 @@
   route();
   syncAnzeige();
   syncJetzt();
-  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+  if (!window.HK_EINZELDATEI && "serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
   window.HausKosten = { store, sync, exportExcel, exportPdf, excelImport }; // für Tests / Konsole
 })();

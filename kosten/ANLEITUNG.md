@@ -39,6 +39,8 @@ Am Computer startet die App mit der Übersicht, am Handy direkt mit „Erfassen�
 - Die Liste als Tabelle wie in Excel, Spalten per Klick sortierbar (z. B. nach Betrag).
 - Tastenkürzel: <kbd>N</kbd> neu, <kbd>L</kbd> Liste, <kbd>S</kbd> Statistik, <kbd>M</kbd> Mitarbeiter, <kbd>Z</kbd> zuordnen, <kbd>/</kbd> suchen, <kbd>?</kbd> Hilfe.
 
+**Auf ChatGPT Sites:** Die ganze App gibt es als eine Datei, `dist/Haus-Kosten.html`. Wie du sie dort veröffentlichst, steht in [`chatgpt/CHATGPT-SITES.md`](chatgpt/CHATGPT-SITES.md).
+
 ## 3. Datenbank einrichten (Abgleich Handy ↔ Computer ↔ ChatGPT)
 
 Ohne Datenbank bleiben die Daten nur auf dem jeweiligen Gerät. Einmalig:
