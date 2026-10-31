@@ -113,30 +113,19 @@
     const l = letzte();
     inhalt.innerHTML = `
       <form class="erfassen" id="erfassen" autocomplete="off">
-        <div class="karte">
+        <div class="erf-links">
+        <div class="karte e1">
           <label class="versteckt" for="betrag">Betrag in Euro</label>
           <div class="betrag-feld"><input id="betrag" name="betrag" inputmode="decimal" placeholder="0,00" enterkeyhint="next" required><span class="eur">€</span></div>
           <div class="reihe klein leise" style="justify-content:center"><input type="date" name="datum" value="${C.heute()}" style="width:auto;min-height:36px;padding:4px 10px"></div>
         </div>
-        <div class="karte">
+        <div class="karte e2">
           <h3>Wo gekauft / an wen?</h3>
           <input type="text" name="lieferant" list="lieferanten" placeholder="z. B. Leroy Merlin, Ferreteria …" enterkeyhint="next">
           <datalist id="lieferanten">${L.lieferanten.map((x) => '<option value="' + esc(x) + '">').join("")}</datalist>
           <div class="vorschlag" id="vorschlag"></div>
         </div>
-        <div class="karte">
-          <h3>Kategorie</h3>
-          ${chips("kategorie", L.kategorien, l.kategorie, { farbe: true, neu: true })}
-        </div>
-        <div class="karte" id="gewerkKarte">
-          <h3>Gewerk</h3>
-          ${chips("gewerk", L.gewerke, l.gewerk, { neu: true })}
-        </div>
-        <div class="karte">
-          <h3>Raum / Bereich <span class="leise" style="text-transform:none;letter-spacing:0">(optional)</span></h3>
-          ${chips("raum", L.raeume, l.raum, { neu: true })}
-        </div>
-        <div class="karte">
+        <div class="karte e6">
           <input type="text" name="beschreibung" placeholder="Was? (z. B. Fliesenkleber, Kabel 3×2,5)" enterkeyhint="done">
           <details class="mehr-felder" style="margin-top:12px">
             <summary>Beleg &amp; Zahlung</summary>
@@ -148,8 +137,24 @@
             </div>
           </details>
         </div>
-        <div class="speichern-leiste"><button class="knopf primaer gross" type="submit">Speichern</button></div>
-        <div id="heute"></div>
+        <div class="speichern-leiste e7"><button class="knopf primaer gross" type="submit">Speichern</button></div>
+        <p class="tasten klein leise">Enter springt zum nächsten Feld · Strg+Enter speichert</p>
+        </div>
+        <div class="erf-rechts">
+        <div class="karte e3">
+          <h3>Kategorie</h3>
+          ${chips("kategorie", L.kategorien, l.kategorie, { farbe: true, neu: true })}
+        </div>
+        <div class="karte e4" id="gewerkKarte">
+          <h3>Gewerk</h3>
+          ${chips("gewerk", L.gewerke, l.gewerk, { neu: true })}
+        </div>
+        <div class="karte e5">
+          <h3>Raum / Bereich <span class="leise" style="text-transform:none;letter-spacing:0">(optional)</span></h3>
+          ${chips("raum", L.raeume, l.raum, { neu: true })}
+        </div>
+        </div>
+        <div id="heute" class="e8"></div>
       </form>`;
     const f = $("#erfassen");
     const gewerkSichtbar = () => { $("#gewerkKarte").style.display = chipWert(f, "kategorie") === "Renovierungen" ? "" : "none"; };
@@ -169,8 +174,9 @@
     };
     f.lieferant.addEventListener("change", vorschlagAnzeigen);
     f.lieferant.addEventListener("blur", vorschlagAnzeigen);
-    f.betrag.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); f.lieferant.focus(); } });
-    f.lieferant.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); vorschlagAnzeigen(); f.beschreibung.focus(); } });
+    f.betrag.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); f.lieferant.focus(); } });
+    f.lieferant.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); vorschlagAnzeigen(); f.beschreibung.focus(); } });
+    f.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); vorschlagAnzeigen(); f.requestSubmit(); } });
 
     f.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -192,16 +198,21 @@
       syncBald();
     });
     heuteZeigen();
-    if (matchMedia("(pointer: coarse)").matches) setTimeout(() => f.betrag.focus(), 150);
+    $("#heute").addEventListener("click", (e) => { const z = e.target.closest(".posten"); if (z) oeffneKosten(store.state.kosten[z.dataset.id]); });
+    setTimeout(() => f.betrag.focus(), 150);
   }
 
   function heuteZeigen() {
     const ziel = $("#heute");
     if (!ziel) return;
     const h = C.heute();
-    const k = store.daten().kosten.filter((x) => !x.geloescht && x.datum === h).sort((a, b) => (b.nr || "").localeCompare(a.nr || ""));
+    const nrZahl = (x) => Number((/(\d+)$/.exec(x.nr || "") || [0, 0])[1]);
+    const alle = store.daten().kosten.filter((x) => !x.geloescht);
+    let k = alle.filter((x) => x.datum === h).sort((a, b) => nrZahl(b) - nrZahl(a));
+    let titel = "Heute erfasst";
+    if (!k.length) { k = alle.sort((a, b) => nrZahl(b) - nrZahl(a)).slice(0, 5); titel = "Zuletzt erfasst"; }
     if (!k.length) { ziel.innerHTML = ""; return; }
-    ziel.innerHTML = '<div class="tag-gruppe"><div class="tag-kopf"><span>Heute erfasst</span><span class="zahl">' + eur(k.reduce((s, x) => s + x.betrag, 0)) + "</span></div>" + k.map(postenZeile).join("") + "</div>";
+    ziel.innerHTML = '<div class="tag-gruppe"><div class="tag-kopf"><span>' + titel + '</span><span class="zahl">' + (titel === "Heute erfasst" ? eur(k.reduce((s, x) => s + x.betrag, 0)) : "") + "</span></div>" + k.map((x) => postenZeile(x)).join("") + "</div>";
   }
 
   function postenZeile(k, auswahl) {
@@ -303,7 +314,7 @@
   // Liste
   // ======================================================================
   const ui = {
-    liste: { suche: "", kategorie: "", gewerk: "", raum: "", nurOffen: false, nurOhneGewerk: false, auswahl: new Set(), auswahlModus: false, limit: 150 },
+    liste: { suche: "", kategorie: "", gewerk: "", raum: "", nurOffen: false, nurOhneGewerk: false, auswahl: new Set(), auswahlModus: false, limit: 150, sort: "datum", absteigend: true },
     filter: Object.assign({ zeitraum: "alles", von: "", bis: "", mitHauskauf: false, mitMitarbeiter: true }, store.state.config.filter || {}),
   };
 
@@ -350,11 +361,13 @@
     $("#auswahlKnopf").onclick = () => { u.auswahlModus = !u.auswahlModus; u.auswahl.clear(); renderListe(); };
     $("#neuKnopf").onclick = () => oeffneKosten(null);
     $("#listeInhalt").addEventListener("click", (e) => {
-      const z = e.target.closest(".posten");
+      const th = e.target.closest("th[data-sort]");
+      if (th) { if (u.sort === th.dataset.sort) u.absteigend = !u.absteigend; else { u.sort = th.dataset.sort; u.absteigend = ["datum", "betrag", "offen"].includes(u.sort); } listeZeichnen(); return; }
+      const z = e.target.closest(".posten, tr[data-id]");
       if (z) postenGeklickt(z.dataset.id);
       if (e.target.id === "mehrLaden") { u.limit += 300; listeZeichnen(); }
     });
-    $("#listeInhalt").addEventListener("keydown", (e) => { const z = e.target.closest(".posten"); if (z && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); postenGeklickt(z.dataset.id); } });
+    $("#listeInhalt").addEventListener("keydown", (e) => { const z = e.target.closest(".posten, tr[data-id]"); if (z && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); postenGeklickt(z.dataset.id); } });
     listeZeichnen();
   }
 
@@ -372,11 +385,37 @@
     const summe = l.reduce((s, k) => s + k.betrag, 0), off = l.reduce((s, k) => s + C.offen(k), 0);
     $("#listeSumme").innerHTML = l.length + " Posten · <b class='zahl'>" + eur(summe) + "</b>" + (off > 0 ? " · offen <span class='zahl'>" + eur(off) + "</span>" : "");
     if (!l.length) { ziel.innerHTML = '<div class="leer">' + (store.daten().kosten.length ? "Nichts gefunden." : 'Noch keine Kosten. <a href="#einstellungen">Excel importieren</a> oder <a href="#neu">ersten Posten erfassen</a>.') + "</div>"; $("#aktionen").innerHTML = ""; return; }
+    if (breit()) { ziel.innerHTML = listenTabelle(l, u); aktionsleiste(l); return; }
     const tage = new Map();
     for (const k of l.slice(0, u.limit)) { if (!tage.has(k.datum)) tage.set(k.datum, []); tage.get(k.datum).push(k); }
     ziel.innerHTML = [...tage.entries()].map(([d, ks]) => '<div class="tag-gruppe"><div class="tag-kopf"><span>' + wochentag(d) + ", " + C.fmtDatum(d) + '</span><span class="zahl">' + eur(ks.reduce((s, k) => s + k.betrag, 0)) + "</span></div>" +
       ks.map((k) => postenZeile(k, u.auswahlModus ? u.auswahl : null)).join("") + "</div>").join("") +
       (l.length > u.limit ? '<div class="leer"><button class="knopf" id="mehrLaden">Weitere ' + (l.length - u.limit) + " anzeigen</button></div>" : "");
+    aktionsleiste(l);
+  }
+  const breit = () => matchMedia("(min-width: 900px)").matches;
+
+  function listenTabelle(l, u) {
+    const wert = (k, f) => (f === "offen" ? C.offen(k) : f === "betrag" ? k.betrag : f === "nr" ? Number((/(\d+)$/.exec(k.nr || "") || [0, 0])[1]) : (k[f] || "").toLowerCase());
+    const sortiert = l.slice().sort((a, b) => { const x = wert(a, u.sort), y = wert(b, u.sort); const r = x < y ? -1 : x > y ? 1 : (a.datum + a.nr).localeCompare(b.datum + b.nr); return u.absteigend ? -r : r; });
+    const spalten = [["datum", "Datum"], ["nr", "Nr."], ["kategorie", "Kategorie"], ["gewerk", "Gewerk"], ["raum", "Raum"], ["lieferant", "Lieferant"], ["beschreibung", "Beschreibung"], ["betrag", "Betrag", "betrag"], ["offen", "Offen", "betrag"]];
+    const pfeil = (f) => (u.sort === f ? (u.absteigend ? " ↓" : " ↑") : "");
+    const zeilen = sortiert.slice(0, u.limit).map((k) => {
+      const o = C.offen(k);
+      return '<tr class="klickbar' + (u.auswahl.has(k.id) ? " gewaehlt" : "") + '" data-id="' + esc(k.id) + '" tabindex="0">' +
+        (u.auswahlModus ? '<td><input type="checkbox" tabindex="-1" ' + (u.auswahl.has(k.id) ? "checked" : "") + "></td>" : "") +
+        '<td class="zahl">' + C.fmtDatum(k.datum) + '</td><td class="zahl leise">' + esc(k.nr) + '</td><td><i class="punkt-kat" style="background:' + katFarbe(k.kategorie) + '"></i>' + esc(k.kategorie) + "</td>" +
+        "<td>" + (k.gewerk ? esc(k.gewerk) : k.kategorie === "Renovierungen" ? '<span class="marke-klein warn">fehlt</span>' : "") + "</td><td>" + esc(k.raum) + "</td><td>" + esc(k.lieferant) + '</td><td class="beschr">' + esc(k.beschreibung) + (k.anmerkung ? ' <span class="leise" title="' + esc(k.anmerkung) + '">ⓘ</span>' : "") + "</td>" +
+        '<td class="betrag">' + eur(k.betrag) + '</td><td class="betrag' + (o > 0 ? " offen-wert" : " leise") + '">' + (o > 0 ? eur(o) : "–") + "</td></tr>";
+    }).join("");
+    return '<div class="karte tabellen-karte"><div class="tabellen-rahmen"><table class="daten liste-tabelle"><thead><tr>' + (u.auswahlModus ? "<th></th>" : "") +
+      spalten.map(([f, t, c]) => '<th data-sort="' + f + '" class="sortierbar' + (c ? " " + c : "") + '" aria-sort="' + (u.sort === f ? (u.absteigend ? "descending" : "ascending") : "none") + '">' + t + pfeil(f) + "</th>").join("") +
+      "</tr></thead><tbody>" + zeilen + "</tbody></table></div>" +
+      (l.length > u.limit ? '<div class="leer"><button class="knopf" id="mehrLaden">Weitere ' + (l.length - u.limit) + " anzeigen</button></div>" : "") + "</div>";
+  }
+
+  function aktionsleiste(l) {
+    const u = ui.liste;
     const a = $("#aktionen");
     if (u.auswahlModus) {
       a.innerHTML = '<div class="aktionsleiste"><b>' + u.auswahl.size + ' gewählt</b><button class="knopf klein" data-alle>Alle</button><span style="flex:1"></span>' +
@@ -750,6 +789,15 @@
           <p class="klein leise">${d.kosten.filter((k) => !k.geloescht).length} Kostenposten · ${d.arbeitszeit.filter((a) => !a.geloescht).length} Arbeitszeiten auf diesem Gerät</p>
           <button class="knopf gefahr klein" id="allesWeg">Daten auf diesem Gerät löschen</button>
         </div>
+        <div class="karte" id="desktopApp"><h2>Als App auf Computer &amp; Handy</h2>
+          ${istInstalliert() ? '<p class="hinweis klein" style="margin-top:0">Läuft bereits als installierte App.</p>' : installEreignis ? '<p class="klein leise" style="margin-top:0">Installiert Haus-Kosten als eigenes Programm mit Fenster, Symbol im Startmenü bzw. Dock und in der Taskleiste.</p><button class="knopf primaer" id="installJetzt">Jetzt installieren</button>' : ""}
+          <ul class="klein" style="padding-left:18px;margin-bottom:0">
+            <li><b>Windows / Mac mit Edge oder Chrome:</b> in der Adressleiste rechts auf das Symbol „App installieren“ (Bildschirm mit Pfeil) klicken, oder Menü ⋯ → Apps → „Haus-Kosten installieren“.</li>
+            <li><b>Mac mit Safari:</b> Ablage → „Zum Dock hinzufügen“.</li>
+            <li><b>iPhone:</b> Safari → Teilen → „Zum Home-Bildschirm“. <b>Android:</b> Chrome → Menü → „App installieren“.</li>
+          </ul>
+          <p class="klein leise" style="margin-bottom:0">Die App öffnet sich dann ohne Browserleiste, startet am Computer mit der Übersicht und am Handy mit „Erfassen“. Tastenkürzel: <kbd>?</kbd></p>
+        </div>
         <div class="karte"><h2>Darstellung</h2>
           <div class="chips" id="thema">${[["", "Automatisch"], ["light", "Hell"], ["dark", "Dunkel"]].map(([k, t]) => '<button class="chip" data-thema="' + k + '" aria-pressed="' + ((cfg.thema || "") === k) + '">' + t + "</button>").join("")}</div>
         </div>
@@ -795,6 +843,7 @@
       store.zuruecksetzen(); toast("Gerät geleert"); renderEinstellungen();
     };
     inhalt.querySelectorAll("[data-listeweg]").forEach((b) => (b.onclick = () => { store.loeschen("listen", b.dataset.listeweg); syncBald(); renderEinstellungen(); }));
+    const ij = $("#installJetzt"); if (ij) ij.onclick = installieren;
     $("#thema").onclick = (e) => { const b = e.target.closest("[data-thema]"); if (!b) return; store.setConfig({ thema: b.dataset.thema }); themaSetzen(); renderEinstellungen(); };
   }
 
@@ -1021,6 +1070,27 @@
     if (still) scrollTo(0, scroll); else scrollTo(0, 0);
   }
   addEventListener("hashchange", () => { if (dialog.open) dialog.close(); route(); });
+  matchMedia("(min-width: 900px)").addEventListener("change", () => { if (aktuelleAnsicht() === "liste") listeZeichnen(); });
+
+  // ---------- Tastenkürzel (Computer) ----------
+  const TASTEN = { n: "#neu", l: "#liste", s: "#statistik", m: "#team", z: "#zuordnen" };
+  addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || dialog.open) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (e.key === "/" && $("#suche")) { e.preventDefault(); $("#suche").focus(); return; }
+    if (e.key === "/" ) { e.preventDefault(); location.hash = "#liste"; setTimeout(() => $("#suche") && $("#suche").focus(), 50); return; }
+    if (e.key === "?") { tastenHilfe(); return; }
+    const ziel = TASTEN[e.key.toLowerCase()];
+    if (ziel) { e.preventDefault(); if (location.hash === ziel) route(); else location.hash = ziel; }
+  });
+  function tastenHilfe() {
+    dialog.innerHTML = '<div class="blatt-kopf"><h2>Tastenkürzel</h2><button type="button" class="knopf klein" data-schliessen>Schließen</button></div><div class="blatt-inhalt"><table class="daten">' +
+      [["N", "Neuen Posten erfassen"], ["L", "Liste"], ["S", "Statistik"], ["M", "Mitarbeiter"], ["Z", "Posten ohne Gewerk zuordnen"], ["/", "Suchen"], ["Enter", "Beim Erfassen: nächstes Feld"], ["Strg + Enter", "Beim Erfassen: speichern"], ["Esc", "Fenster schließen"], ["?", "Diese Hilfe"]]
+        .map(([k, t]) => "<tr><td><kbd>" + k + "</kbd></td><td>" + t + "</td></tr>").join("") + "</table></div>";
+    dialog.querySelector("[data-schliessen]").onclick = () => dialog.close();
+    dialog.showModal();
+  }
 
   // Bei Datenänderungen die aktuelle Ansicht auffrischen (außer im Erfassen-Formular, das würde Eingaben löschen)
   let auffrischen;
@@ -1043,6 +1113,19 @@
     if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
   }
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => aktuelleAnsicht() === "statistik" && route(true));
+
+  // ---------- Als Desktop-App installieren ----------
+  let installEreignis = null;
+  const istInstalliert = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEreignis = e; $("#installKnopf").hidden = false; if (aktuelleAnsicht() === "einstellungen") renderEinstellungen(); });
+  addEventListener("appinstalled", () => { installEreignis = null; $("#installKnopf").hidden = true; toast("Haus-Kosten ist jetzt als App installiert"); });
+  async function installieren() {
+    if (!installEreignis) { location.hash = "#einstellungen"; setTimeout(() => $("#desktopApp") && $("#desktopApp").scrollIntoView({ behavior: "smooth" }), 80); return; }
+    installEreignis.prompt();
+    const r = await installEreignis.userChoice.catch(() => null);
+    if (r && r.outcome === "accepted") { installEreignis = null; $("#installKnopf").hidden = true; }
+  }
+  $("#installKnopf").onclick = installieren;
 
   themaSetzen();
   route();

@@ -261,3 +261,35 @@ dialog.blatt::backdrop { background: rgba(0,0,0,.4); }
 .hb-spur i { display: block; height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
 code { font-size: .82em; background: var(--flaeche-2); padding: 1px 4px; border-radius: 4px; word-break: break-all; }
 .toast[hidden] { display: none; }
+
+/* ---------- Computer ---------- */
+.erf-links, .erf-rechts { display: contents; }
+.erfassen { display: flex; flex-direction: column; gap: 12px; }
+.erfassen .karte + .karte { margin-top: 0; }
+.erfassen .e1 { order: 1; } .erfassen .e2 { order: 2; } .erfassen .e3 { order: 3; } .erfassen .e4 { order: 4; }
+.erfassen .e5 { order: 5; } .erfassen .e6 { order: 6; } .erfassen .e7 { order: 7; } .erfassen .e8 { order: 8; }
+.erfassen .speichern-leiste { margin-top: 4px; }
+.tasten { display: none; order: 9; margin: 0; text-align: center; }
+@media (min-width: 900px) {
+  .erfassen { max-width: 1120px; display: grid; grid-template-columns: minmax(340px, 5fr) 7fr; gap: 16px; align-items: start; }
+  .erf-links, .erf-rechts { display: flex; flex-direction: column; gap: 12px; }
+  .erf-links { position: sticky; top: 76px; }
+  .erfassen .speichern-leiste { position: static; }
+  .erfassen #heute { grid-column: 1 / -1; }
+  .tasten { display: block; }
+  .kopf .install { margin-left: auto; }
+  .kopf .install:not([hidden]) + .sync { margin-left: 0; }
+}
+.kopf .install[hidden] { display: none; }
+.tabellen-karte { padding: 0; overflow: hidden; }
+.liste-tabelle th.sortierbar { cursor: pointer; user-select: none; white-space: nowrap; position: sticky; top: 0; background: var(--flaeche); }
+.liste-tabelle th.sortierbar:hover { color: var(--text); }
+.liste-tabelle th, .liste-tabelle td { padding: 9px 10px; }
+.liste-tabelle td.beschr { max-width: 340px; }
+.liste-tabelle tr.gewaehlt td { background: var(--akzent-hell); }
+.liste-tabelle tr:focus-visible td { outline: 2px solid var(--akzent); outline-offset: -2px; }
+.liste-tabelle td.offen-wert { color: var(--warn); font-weight: 600; }
+.liste-tabelle input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--akzent); }
+.punkt-kat { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
+kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8em; padding: 2px 6px; border: 1px solid var(--linie); border-bottom-width: 2px; border-radius: 5px; background: var(--flaeche-2); }
+@media (min-width: 900px) { .werkzeug select { max-width: 200px; } }

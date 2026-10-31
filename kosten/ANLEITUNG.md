@@ -25,12 +25,19 @@ Was dabei passiert:
 - Leere Spalten (Fälligkeit, Zahlungsdatum, Zahlungsart, Finanzierungsquelle) werden weggelassen.
 - Ein zweiter Import derselben Datei legt nichts doppelt an.
 
-## 2. Aufs Handy holen
+## 2. Als App installieren (Computer und Handy)
 
+- **Windows / Mac mit Edge oder Chrome:** Adresse öffnen → oben rechts **App installieren** (oder in der Adressleiste das Symbol „Bildschirm mit Pfeil“). Danach hat Haus-Kosten ein eigenes Fenster und ein Symbol im Startmenü/Dock und in der Taskleiste.
+- **Mac mit Safari:** Ablage → **Zum Dock hinzufügen**.
 - **iPhone:** Adresse in Safari öffnen → Teilen → **Zum Home-Bildschirm**.
 - **Android:** In Chrome öffnen → Menü → **App installieren**.
 
-Die App startet dann direkt in „Erfassen“ und funktioniert auch ohne Netz; die Einträge werden später abgeglichen.
+Am Computer startet die App mit der Übersicht, am Handy direkt mit „Erfassen“. Sie funktioniert auch ohne Netz; die Einträge werden später abgeglichen.
+
+**Am Computer** gibt es zusätzlich:
+- Erfassen in zwei Spalten, ganz ohne Maus: Betrag → <kbd>Enter</kbd> → Händler → <kbd>Enter</kbd> → Beschreibung → <kbd>Strg</kbd>+<kbd>Enter</kbd> speichert.
+- Die Liste als Tabelle wie in Excel, Spalten per Klick sortierbar (z. B. nach Betrag).
+- Tastenkürzel: <kbd>N</kbd> neu, <kbd>L</kbd> Liste, <kbd>S</kbd> Statistik, <kbd>M</kbd> Mitarbeiter, <kbd>Z</kbd> zuordnen, <kbd>/</kbd> suchen, <kbd>?</kbd> Hilfe.
 
 ## 3. Datenbank einrichten (Abgleich Handy ↔ Computer ↔ ChatGPT)
 

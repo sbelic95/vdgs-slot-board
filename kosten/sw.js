@@ -1,5 +1,5 @@
 // Haus-Kosten: App-Hülle offline verfügbar halten. Daten liegen im Gerät (localStorage) und in der Datenbank, nie im Cache.
-const CACHE = "hauskosten-v1";
+const CACHE = "hauskosten-v2";
 const SHELL = ["./", "index.html", "app.css", "core.js", "app.js", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-192.png", "icon-512.png",
   "vendor/chart.umd.js", "vendor/xlsx.mini.min.js", "vendor/jspdf.umd.min.js", "vendor/jspdf.plugin.autotable.min.js"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
