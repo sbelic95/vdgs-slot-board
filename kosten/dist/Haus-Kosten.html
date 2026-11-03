@@ -131,13 +131,14 @@ main { padding: 16px 16px calc(var(--unten-h) + env(safe-area-inset-bottom) + 24
 .knopf.klein { min-height: 32px; padding: 4px 10px; font-size: .85rem; }
 .knopf:disabled { opacity: .5; cursor: default; }
 
-label.feld { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--text-2); font-weight: 550; }
-input[type=text], input[type=email], input[type=password], input[type=date], input[type=time], input[type=number], input[type=url], input[type=search], select, textarea {
+label.feld { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: .85rem; color: var(--text-2); font-weight: 550; }
+input:not([type]), input[type=text], input[type=email], input[type=password], input[type=date], input[type=time], input[type=number], input[type=url], input[type=search], select, textarea {
   width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--linie); background: var(--flaeche-2); font-size: 1rem; color: var(--text);
 }
 textarea { min-height: 70px; resize: vertical; }
 input:focus, select:focus, textarea:focus, .chip:focus-visible, .knopf:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
-.felder { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+.felder { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.felder input { min-width: 0; }
 .felder .voll { grid-column: 1 / -1; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -309,6 +310,24 @@ code { font-size: .82em; background: var(--flaeche-2); padding: 1px 4px; border-
 .punkt-kat { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
 kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8em; padding: 2px 6px; border: 1px solid var(--linie); border-bottom-width: 2px; border-radius: 5px; background: var(--flaeche-2); }
 @media (min-width: 900px) { .werkzeug select { max-width: 200px; } }
+
+/* ---------- Beleg scannen ---------- */
+.erfassen .e0 { order: 0; }
+.beleg-karte { padding: 14px; }
+.beleg-knoepfe { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.beleg-knoepfe .knopf { min-height: 48px; }
+@media (max-width: 380px) { .beleg-knoepfe { grid-template-columns: 1fr; } }
+.warten { align-items: center; text-align: center; padding: 40px 24px; }
+.kreisel { width: 40px; height: 40px; border-radius: 50%; border: 4px solid var(--akzent-hell); border-top-color: var(--akzent); animation: dreh .8s linear infinite; }
+@keyframes dreh { to { transform: rotate(360deg); } }
+.sicher { font-size: .75rem; font-weight: 700; padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
+.sicher.gut { background: color-mix(in srgb, var(--gut) 18%, var(--flaeche)); }
+.sicher.mittel { background: color-mix(in srgb, var(--warn) 18%, var(--flaeche)); }
+.sicher.schlecht { background: color-mix(in srgb, var(--kritisch) 18%, var(--flaeche)); }
+.beleg-bilder { display: flex; gap: 8px; overflow-x: auto; }
+.beleg-bilder img { height: 120px; border-radius: 8px; border: 1px solid var(--linie); display: block; }
+details.positionen summary { cursor: pointer; padding: 4px 0; }
+details.positionen table { margin-top: 8px; }
 
 </style>
 </head>
@@ -1256,7 +1275,24 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return laeuft;
     }
 
-    return { anmelden, abmelden, sync, bereit, hochladen, herunterladen };
+    // Aufruf der Edge Function kosten-api (z. B. /beleg) mit der Anmeldung des Nutzers
+    async function funktion(pfad, body) {
+      if (!bereit()) throw new Error("Bitte zuerst die Datenbank verbinden und anmelden (Einstellungen → Datenbank).");
+      const a = store.state.auth;
+      if (!a.access_token || (a.expires_at && a.expires_at < Date.now() + 60000)) await erneuern();
+      const los = () => fetchFn(basis() + "/functions/v1/kosten-api" + pfad, {
+        method: "POST",
+        headers: { apikey: cfg().supabaseKey, Authorization: "Bearer " + store.state.auth.access_token, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      let res = await los();
+      if (res.status === 401) { await erneuern(); res = await los(); }
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.fehler || j.message || "Fehler " + res.status + (res.status === 404 ? " – ist die Funktion kosten-api eingerichtet?" : ""));
+      return j;
+    }
+
+    return { anmelden, abmelden, sync, bereit, hochladen, herunterladen, funktion };
   }
 
   // Ein Eintrag aus dem Mitarbeiter-Projekt -> Arbeitszeit-Zeile
@@ -1401,6 +1437,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     inhalt.innerHTML = `
       <form class="erfassen" id="erfassen" autocomplete="off">
         <div class="erf-links">
+        <div class="karte e0 beleg-karte">
+          <div class="beleg-knoepfe">
+            <label class="knopf primaer"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Beleg fotografieren<input type="file" accept="image/*" capture="environment" id="belegFoto" hidden></label>
+            <label class="knopf">Foto / PDF wählen<input type="file" accept="image/*,application/pdf" multiple id="belegDatei" hidden></label>
+          </div>
+          <p class="klein leise" style="margin:8px 0 0;text-align:center">Die KI liest Betrag, Datum, Händler und Positionen und sortiert vor – du prüfst nur noch.</p>
+        </div>
         <div class="karte e1">
           <label class="versteckt" for="betrag">Betrag in Euro</label>
           <div class="betrag-feld"><input id="betrag" name="betrag" inputmode="decimal" placeholder="0,00" enterkeyhint="next" required><span class="eur">€</span></div>
@@ -1484,6 +1527,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       f.betrag.focus();
       syncBald();
     });
+    const belegGewaehlt = (e) => { const dateien = [...e.target.files]; e.target.value = ""; if (dateien.length) belegScannen(dateien); };
+    $("#belegFoto").onchange = belegGewaehlt;
+    $("#belegDatei").onchange = belegGewaehlt;
     heuteZeigen();
     $("#heute").addEventListener("click", (e) => { const z = e.target.closest(".posten"); if (z) oeffneKosten(store.state.kosten[z.dataset.id]); });
     setTimeout(() => f.betrag.focus(), 150);
@@ -1514,6 +1560,179 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
 
   // ======================================================================
+  // Beleg scannen: Foto/PDF -> KI liest aus -> Nutzer prüft und bestätigt
+  // ======================================================================
+  function bildVorbereiten(datei) {
+    return new Promise((ok, fehl) => {
+      const url = URL.createObjectURL(datei);
+      const img = new Image();
+      img.onload = () => {
+        const max = 2000, f = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.naturalWidth * f); c.height = Math.round(img.naturalHeight * f);
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        const daten = c.toDataURL("image/jpeg", 0.85);
+        URL.revokeObjectURL(url);
+        ok({ media_type: "image/jpeg", data: daten.split(",")[1], vorschau: daten });
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); fehl(new Error("Bild „" + datei.name + "“ konnte nicht geöffnet werden")); };
+      img.src = url;
+    });
+  }
+  const alsBase64 = (datei) => new Promise((ok, fehl) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = () => fehl(r.error); r.readAsDataURL(datei); });
+
+  function belegKontext() {
+    const L = listen();
+    const kosten = store.daten().kosten.filter((k) => !k.geloescht);
+    const bekannt = L.lieferanten.slice(0, 40).map((l) => Object.assign({ lieferant: l }, C.vorschlagFuer(kosten, l) || {}));
+    return { kategorien: L.kategorien, gewerke: L.gewerke, raeume: L.raeume, bekannt };
+  }
+
+  function wartenZeigen(text) {
+    dialog.innerHTML = '<div class="blatt-inhalt warten"><div class="kreisel" aria-hidden="true"></div><p style="margin:0;font-weight:600">' + esc(text) + '</p><p class="klein leise" style="margin:0">Das dauert meist 5–20 Sekunden.</p></div>';
+    if (!dialog.open) dialog.showModal();
+  }
+
+  async function belegScannen(dateien) {
+    if (!sync.bereit()) {
+      alert("Für die Beleg-Erkennung muss die Datenbank verbunden sein (Einstellungen → Datenbank), weil die KI über deine eigene Supabase-Funktion läuft.");
+      return;
+    }
+    if (!navigator.onLine) { toast("Offline – Beleg bitte später scannen oder von Hand erfassen"); return; }
+    const pdfs = dateien.filter((d) => d.type === "application/pdf");
+    const bilderDateien = dateien.filter((d) => d.type.startsWith("image/") || /\.(heic|heif|jpe?g|png|webp)$/i.test(d.name));
+    if (pdfs.length > 1 || (pdfs.length && bilderDateien.length)) { toast("Bitte entweder ein PDF oder bis zu 4 Fotos wählen"); return; }
+    if (bilderDateien.length > 4) { toast("Höchstens 4 Fotos pro Beleg"); return; }
+    if (pdfs[0] && pdfs[0].size > 8 * 1024 * 1024) { toast("PDF zu groß (max. 8 MB)"); return; }
+    wartenZeigen("Beleg wird gelesen …");
+    try {
+      const bilder = await Promise.all(bilderDateien.map(bildVorbereiten));
+      const body = { kontext: belegKontext() };
+      if (pdfs[0]) body.pdf = await alsBase64(pdfs[0]);
+      else body.bilder = bilder.map(({ media_type, data }) => ({ media_type, data }));
+      const ergebnis = await sync.funktion("/beleg", body);
+      belegPruefen(ergebnis, bilder.map((b) => b.vorschau), pdfs[0] ? pdfs[0].name : "");
+    } catch (err) {
+      if (dialog.open) dialog.close();
+      alert("Beleg konnte nicht gelesen werden:\n" + err.message);
+    }
+  }
+
+  function belegPruefen(r, vorschauen, pdfName) {
+    if (!r.ist_beleg) {
+      dialog.innerHTML = '<div class="blatt-kopf"><h2>Kein Beleg erkannt</h2><button type="button" class="knopf klein" data-schliessen>Schließen</button></div><div class="blatt-inhalt"><p style="margin:0">Auf dem Foto wurde kein Kassenbon und keine Rechnung erkannt. Bitte gerade, scharf und vollständig fotografieren – oder von Hand erfassen.</p>' + (r.hinweise || []).map((h) => '<p class="hinweis warn klein" style="margin:0">' + esc(h) + "</p>").join("") + "</div>";
+      dialog.querySelector("[data-schliessen]").onclick = () => dialog.close();
+      if (!dialog.open) dialog.showModal();
+      return;
+    }
+    const L = listen();
+    const kosten = store.daten().kosten.filter((k) => !k.geloescht);
+    const pos = (r.positionen || []).map((p) => Object.assign({}, p, { gewerk: p.gewerk || "" }));
+    const kategorie = L.kategorien.includes(r.kategorie) ? r.kategorie : r.kategorie || "Renovierungen";
+    const betrag = r.gesamtbetrag != null ? r.gesamtbetrag : C.r2(pos.reduce((a, p) => a + p.betrag, 0));
+    const datum = r.datum && /^\d{4}-\d{2}-\d{2}$/.test(r.datum) ? r.datum : C.heute();
+    const sicher = { hoch: ["gut", "Gut lesbar"], mittel: ["mittel", "Bitte kurz prüfen"], niedrig: ["schlecht", "Unsicher – genau prüfen"] }[r.sicherheit] || ["mittel", "Bitte prüfen"];
+    const doppelt = kosten.filter((k) => Math.abs(k.betrag - betrag) < 0.01 && k.datum === datum);
+    const optionen = (werte, w) => '<option value="">–</option>' + [...new Set(werte.concat(w ? [w] : []))].map((x) => "<option" + (x === w ? " selected" : "") + ">" + esc(x) + "</option>").join("");
+
+    dialog.innerHTML = `<form id="belegForm" autocomplete="off">
+      <div class="blatt-kopf"><h2>Beleg prüfen</h2><span class="sicher ${sicher[0]}">${sicher[1]}</span><button type="button" class="knopf klein" data-schliessen>Verwerfen</button></div>
+      <div class="blatt-inhalt">
+        ${vorschauen.length ? '<div class="beleg-bilder">' + vorschauen.map((v, i) => '<a href="#" data-bild="' + i + '"><img src="' + v + '" alt="Beleg Foto ' + (i + 1) + '"></a>').join("") + "</div>" : pdfName ? '<p class="klein leise" style="margin:0">📄 ' + esc(pdfName) + "</p>" : ""}
+        ${(r.hinweise || []).map((h) => '<p class="hinweis warn klein" style="margin:0">' + esc(h) + "</p>").join("")}
+        ${doppelt.length ? '<p class="hinweis fehler klein" style="margin:0"><b>Schon erfasst?</b> Am gleichen Tag gibt es bereits ' + doppelt.map((k) => esc((k.nr || "") + " " + (k.lieferant || k.beschreibung || "") + " " + eur(k.betrag))).join(", ") + ".</p>" : ""}
+        ${r.waehrung && r.waehrung !== "EUR" ? '<p class="hinweis warn klein" style="margin:0">Währung auf dem Beleg: ' + esc(r.waehrung) + " – Betrag bitte in Euro umrechnen.</p>" : ""}
+        <div class="felder">
+          <label class="feld">Betrag €<input name="betrag" inputmode="decimal" value="${Number(betrag).toFixed(2).replace(".", ",")}" required></label>
+          <label class="feld">Datum<input type="date" name="datum" value="${esc(datum)}" required></label>
+          <label class="feld">Händler / Firma<input name="lieferant" list="lieferantenBeleg" value="${esc(r.lieferant || "")}"></label>
+          <label class="feld">Belegnummer<input name="belegnr" value="${esc(r.belegnr || "")}"></label>
+          <label class="feld voll">Beschreibung<input name="beschreibung" value="${esc(r.beschreibung || "")}"></label>
+        </div>
+        <datalist id="lieferantenBeleg">${L.lieferanten.map((x) => '<option value="' + esc(x) + '">').join("")}</datalist>
+        <label class="schalter">Schon bezahlt <input type="checkbox" name="bezahlt" ${r.bereits_bezahlt !== false ? "checked" : ""}></label>
+        <div class="spalte"><span class="klein leise">Kategorie</span>${chips("kategorie", L.kategorien, kategorie, { farbe: true, neu: true })}</div>
+        <div class="spalte" id="belegGewerk"><span class="klein leise">Gewerk</span>${chips("gewerk", L.gewerke, r.gewerk || "", { ohne: "keins", neu: true })}</div>
+        <div class="spalte"><span class="klein leise">Raum / Bereich</span>${chips("raum", L.raeume, r.raum || "", { ohne: "keiner", neu: true })}</div>
+        <div class="spalte"><span class="klein leise">Belegart</span>${chips("belegart", L.belegarten, r.belegart || "Kassenbon")}</div>
+        ${pos.length ? `<details class="positionen" ${pos.length <= 8 ? "open" : ""}><summary><b>${pos.length} Positionen</b> <span class="leise klein" id="posSumme"></span></summary>
+          <div class="tabellen-rahmen"><table class="daten"><thead><tr><th>Artikel</th><th>Gewerk</th><th class="betrag">Betrag</th></tr></thead><tbody>
+          ${pos.map((p, i) => `<tr><td>${esc(p.bezeichnung_de)}<div class="klein leise">${esc(p.bezeichnung)}</div></td><td><select data-pos="${i}" style="min-height:34px;padding:4px 8px">${optionen(L.gewerke, p.gewerk)}</select></td><td class="betrag">${eur(p.betrag)}</td></tr>`).join("")}
+          </tbody></table></div></details>
+          <label class="schalter" id="aufteilenZeile">Nach Gewerk aufteilen <span class="klein leise" id="aufteilenText"></span><input type="checkbox" name="aufteilen"></label>` : ""}
+      </div>
+      <div class="blatt-fuss"><button type="submit" class="knopf primaer" id="belegSpeichern">Bestätigen &amp; speichern</button></div>
+    </form>`;
+    const f = $("#belegForm");
+    chipsVerdrahten(f, () => sichtbar());
+    f.querySelector("[data-schliessen]").onclick = () => dialog.close();
+    f.querySelectorAll("[data-bild]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); const w = window.open(); if (w) w.document.write('<img src="' + vorschauen[a.dataset.bild] + '" style="max-width:100%">'); }));
+    f.querySelectorAll("[data-pos]").forEach((sel) => (sel.onchange = () => { pos[sel.dataset.pos].gewerk = sel.value; sichtbar(); }));
+    const gruppen = () => {
+      const haupt = chipWert(f, "gewerk");
+      const m = new Map();
+      for (const p of pos) { const g = p.gewerk || haupt || ""; const e = m.get(g) || { gewerk: g, betrag: 0, namen: [] }; e.betrag += p.betrag; e.namen.push(p.bezeichnung_de); m.set(g, e); }
+      return [...m.values()].sort((a, b) => b.betrag - a.betrag);
+    };
+    function sichtbar() {
+      const reno = chipWert(f, "kategorie") === "Renovierungen";
+      $("#belegGewerk").style.display = reno ? "" : "none";
+      const zeile = $("#aufteilenZeile");
+      if (zeile) {
+        const g = gruppen();
+        zeile.style.display = reno && g.length > 1 ? "" : "none";
+        $("#aufteilenText").textContent = g.length > 1 ? "(" + g.map((x) => (x.gewerk || "ohne") + " " + eur(x.betrag)).join(" · ") + ")" : "";
+        const summe = C.r2(pos.reduce((a, p) => a + p.betrag, 0));
+        const ziel = C.parseBetrag(f.betrag.value);
+        $("#posSumme").textContent = "Summe " + eur(summe) + (Math.abs(summe - ziel) > 0.05 ? " – weicht vom Betrag ab (Rabatt/Pfand?)" : "");
+      }
+      $("#belegSpeichern").textContent = f.aufteilen && f.aufteilen.checked && zeile.style.display !== "none" ? "Bestätigen & " + gruppen().length + " Posten speichern" : "Bestätigen & speichern";
+    }
+    if (f.aufteilen) f.aufteilen.onchange = sichtbar;
+    f.betrag.addEventListener("input", sichtbar);
+    sichtbar();
+
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const gesamt = C.parseBetrag(f.betrag.value);
+      if (!(gesamt > 0)) { f.betrag.focus(); return; }
+      const kat = chipWert(f, "kategorie") || "Sonstiges";
+      const reno = kat === "Renovierungen";
+      const basis = {
+        datum: f.datum.value, kategorie: kat, raum: chipWert(f, "raum"), lieferant: f.lieferant.value.trim(), belegart: chipWert(f, "belegart"),
+        belegnr: f.belegnr.value.trim(), quelle: "ki-beleg",
+      };
+      const bezahlt = f.bezahlt.checked;
+      let teile;
+      if (reno && f.aufteilen && f.aufteilen.checked && gruppen().length > 1) {
+        const g = gruppen();
+        const summe = g.reduce((a, x) => a + x.betrag, 0);
+        teile = g.map((x) => ({ gewerk: x.gewerk, betrag: C.r2((x.betrag * gesamt) / (summe || 1)), beschreibung: x.namen.join(", ").slice(0, 90) }));
+        teile[0].betrag = C.r2(teile[0].betrag + gesamt - teile.reduce((a, t) => a + t.betrag, 0)); // Rundungsrest
+      } else teile = [{ gewerk: reno ? chipWert(f, "gewerk") : "", betrag: gesamt, beschreibung: f.beschreibung.value.trim() }];
+      const neu = [];
+      let nr = C.naechsteNr(store.daten().kosten.concat(store.daten().arbeitszeit));
+      for (const t of teile) {
+        const k = C.neueKosten(Object.assign({}, basis, t, {
+          nr, bezahlt: bezahlt ? t.betrag : 0,
+          anmerkung: teile.length > 1 ? "Teil eines Belegs über " + eur(gesamt) + (basis.belegnr ? " (Nr. " + basis.belegnr + ")" : "") : "",
+        }));
+        store.put("kosten", k);
+        neu.push(k);
+        nr = "K-" + String(Number(nr.slice(2)) + 1).padStart(3, "0");
+      }
+      store.setConfig({ letzteAuswahl: { kategorie: kat, gewerk: teile[0].gewerk, raum: basis.raum, belegart: basis.belegart } });
+      dialog.close();
+      toast(neu.length > 1 ? neu.length + " Posten gespeichert (" + eur(gesamt) + ")" : "Gespeichert: " + eur(gesamt) + " · " + [kat, teile[0].gewerk].filter(Boolean).join(" · "),
+        { text: "Rückgängig", fn: () => neu.forEach((k) => store.loeschen("kosten", k.id)) });
+      syncBald();
+    };
+    if (!dialog.open) dialog.showModal();
+  }
+
+  // ======================================================================
   // Bearbeiten-Blatt
   // ======================================================================
   function oeffneKosten(k) {
@@ -1541,7 +1760,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             <label class="feld">Nr.<input name="nr" value="${esc(k.nr)}"></label>
             <label class="feld voll">Anmerkung<textarea name="anmerkung">${esc(k.anmerkung)}</textarea></label>
           </div>
-          ${k.quelle ? '<p class="klein leise" style="margin:0">Quelle: ' + esc({ excel: "Excel-Import", handy: "Handy", app: "App", chatgpt: "ChatGPT" }[k.quelle] || k.quelle) + "</p>" : ""}
+          ${k.quelle ? '<p class="klein leise" style="margin:0">Quelle: ' + esc({ excel: "Excel-Import", handy: "Handy", app: "App", chatgpt: "ChatGPT", "ki-beleg": "Beleg per KI gelesen" }[k.quelle] || k.quelle) + "</p>" : ""}
         </div>
         <div class="blatt-fuss">
           ${istNeu ? "" : '<button type="button" class="knopf gefahr" data-loeschen>Löschen</button>'}

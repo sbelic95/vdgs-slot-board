@@ -4,9 +4,11 @@
 // Geheimnisse (Supabase → Edge Functions → Secrets):
 //   KOSTEN_API_TOKEN        Zugang für ChatGPT (lang und zufällig)
 //   MITARBEITER_API_TOKEN   optional: eigener Zugang nur für das Mitarbeiter-Projekt (darf nur /arbeitszeit schreiben)
+//   ANTHROPIC_API_KEY       optional: für die Beleg-Erkennung (/beleg), siehe beleg.ts
 // SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY stellt Supabase automatisch bereit.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import "./core.js"; // gleiche Statistik-Logik wie die App (Kopie von kosten/core.js)
+import { belegLesen, BelegFehler } from "./beleg.ts";
 
 // deno-lint-ignore no-explicit-any
 const Core = (globalThis as any).Core;
@@ -16,7 +18,7 @@ const MA_TOKEN = Deno.env.get("MITARBEITER_API_TOKEN") || "";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type, x-api-key, mcp-session-id, mcp-protocol-version",
+  "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type, x-api-key, mcp-session-id, mcp-protocol-version",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body, null, 1), { status, headers: { ...CORS, "Content-Type": "application/json; charset=utf-8" } });
@@ -279,6 +281,17 @@ function openapi(basis: string) {
   };
 }
 
+// App-Nutzer (Supabase-Anmeldung) mit Eintrag in kosten_zugang
+async function appNutzerMitZugang(req: Request) {
+  const h = req.headers.get("authorization") || "";
+  if (!h.startsWith("Bearer ")) return false;
+  const { data, error } = await db.auth.getUser(h.slice(7));
+  const email = data?.user?.email;
+  if (error || !email) return false;
+  const { data: z } = await db.from("kosten_zugang").select("email").ilike("email", email).limit(1);
+  return !!(z && z.length);
+}
+
 // ---------- Router ----------
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
@@ -287,6 +300,10 @@ Deno.serve(async (req) => {
   const basis = (Deno.env.get("SUPABASE_URL") || url.origin) + "/functions/v1/kosten-api";
   try {
     if (pfad === "/openapi.json" || pfad === "/") return json(openapi(basis));
+    if (pfad === "/beleg" && req.method === "POST") {
+      if (rolle(req, url) !== "voll" && !(await appNutzerMitZugang(req))) return fehler("Nicht berechtigt", 401);
+      return json(await belegLesen(await req.json().catch(() => ({}))));
+    }
     const r = rolle(req, url);
     if (!r) return fehler("Nicht berechtigt", 401);
     const body = ["POST", "PATCH"].includes(req.method) ? await req.json().catch(() => ({})) : {};
@@ -312,6 +329,7 @@ Deno.serve(async (req) => {
     if (pfad === "/arbeitszeit" && req.method === "GET") return json(await arbeitszeitListe(params));
     return fehler("Unbekannter Pfad " + pfad, 404);
   } catch (e) {
+    if (e instanceof BelegFehler) return fehler(e.message, e.status);
     const msg = (e as Error).message;
     return fehler(msg, /nicht gefunden/.test(msg) ? 404 : /fehlt|Ungültig|Keine gültigen/.test(msg) ? 400 : 500);
   }

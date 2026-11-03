@@ -62,12 +62,32 @@ Sicherheit: Der öffentliche Schlüssel allein gibt keinen Zugriff. Lesen und Sc
 ## 4. ChatGPT anbinden
 
 1. **Edge Function anlegen:** Im Supabase-Dashboard → **Edge Functions → Deploy a new function → Via Editor**, Name `kosten-api`,
-   die Dateien [`supabase/functions/kosten-api/index.ts`](supabase/functions/kosten-api/index.ts) und `core.js` einfügen, „Verify JWT“ **aus**.
+   die Dateien [`supabase/functions/kosten-api/index.ts`](supabase/functions/kosten-api/index.ts), `beleg.ts` und `core.js` einfügen, „Verify JWT“ **aus**.
    (Mit der Supabase-CLI: `supabase functions deploy kosten-api --no-verify-jwt`.)
 2. **Edge Functions → Secrets:** `KOSTEN_API_TOKEN` = ein langes Zufallswort (z. B. 40 Zeichen aus einem Passwortgenerator).
 3. Dann den GPT einrichten: siehe [`chatgpt/GPT-ANWEISUNGEN.md`](chatgpt/GPT-ANWEISUNGEN.md).
 
 Danach kannst du in ChatGPT z. B. schreiben: „45,90 € bei Leroy Merlin, Kabel und Dosen fürs Kinderzimmer“ oder „Was hat die Elektrik bisher gekostet?“ – die App zeigt es beim nächsten Abgleich.
+
+## 4b. Belege per KI einlesen
+
+Im Bereich **Erfassen** oben: **Beleg fotografieren** (Kamera) oder **Foto / PDF wählen** (bis zu 4 Fotos eines langen Kassenbons oder ein PDF).
+Die KI liest Händler, Datum, Endsumme, Belegnummer und die einzelnen Positionen (auch spanische Bons, übersetzt ins Deutsche) und schlägt Kategorie, Gewerk und Raum vor – passend zu deinen bisherigen Zuordnungen pro Händler.
+Danach erscheint **„Beleg prüfen“**: alles ist vorausgefüllt, du kontrollierst und tippst auf **Bestätigen & speichern**.
+
+- Gehören Positionen zu verschiedenen Gewerken (z. B. Kabel → Elektrik, Siphon → Sanitär), kannst du den Beleg mit einem Schalter **nach Gewerk aufteilen** – dann entstehen mehrere Posten mit derselben Belegnummer.
+- Die App warnt, wenn am gleichen Tag schon ein Posten mit genau diesem Betrag existiert, und zeigt unsichere Stellen gelb an.
+- Voraussetzung: Datenbank verbunden (Abschnitt 3) und die Funktion `kosten-api` eingerichtet (Abschnitt 4).
+
+**Einrichtung (einmalig):**
+1. Auf [console.anthropic.com](https://console.anthropic.com) ein Konto anlegen, Guthaben aufladen (5–10 € reichen lange) und unter **API Keys** einen Schlüssel erzeugen.
+2. Supabase → **Edge Functions → Secrets**: `ANTHROPIC_API_KEY` = dieser Schlüssel.
+3. Die Funktion `kosten-api` neu hochladen – jetzt mit drei Dateien: `index.ts`, `beleg.ts`, `core.js`.
+
+**Kosten:** Standardmodell ist Claude Opus 5.5, je Beleg grob 2–5 Cent. Günstiger geht es mit dem Secret `BELEG_MODELL` = `claude-haiku-5-5` (deutlich unter 1 Cent, bei schlecht lesbaren Bons etwas ungenauer).
+Die Fotos werden nur zum Auslesen geschickt und nirgends gespeichert.
+
+**Ohne eigenen Schlüssel:** Im ChatGPT-GPT „Haus-Kosten“ kannst du ein Foto vom Bon schicken – ChatGPT liest ihn und trägt ihn über die Schnittstelle ein (siehe `chatgpt/GPT-ANWEISUNGEN.md`).
 
 ## 5. Mitarbeiter-Projekt verbinden
 

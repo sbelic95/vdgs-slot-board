@@ -467,7 +467,24 @@
       return laeuft;
     }
 
-    return { anmelden, abmelden, sync, bereit, hochladen, herunterladen };
+    // Aufruf der Edge Function kosten-api (z. B. /beleg) mit der Anmeldung des Nutzers
+    async function funktion(pfad, body) {
+      if (!bereit()) throw new Error("Bitte zuerst die Datenbank verbinden und anmelden (Einstellungen → Datenbank).");
+      const a = store.state.auth;
+      if (!a.access_token || (a.expires_at && a.expires_at < Date.now() + 60000)) await erneuern();
+      const los = () => fetchFn(basis() + "/functions/v1/kosten-api" + pfad, {
+        method: "POST",
+        headers: { apikey: cfg().supabaseKey, Authorization: "Bearer " + store.state.auth.access_token, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      let res = await los();
+      if (res.status === 401) { await erneuern(); res = await los(); }
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.fehler || j.message || "Fehler " + res.status + (res.status === 404 ? " – ist die Funktion kosten-api eingerichtet?" : ""));
+      return j;
+    }
+
+    return { anmelden, abmelden, sync, bereit, hochladen, herunterladen, funktion };
   }
 
   // Ein Eintrag aus dem Mitarbeiter-Projekt -> Arbeitszeit-Zeile
