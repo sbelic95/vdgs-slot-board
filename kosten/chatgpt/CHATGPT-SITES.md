@@ -21,6 +21,7 @@ Bitte nichts umbauen, kürzen oder neu schreiben – die Datei ist eine fertige 
 - **Daten:** Jede Website-Adresse hat ihren eigenen Gerätespeicher. Was du unter der ChatGPT-Sites-Adresse erfasst, siehst du nicht automatisch unter einer anderen Adresse (z. B. GitHub Pages) – außer beide sind mit derselben Datenbank verbunden (Einstellungen → Datenbank). Mit Datenbank ist es egal, wo die App läuft.
 - **Erster Start:** Statistik → „Excel-Datei laden“ → deine Aufstellung wählen.
 - **Ändert ChatGPT die Datei trotzdem**, fehlen oft Diagramme oder Export. Dann die Datei woanders ablegen, z. B. per Drag & Drop auf [app.netlify.com/drop](https://app.netlify.com/drop), oder die GitHub-Pages-Adresse nutzen.
+- **Datenbank von ChatGPT Sites statt Supabase?** Siehe [AUFTRAG-FUER-CHATGPT.md](AUFTRAG-FUER-CHATGPT.md) – den Text mit dem Quellcode-ZIP an ChatGPT geben.
 - **ChatGPT soll Kosten eintragen oder auswerten?** Dafür ist nicht die Website da, sondern der GPT bzw. Connector – siehe [GPT-ANWEISUNGEN.md](GPT-ANWEISUNGEN.md). Beide arbeiten über dieselbe Datenbank.
 
 ## Datei neu erzeugen (nach Änderungen am Code)

@@ -960,7 +960,7 @@
             <label class="feld">JSON-Adresse<input type="url" name="url" placeholder="https://…/arbeitszeiten.json" value="${esc(cfg.mitarbeiterUrl || "")}"></label>
             <label class="feld">Token (optional)<input type="password" name="token" value="${esc(cfg.mitarbeiterToken || "")}"></label>
             <div class="reihe"><button class="knopf" type="submit">Speichern &amp; abholen</button></div>
-            <p class="klein leise" style="margin:0">Format: <code>[{"id":"…","datum":"2026-10-31","mitarbeiter":"Martin","stunden":10,"betrag":250}]</code> – „betrag“ ist optional.</p>
+            <p class="klein leise" style="margin:0">Format: <code>[{"id":"…","datum":"2026-10-31","mitarbeiter":"Max","stunden":10,"betrag":250}]</code> – „betrag“ ist optional.</p>
           </form>
         </div>
         <div class="karte"><h2>Eigene Kategorien</h2>

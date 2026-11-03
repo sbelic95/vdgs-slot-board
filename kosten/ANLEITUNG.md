@@ -19,7 +19,7 @@ Statistik öffnen → **Excel-Datei laden** → deine `Aufstellung_Kosten….xls
 
 Was dabei passiert:
 - Zeilen mit Betrag werden Kostenposten (Nummern K-001 … bleiben erhalten).
-- Zeilen mit Stunden und 0 € (Martin, Irena, Leonardo …) werden **Arbeitszeiten** im Bereich Mitarbeiter.
+- Zeilen mit Stunden und 0 € (eigene Leute, Helfer …) werden **Arbeitszeiten** im Bereich Mitarbeiter.
 - Tippfehler werden vereinheitlicht („Eelektrik“ → Elektrik, „Dachterasse“ → Dachterrasse).
 - Posten mit Status „Offen“ (Grundsteuer Q4, Versicherung und Strom/Wasser Okt–Dez) werden als **noch nicht bezahlt** übernommen.
 - Leere Spalten (Fälligkeit, Zahlungsdatum, Zahlungsart, Finanzierungsquelle) werden weggelassen.
@@ -101,7 +101,7 @@ Authorization: Bearer <MITARBEITER_API_TOKEN>
 Content-Type: application/json
 
 [
-  { "id": "4711", "datum": "2026-10-31", "mitarbeiter": "Martin", "beginn": "08:00", "ende": "18:00", "stunden": 10, "betrag": 250, "beschreibung": "Fliesen verlegen", "gewerk": "Fliesen" }
+  { "id": "4711", "datum": "2026-10-31", "mitarbeiter": "Max", "beginn": "08:00", "ende": "18:00", "stunden": 10, "betrag": 250, "beschreibung": "Fliesen verlegen", "gewerk": "Fliesen" }
 ]
 ```
 
