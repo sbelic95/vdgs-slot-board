@@ -126,3 +126,7 @@ Beide richten sich nach dem gewählten Zeitraum und den Schaltern „Hauskauf“
 - `core.js`: Datenmodell, Import, Statistik, Abgleich – wird von App und Edge Function gemeinsam genutzt. Nach Änderungen `core.js` nach `supabase/functions/kosten-api/core.js` kopieren.
 - Abgleich: jede Zeile hat `geaendert_am` (setzt die Datenbank). Das Gerät lädt eigene Änderungen hoch und holt alles Neuere. Gelöscht wird „weich“ (`geloescht = true`), damit alle Geräte es mitbekommen.
 - Die Kostendaten liegen **nicht** in diesem öffentlichen Repository, sondern nur auf deinen Geräten und in deiner Datenbank.
+
+## Betrieb auf ChatGPT Sites
+
+Die Site auf ChatGPT Sites (eigene Anmeldung, D1-Datenbank, Baustunden-Anbindung, Protokoll) wird mit dem Paket in [`sites-update/`](sites-update/) aktualisiert. Die Schritt-für-Schritt-Anleitung für ChatGPT steht in [`sites-update/UPDATE-FUER-CHATGPT.md`](sites-update/UPDATE-FUER-CHATGPT.md). Nach Code-Änderungen `python3 kosten/tools/einzeldatei.py` ausführen; das aktualisiert `dist/` und `sites-update/web/` gleichzeitig.

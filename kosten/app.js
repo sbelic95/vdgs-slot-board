@@ -10,6 +10,10 @@
   const eur = (n, d) => C.fmtEUR(n, d);
   const eur0 = (n) => C.fmtEUR(n, Math.abs(n) >= 1000 ? 0 : 2);
   const inhalt = $("#inhalt");
+  // Für Plattform-Anpassungen (z. B. ChatGPT Sites): welche Funktionen diese Fassung selbst mitbringt
+  window.HK_APP_VERSION = "2026-11-03.2";
+  window.HK_FAEHIGKEITEN = ["hauskauf-ausblenden", "beleg-ki", "beleg-plattform-api", "import-schutz"];
+  const P = window.HK_PLATTFORM || {}; // optional, vor app.js setzen: { belegUrl: "/api/beleg" }
   const dialog = $("#dialog");
 
   // ---------- Farben (feste Reihenfolge je Hauptkategorie, Farbe folgt der Kategorie, nie dem Rang) ----------
@@ -170,6 +174,7 @@
     gewerkSichtbar();
 
     const vorschlagAnzeigen = () => {
+      if (P.eingabehilfeExtern) return; // Plattform bringt eigene, bewusst zu bestätigende Vorschlagshilfe mit
       const v = C.vorschlagFuer(store.daten().kosten, f.lieferant.value);
       const ziel = $("#vorschlag");
       if (!v) { ziel.textContent = ""; return; }
@@ -217,7 +222,7 @@
     if (!ziel) return;
     const h = C.heute();
     const nrZahl = (x) => Number((/(\d+)$/.exec(x.nr || "") || [0, 0])[1]);
-    const alle = store.daten().kosten.filter((x) => !x.geloescht);
+    const alle = store.daten().kosten.filter((x) => !x.geloescht && (hauskaufSichtbar() || x.kategorie !== C.KAT_HAUSKAUF));
     let k = alle.filter((x) => x.datum === h).sort((a, b) => nrZahl(b) - nrZahl(a));
     let titel = "Heute erfasst";
     if (!k.length) { k = alle.sort((a, b) => nrZahl(b) - nrZahl(a)).slice(0, 5); titel = "Zuletzt erfasst"; }
@@ -272,8 +277,20 @@
     if (!dialog.open) dialog.showModal();
   }
 
+  // Serverfunktion aufrufen: Supabase-Version über sync.funktion, sonst (z. B. ChatGPT Sites) über die eigene Adresse mit Sitzungs-Cookie
+  async function serverFunktion(pfad, body) {
+    if (typeof sync.funktion === "function" && !P.belegUrl) return sync.funktion(pfad, body);
+    const url = P.belegUrl && pfad === "/beleg" ? P.belegUrl : (P.apiBasis || "/api") + pfad;
+    const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Haus-Kosten-Beleg": "1" }, body: JSON.stringify(body) });
+    const j = await res.json().catch(() => ({}));
+    if (res.status === 401) throw new Error("Bitte neu anmelden.");
+    if (res.status === 404) throw new Error("Die Beleg-Erkennung ist auf dem Server noch nicht eingerichtet.");
+    if (!res.ok) throw new Error(j.fehler || j.error || j.message || "Fehler " + res.status);
+    return j;
+  }
+
   async function belegScannen(dateien) {
-    if (!sync.bereit()) {
+    if (typeof sync.funktion === "function" && !P.belegUrl && !sync.bereit()) {
       alert("Für die Beleg-Erkennung muss die Datenbank verbunden sein (Einstellungen → Datenbank), weil die KI über deine eigene Supabase-Funktion läuft.");
       return;
     }
@@ -289,7 +306,7 @@
       const body = { kontext: belegKontext() };
       if (pdfs[0]) body.pdf = await alsBase64(pdfs[0]);
       else body.bilder = bilder.map(({ media_type, data }) => ({ media_type, data }));
-      const ergebnis = await sync.funktion("/beleg", body);
+      const ergebnis = await serverFunktion("/beleg", body);
       belegPruefen(ergebnis, bilder.map((b) => b.vorschau), pdfs[0] ? pdfs[0].name : "");
     } catch (err) {
       if (dialog.open) dialog.close();
@@ -306,19 +323,23 @@
     }
     const L = listen();
     const kosten = store.daten().kosten.filter((k) => !k.geloescht);
-    const pos = (r.positionen || []).map((p) => Object.assign({}, p, { gewerk: p.gewerk || "" }));
-    const kategorie = L.kategorien.includes(r.kategorie) ? r.kategorie : r.kategorie || "Renovierungen";
+    const unbekannt = [];
+    const nurVorhanden = (wert, liste, was) => { if (!wert) return ""; if (liste.includes(wert)) return wert; unbekannt.push(was + " „" + wert + "“"); return ""; };
+    const pos = (r.positionen || []).map((p) => Object.assign({}, p, { gewerk: p.gewerk && L.gewerke.includes(p.gewerk) ? p.gewerk : "" }));
+    const kategorie = nurVorhanden(r.kategorie, L.kategorien, "Kategorie");
+    r = Object.assign({}, r, { gewerk: nurVorhanden(r.gewerk, L.gewerke, "Gewerk"), raum: nurVorhanden(r.raum, L.raeume, "Raum") });
     const betrag = r.gesamtbetrag != null ? r.gesamtbetrag : C.r2(pos.reduce((a, p) => a + p.betrag, 0));
     const datum = r.datum && /^\d{4}-\d{2}-\d{2}$/.test(r.datum) ? r.datum : C.heute();
     const sicher = { hoch: ["gut", "Gut lesbar"], mittel: ["mittel", "Bitte kurz prüfen"], niedrig: ["schlecht", "Unsicher – genau prüfen"] }[r.sicherheit] || ["mittel", "Bitte prüfen"];
     const doppelt = kosten.filter((k) => Math.abs(k.betrag - betrag) < 0.01 && k.datum === datum);
-    const optionen = (werte, w) => '<option value="">–</option>' + [...new Set(werte.concat(w ? [w] : []))].map((x) => "<option" + (x === w ? " selected" : "") + ">" + esc(x) + "</option>").join("");
+    const optionen = (werte, w) => '<option value="">–</option>' + werte.map((x) => "<option" + (x === w ? " selected" : "") + ">" + esc(x) + "</option>").join("");
 
     dialog.innerHTML = `<form id="belegForm" autocomplete="off">
       <div class="blatt-kopf"><h2>Beleg prüfen</h2><span class="sicher ${sicher[0]}">${sicher[1]}</span><button type="button" class="knopf klein" data-schliessen>Verwerfen</button></div>
       <div class="blatt-inhalt">
         ${vorschauen.length ? '<div class="beleg-bilder">' + vorschauen.map((v, i) => '<a href="#" data-bild="' + i + '"><img src="' + v + '" alt="Beleg Foto ' + (i + 1) + '"></a>').join("") + "</div>" : pdfName ? '<p class="klein leise" style="margin:0">📄 ' + esc(pdfName) + "</p>" : ""}
         ${(r.hinweise || []).map((h) => '<p class="hinweis warn klein" style="margin:0">' + esc(h) + "</p>").join("")}
+        ${unbekannt.length ? '<p class="hinweis warn klein" style="margin:0">Vorschlag ' + unbekannt.map(esc).join(", ") + " gibt es in deinen Listen nicht – bitte selbst wählen (oder mit „+ Neu“ bewusst anlegen).</p>" : ""}
         ${doppelt.length ? '<p class="hinweis fehler klein" style="margin:0"><b>Schon erfasst?</b> Am gleichen Tag gibt es bereits ' + doppelt.map((k) => esc((k.nr || "") + " " + (k.lieferant || k.beschreibung || "") + " " + eur(k.betrag))).join(", ") + ".</p>" : ""}
         ${r.waehrung && r.waehrung !== "EUR" ? '<p class="hinweis warn klein" style="margin:0">Währung auf dem Beleg: ' + esc(r.waehrung) + " – Betrag bitte in Euro umrechnen.</p>" : ""}
         <div class="felder">
@@ -375,7 +396,8 @@
       e.preventDefault();
       const gesamt = C.parseBetrag(f.betrag.value);
       if (!(gesamt > 0)) { f.betrag.focus(); return; }
-      const kat = chipWert(f, "kategorie") || "Sonstiges";
+      const kat = chipWert(f, "kategorie");
+      if (!kat) { toast("Bitte eine Kategorie wählen"); f.querySelector('[data-chips="kategorie"]').scrollIntoView({ behavior: "smooth", block: "center" }); return; }
       const reno = kat === "Renovierungen";
       const basis = {
         datum: f.datum.value, kategorie: kat, raum: chipWert(f, "raum"), lieferant: f.lieferant.value.trim(), belegart: chipWert(f, "belegart"),
@@ -507,6 +529,7 @@
     return store.daten().kosten.filter((k) => {
       if (k.geloescht) return false;
       if (u.kategorie && k.kategorie !== u.kategorie) return false;
+      if (!u.kategorie && k.kategorie === C.KAT_HAUSKAUF && !hauskaufSichtbar()) return false;
       if (u.gewerk && (k.gewerk || C.OHNE) !== u.gewerk) return false;
       if (u.raum && (k.raum || C.OHNE) !== u.raum) return false;
       if (u.nurOffen && !(C.offen(k) > 0)) return false;
@@ -677,7 +700,8 @@
       default: return { von: "", bis: "" };
     }
   }
-  const filterFuerStatistik = () => Object.assign(zeitraum(ui.filter), { ohneHauskauf: !ui.filter.mitHauskauf, mitMitarbeiter: ui.filter.mitMitarbeiter });
+  const hauskaufSichtbar = () => store.state.config.hauskaufAnzeigen === true;
+  const filterFuerStatistik = () => Object.assign(zeitraum(ui.filter), { ohneHauskauf: !hauskaufSichtbar() || !ui.filter.mitHauskauf, mitMitarbeiter: ui.filter.mitMitarbeiter });
   const zeitraumText = () => {
     const z = zeitraum(ui.filter);
     if (!z.von && !z.bis) return "Gesamter Zeitraum";
@@ -701,15 +725,15 @@
       <div class="filterzeile">
         <div class="chips" id="zeitraum">${zr.map(([k, t]) => '<button class="chip" data-z="' + k + '" aria-pressed="' + (f.zeitraum === k) + '">' + t + "</button>").join("")}</div>
         ${f.zeitraum === "eigen" ? '<div class="reihe"><input type="date" id="von" value="' + esc(f.von) + '" style="width:auto;min-height:34px;padding:4px 8px"> – <input type="date" id="bis" value="' + esc(f.bis) + '" style="width:auto;min-height:34px;padding:4px 8px"></div>' : ""}
-        <label class="schalter">Hauskauf einrechnen <input type="checkbox" id="mitHauskauf" ${f.mitHauskauf ? "checked" : ""}></label>
+        ${hauskaufSichtbar() ? `<label class="schalter">Hauskauf einrechnen <input type="checkbox" id="mitHauskauf" ${f.mitHauskauf ? "checked" : ""}></label>` : ""}
         <label class="schalter">Mitarbeiter einrechnen <input type="checkbox" id="mitMa" ${f.mitMitarbeiter ? "checked" : ""}></label>
       </div>
       <div class="kacheln">
-        <div class="kachel haupt"><div class="name">${f.mitHauskauf ? "Gesamtkosten" : "Kosten ohne Hauskauf"}</div><div class="wert">${eur0(s.gesamt)}</div><div class="zusatz">${esc(zeitraumText())} · ${s.anzahl} Posten</div></div>
+        <div class="kachel haupt"><div class="name">${!hauskaufSichtbar() || f.mitHauskauf ? "Gesamtkosten" : "Kosten ohne Hauskauf"}</div><div class="wert">${eur0(s.gesamt)}</div><div class="zusatz">${esc(zeitraumText())} · ${s.anzahl} Posten</div></div>
         <div class="kachel"><div class="name">Renovierung (Material &amp; Firmen)</div><div class="wert">${eur0(s.renovierung)}</div><div class="zusatz">${s.gesamt ? Math.round((100 * s.renovierung) / s.gesamt) : 0} % der Kosten</div></div>
         <div class="kachel"><div class="name">Mitarbeiter</div><div class="wert">${eur0(s.mitarbeiter)}</div><div class="zusatz">${s.stunden.toLocaleString("de-DE")} Std.${s.mitarbeiter === 0 && s.stunden > 0 ? ' · <a href="#team">Stundensatz eintragen</a>' : ""}</div></div>
         <div class="kachel offen"><div class="name">Noch offen</div><div class="wert">${eur0(s.offen)}</div><div class="zusatz">${s.offenePosten.length} Posten</div></div>
-        <div class="kachel"><div class="name">Hauskauf inkl. Nebenkosten</div><div class="wert">${eur0(s.hauskauf)}</div><div class="zusatz">Alles zusammen: ${eur0(s.gesamtInklHauskauf)}</div></div>
+        ${hauskaufSichtbar() ? `<div class="kachel"><div class="name">Hauskauf inkl. Nebenkosten</div><div class="wert">${eur0(s.hauskauf)}</div><div class="zusatz">Alles zusammen: ${eur0(s.gesamtInklHauskauf)}</div></div>` : ""}
       </div>
       ${s.ohneGewerk.length ? `<div class="karte aufruf" style="margin-bottom:12px"><div class="text"><b>${s.ohneGewerk.length} Renovierungsposten ohne Gewerk</b> (${eur(s.ohneGewerk.reduce((a, p) => a + p.betrag, 0))}). Zuordnen macht die Statistik genauer.</div><a class="knopf primaer klein" href="#zuordnen">Zuordnen</a></div>` : ""}
       <div class="raster zwei">
@@ -728,7 +752,7 @@
 
     $("#zeitraum").onclick = (e) => { const b = e.target.closest("[data-z]"); if (!b) return; f.zeitraum = b.dataset.z; filterMerken(); renderStatistik(); };
     if ($("#von")) { $("#von").onchange = (e) => { f.von = e.target.value; filterMerken(); renderStatistik(); }; $("#bis").onchange = (e) => { f.bis = e.target.value; filterMerken(); renderStatistik(); }; }
-    $("#mitHauskauf").onchange = (e) => { f.mitHauskauf = e.target.checked; filterMerken(); renderStatistik(); };
+    if ($("#mitHauskauf")) $("#mitHauskauf").onchange = (e) => { f.mitHauskauf = e.target.checked; filterMerken(); renderStatistik(); };
     $("#mitMa").onchange = (e) => { f.mitMitarbeiter = e.target.checked; filterMerken(); renderStatistik(); };
     $("#exExcel").onclick = () => exportExcel();
     $("#exPdf").onclick = () => exportPdf();
@@ -983,6 +1007,8 @@
         </div>
         <div class="karte"><h2>Darstellung</h2>
           <div class="chips" id="thema">${[["", "Automatisch"], ["light", "Hell"], ["dark", "Dunkel"]].map(([k, t]) => '<button class="chip" data-thema="' + k + '" aria-pressed="' + ((cfg.thema || "") === k) + '">' + t + "</button>").join("")}</div>
+          <label class="schalter" style="margin-top:10px">Hauskauf anzeigen <input type="checkbox" id="hauskaufAnzeigen" ${cfg.hauskaufAnzeigen === true ? "checked" : ""}></label>
+          <p class="klein leise" style="margin:0">Aus: Kaufpreis, Makler, Notar und Steuern zum Hauskauf erscheinen nicht in Übersicht, Liste und Berichten. Gespeichert bleiben sie trotzdem (auch in der JSON-Sicherung).</p>
         </div>
       </div>`;
 
@@ -1027,6 +1053,7 @@
     };
     inhalt.querySelectorAll("[data-listeweg]").forEach((b) => (b.onclick = () => { store.loeschen("listen", b.dataset.listeweg); syncBald(); renderEinstellungen(); }));
     const ij = $("#installJetzt"); if (ij) ij.onclick = installieren;
+    $("#hauskaufAnzeigen").onchange = (e) => { store.setConfig({ hauskaufAnzeigen: e.target.checked }); toast(e.target.checked ? "Hauskauf wird angezeigt" : "Hauskauf ausgeblendet"); };
     $("#thema").onclick = (e) => { const b = e.target.closest("[data-thema]"); if (!b) return; store.setConfig({ thema: b.dataset.thema }); themaSetzen(); renderEinstellungen(); };
   }
 
@@ -1046,21 +1073,24 @@
       const ws = wb.Sheets[wb.SheetNames.find((n) => /kosten|tabelle1/i.test(n)) || wb.SheetNames[0]];
       const zeilen = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
       const r = C.importiereZeilen(zeilen, listen().mitarbeiter);
-      const vorhanden = r.kosten.filter((k) => store.state.kosten[k.id]).length + r.arbeitszeit.filter((a) => store.state.arbeitszeit[a.id]).length;
-      const neu = r.kosten.length + r.arbeitszeit.length - vorhanden;
+      const vorschau = C.importZusammenfuehren(store.state, r, { ueberschreiben: false });
+      const vorhanden = vorschau.vorhanden;
+      const neu = vorschau.kosten.length + vorschau.arbeitszeit.length;
       dialog.innerHTML = `<div class="blatt-kopf"><h2>Excel-Import</h2><button type="button" class="knopf klein" data-schliessen>Abbrechen</button></div>
         <div class="blatt-inhalt">
           <p style="margin:0"><b>${r.kosten.length}</b> Kostenposten (${eur(r.kosten.reduce((s, k) => s + k.betrag, 0))}) und <b>${r.arbeitszeit.length}</b> Arbeitszeiten (${r.arbeitszeit.reduce((s, a) => s + a.stunden, 0).toLocaleString("de-DE")} Std.) gefunden.</p>
           <p class="leise" style="margin:0">${neu} neu${vorhanden ? ", " + vorhanden + " schon vorhanden" : ""}.</p>
-          ${vorhanden ? '<label class="schalter">Vorhandene mit Excel-Stand überschreiben <input type="checkbox" id="ueberschreiben"></label>' : ""}
+          ${vorschau.geloescht ? '<p class="leise klein" style="margin:0">' + vorschau.geloescht + " davon hast du gelöscht – sie bleiben gelöscht.</p>" : ""}
+          ${vorschau.externerTag.length ? '<p class="leise klein" style="margin:0">' + vorschau.externerTag.length + " Arbeitszeit-Zeilen ausgelassen, weil es für diese Person und diesen Tag schon Einträge aus dem Mitarbeiter-Programm gibt (" + vorschau.externerTag.slice(0, 6).map((a) => esc(a.id.replace(/^xl-/, ""))).join(", ") + (vorschau.externerTag.length > 6 ? " …" : "") + ").</p>" : ""}
+          ${vorschau.kosten.length < r.kosten.length && vorhanden ? '<label class="schalter">Vorhandene Kostenposten mit dem Excel-Stand überschreiben <input type="checkbox" id="ueberschreiben"></label><p class="leise klein" style="margin:0">Arbeitszeiten werden nie überschrieben.</p>' : ""}
           ${r.hinweise.length ? '<div class="hinweis warn klein"><b>Bitte prüfen:</b><ul style="margin:6px 0 0;padding-left:18px">' + r.hinweise.map((h) => "<li>" + esc(h) + "</li>").join("") + "</ul></div>" : ""}
         </div>
         <div class="blatt-fuss"><button class="knopf primaer" id="importLos">Übernehmen</button></div>`;
       dialog.querySelector("[data-schliessen]").onclick = () => dialog.close();
       $("#importLos").onclick = () => {
         const ueber = $("#ueberschreiben") && $("#ueberschreiben").checked;
-        const k = r.kosten.filter((x) => ueber || !store.state.kosten[x.id]);
-        const a = r.arbeitszeit.filter((x) => ueber || !store.state.arbeitszeit[x.id]);
+        const m = C.importZusammenfuehren(store.state, r, { ueberschreiben: ueber });
+        const k = m.kosten, a = m.arbeitszeit;
         store.putViele("kosten", k);
         store.putViele("arbeitszeit", a);
         for (const name of new Set(a.map((x) => x.mitarbeiter))) if (!store.state.mitarbeiter[name]) store.put("mitarbeiter", { name, stundensatz: 0, rolle: "", aktiv: true, geloescht: false });
@@ -1102,7 +1132,7 @@
         XLSX.utils.book_append_sheet(wb, ws, name);
       };
       // Blatt 1 im gleichen Aufbau wie die bisherige Aufstellung (lässt sich wieder importieren)
-      const kosten = daten.kosten.filter((k) => !k.geloescht && imZ(k.datum)).sort((a, b) => (a.datum + a.nr).localeCompare(b.datum + b.nr));
+      const kosten = daten.kosten.filter((k) => !k.geloescht && imZ(k.datum) && !(f.ohneHauskauf && k.kategorie === C.KAT_HAUSKAUF)).sort((a, b) => (a.datum + a.nr).localeCompare(b.datum + b.nr));
       const kopf = ["ID", "Datum", "Hauptkategorie", "Gewerk / Unterkategorie", "Raum / Bereich", "Lieferant / Empfänger", "Beschreibung", "Belegart", "Belegnummer", "Gesamtkosten €", "Bezahlt €", "Noch offen €", "Status", "Anmerkung", "Quelle"];
       const datum = (iso) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
       blatt([kopf].concat(kosten.map((k) => [k.nr, datum(k.datum), k.kategorie, k.gewerk, k.raum, k.lieferant, k.beschreibung, k.belegart, k.belegnr, k.betrag, k.bezahlt, C.offen(k), C.statusVon(k), k.anmerkung, k.quelle])),
@@ -1119,7 +1149,13 @@
       const kats = s.nachKategorie.map((k) => k.name);
       blatt([["Monat"].concat(kats, ["Summe"])].concat(s.monate.map((m) => [C.fmtMonat(m.monat)].concat(kats.map((k) => m.werte[k] || 0), [m.summe]))), [10].concat(kats.map(() => 16), [14]), kats.map((_, i) => i + 1).concat([kats.length + 1]), "Monate");
       blatt([["Mitarbeiter", "Tage", "Stunden", "Kosten €"]].concat(s.proMitarbeiter.map((m) => [m.name, m.tage, m.stunden, m.kosten])), [16, 8, 10, 14], [3], "Mitarbeiter");
-      blatt([["Kennzahl", "Wert"], ["Zeitraum", zeitraumText()], ["Hauskauf eingerechnet", f.ohneHauskauf ? "nein" : "ja"], ["Kosten im Zeitraum", s.gesamt], ["Renovierung", s.renovierung], ["Mitarbeiter", s.mitarbeiter], ["Stunden", s.stunden], ["Noch offen", s.offen], ["Hauskauf inkl. Nebenkosten", s.hauskauf], ["Alles zusammen", s.gesamtInklHauskauf], ["Stand", new Date().toLocaleString("de-DE")]], [28, 18], [1], "Übersicht");
+      const hk = hauskaufSichtbar();
+      const uebersicht = [["Kennzahl", "Wert"], ["Zeitraum", zeitraumText()]]
+        .concat(hk ? [["Hauskauf eingerechnet", f.ohneHauskauf ? "nein" : "ja"]] : [])
+        .concat([["Kosten im Zeitraum", s.gesamt], ["Renovierung", s.renovierung], ["Mitarbeiter", s.mitarbeiter], ["Stunden (Std.)", s.stunden.toLocaleString("de-DE")], ["Noch offen", s.offen]])
+        .concat(hk ? [["Hauskauf inkl. Nebenkosten", s.hauskauf], ["Alles zusammen", s.gesamtInklHauskauf]] : [])
+        .concat([["Stand", new Date().toLocaleString("de-DE")]]);
+      blatt(uebersicht, [28, 18], [1], "Übersicht");
       wb.SheetNames.unshift(wb.SheetNames.pop()); // Übersicht nach vorn
       XLSX.writeFile(wb, "Haus-Kosten_" + C.heute() + ".xlsx", { compression: true });
       toast("Excel erstellt");
@@ -1143,10 +1179,10 @@
       const blau = [28, 92, 171];
       doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.text("Haus-Kosten – Bericht", R, y);
       doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(90);
-      y += 7; doc.text(zeitraumText() + (f.ohneHauskauf ? " · ohne Hauskauf" : " · inkl. Hauskauf") + (f.mitMitarbeiter ? "" : " · ohne Mitarbeiter") + " · Stand " + new Date().toLocaleString("de-DE"), R, y);
+      y += 7; doc.text(zeitraumText() + (!hauskaufSichtbar() ? "" : f.ohneHauskauf ? " · ohne Hauskauf" : " · inkl. Hauskauf") + (f.mitMitarbeiter ? "" : " · ohne Mitarbeiter") + " · Stand " + new Date().toLocaleString("de-DE"), R, y);
       doc.setTextColor(0);
       y += 8;
-      const kacheln = [[f.ohneHauskauf ? "Kosten ohne Hauskauf" : "Gesamtkosten", eur(s.gesamt)], ["Renovierung", eur(s.renovierung)], ["Mitarbeiter", eur(s.mitarbeiter) + " (" + s.stunden.toLocaleString("de-DE") + " Std.)"], ["Noch offen", eur(s.offen)], ["Hauskauf inkl. Nebenkosten", eur(s.hauskauf)], ["Alles zusammen", eur(s.gesamtInklHauskauf)]];
+      const kacheln = [[f.ohneHauskauf ? "Kosten ohne Hauskauf" : "Gesamtkosten", eur(s.gesamt)], ["Renovierung", eur(s.renovierung)], ["Mitarbeiter", eur(s.mitarbeiter) + " (" + s.stunden.toLocaleString("de-DE") + " Std.)"], ["Noch offen", eur(s.offen)]].concat(hauskaufSichtbar() ? [["Hauskauf inkl. Nebenkosten", eur(s.hauskauf)], ["Alles zusammen", eur(s.gesamtInklHauskauf)]] : []);
       const kw = (B - 2 * R - 8) / 3;
       kacheln.forEach(([n, w], i) => {
         const x = R + (i % 3) * (kw + 4), yy = y + Math.floor(i / 3) * 20;
@@ -1154,7 +1190,7 @@
         doc.setFontSize(8); doc.setTextColor(90); doc.text(n, x + 3, yy + 6);
         doc.setFontSize(12); doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.text(w, x + 3, yy + 13); doc.setFont("helvetica", "normal");
       });
-      y += 44;
+      y += kacheln.length > 3 ? 44 : 24;
 
       const bild = (erzeugen, breitePx, hoehePx, mmB) => {
         const c = document.createElement("canvas");

@@ -145,7 +145,8 @@
       if (istArbeit) {
         arbeitszeit.push({
           id: "xl-" + nr, datum, mitarbeiter: lieferant || "Unbekannt", beginn: uhrzeit(get(z, S.beginn)), ende: uhrzeit(get(z, S.ende)),
-          stunden: Math.round(stunden * 100) / 100, betrag: null, beschreibung: beschreibung || "Arbeitsleistung",
+          // Eigenleistungen aus der Excel-Liste bleiben fest bei 0 € – ein späterer Stundensatz macht sie nicht rückwirkend teuer
+          stunden: Math.round(stunden * 100) / 100, betrag: betrag || 0, beschreibung: beschreibung || "Arbeitsleistung",
           kategorie: txt(get(z, S.kategorie)) || "Renovierungen", quelle: "excel", extern_id: null, geloescht: false,
         });
         continue;
@@ -173,10 +174,43 @@
   }
 
   // Doppelte Stunden vermeiden: kommen Einträge aus dem Mitarbeiter-Projekt, ersetzen sie die Excel-Stunden desselben Tages
+  // Kommt eine Arbeitszeit aus einem anderen Programm (Mitarbeiter-Projekt / Baustunden)?
+  const istExtern = (a) => !!a && (a.quelle === "extern" || a._baustundenId != null || /baustunden/i.test(a.quelle || ""));
+  const tagSchluessel = (a) => String(a.mitarbeiter || "").trim().toLowerCase() + "|" + a.datum;
+
   function wirksameArbeitszeit(liste) {
     const extern = new Set();
-    for (const a of liste) if (a.quelle === "extern") extern.add(a.mitarbeiter.toLowerCase() + "|" + a.datum);
-    return liste.filter((a) => a.quelle === "extern" || !extern.has(a.mitarbeiter.toLowerCase() + "|" + a.datum));
+    for (const a of liste) if (istExtern(a)) extern.add(tagSchluessel(a));
+    return liste.filter((a) => istExtern(a) || !extern.has(tagSchluessel(a)));
+  }
+
+  // Excel-Import sicher in den vorhandenen Bestand einfügen:
+  // - nichts doppelt (gleiche ID = gleicher Posten),
+  // - gelöschte Posten werden nie wiederbelebt,
+  // - beim Überschreiben bleiben technische Felder (_…, z. B. Server-Version) erhalten,
+  // - Arbeitszeiten werden nie überschrieben und an Tagen mit Einträgen aus dem anderen Programm ausgelassen.
+  function importZusammenfuehren(bestand, ergebnis, opts) {
+    const ueberschreiben = !!(opts && opts.ueberschreiben);
+    const out = { kosten: [], arbeitszeit: [], vorhanden: 0, geloescht: 0, externerTag: [] };
+    for (const k of ergebnis.kosten) {
+      const alt = bestand.kosten[k.id];
+      if (!alt) { out.kosten.push(k); continue; }
+      if (alt.geloescht) { out.geloescht++; continue; }
+      out.vorhanden++;
+      if (ueberschreiben) {
+        const neu = Object.assign({}, alt);
+        for (const f of SPALTEN.kosten) if (f !== "id" && f !== "geloescht" && k[f] !== undefined) neu[f] = k[f];
+        out.kosten.push(neu);
+      }
+    }
+    const externeTage = new Set(Object.values(bestand.arbeitszeit).filter((a) => !a.geloescht && istExtern(a)).map(tagSchluessel));
+    for (const a of ergebnis.arbeitszeit) {
+      const alt = bestand.arbeitszeit[a.id];
+      if (alt) { if (alt.geloescht) out.geloescht++; else out.vorhanden++; continue; }
+      if (externeTage.has(tagSchluessel(a))) { out.externerTag.push(a); continue; }
+      out.arbeitszeit.push(a);
+    }
+    return out;
   }
 
   function imZeitraum(datum, f) { return (!f.von || datum >= f.von) && (!f.bis || datum <= f.bis); }
@@ -506,7 +540,7 @@
   return {
     HAUPTKATEGORIEN, KAT_MITARBEITER, KAT_HAUSKAUF, GEWERKE, RAEUME, BELEGARTEN, OHNE, TABELLEN, SPALTEN,
     r2, txt, uuid, heute, isoDatum, fmtEUR, fmtDatum, fmtMonat, parseBetrag, excelDatum, excelStunden, stundenText,
-    offen, statusVon, neueKosten, naechsteNr, importiereZeilen, arbeitskosten, wirksameArbeitszeit, posten, statistik,
+    offen, statusVon, neueKosten, naechsteNr, importiereZeilen, importZusammenfuehren, istExtern, arbeitskosten, wirksameArbeitszeit, posten, statistik,
     vorschlagFuer, createStore, createSync, externeArbeitszeit,
   };
 });

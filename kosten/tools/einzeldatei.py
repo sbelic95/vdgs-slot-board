@@ -30,4 +30,7 @@ html = html.replace("<head>", "<head>\n<!-- Haus-Kosten – komplette App in ein
 ziel = ORDNER / "dist" / "Haus-Kosten.html"
 ziel.parent.mkdir(exist_ok=True)
 ziel.write_text(html, encoding="utf-8")
+sites = ORDNER / "sites-update" / "web" / "Haus-Kosten.html"  # gleiche Datei für das Sites-Update-Paket
+if sites.parent.is_dir():
+    sites.write_text(html, encoding="utf-8")
 print(ziel, round(ziel.stat().st_size / 1024), "KB")

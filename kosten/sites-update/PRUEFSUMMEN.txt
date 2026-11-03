@@ -1,0 +1,11 @@
+SHA-256 von web/Haus-Kosten.html
+
+Frühere Fassungen (eine davon sollte heute im Sites-Projekt liegen):
+6882ba597975a8e284a77a3e327650626bb9716bcfc637a99343e27ce72bd071  31.10.2026, 1.006.320 Bytes – Fassung mit Desktop-Ansicht (wahrscheinliche Basis)
+74bb7726aff596fbd2ca460d95ce82ae1bc1bed0078eff4f51d0b1a45791c1da  03.11.2026, 1.022.802 Bytes – mit Beleg-KI (Supabase)
+98ca2cf10869ba202c4c74ae5923a2fb535c6d0ab8578c137d46d2a4a017fc50  03.11.2026, 1.022.799 Bytes – wie davor, Textkorrektur
+
+Neue Fassung (dieses Paket):
+d10e138e037bce86d081a0d6b64e123b2b2362111179e765b5dde8dba3a81254  2026-11-03.2, 1.028.761 Bytes
+
+Prüfen:  sha256sum web/Haus-Kosten.html
