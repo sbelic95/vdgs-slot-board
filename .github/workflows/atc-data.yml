@@ -74,4 +74,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
           git commit -qm "TRACON areas (vatsimnetwork/simaware-tracon-project), runways (OurAirports)"
-          git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" atc
+          # GitHub sometimes answers a push with "Internal Server Error": try again a few times before failing
+          for i in 1 2 3 4; do
+            git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" atc && exit 0
+            echo "push failed, next try in $((i * 15)) s"; sleep $((i * 15))
+          done
+          exit 1

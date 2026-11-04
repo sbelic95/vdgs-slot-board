@@ -46,4 +46,9 @@ jobs:
           if [ "$(git write-tree)" = "$(cat ../prev_tree 2>/dev/null)" ]; then echo "nothing new"; exit 0; fi
           git commit -qm "Stand data from OpenStreetMap (ODbL)"
           # one orphan commit, force-pushed: the branch never grows
-          git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" stands
+          # GitHub sometimes answers a push with "Internal Server Error": try again a few times before failing
+          for i in 1 2 3 4; do
+            git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" stands && exit 0
+            echo "push failed, next try in $((i * 15)) s"; sleep $((i * 15))
+          done
+          exit 1
