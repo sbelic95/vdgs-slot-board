@@ -77,6 +77,25 @@ Fliegst du mit einem Callsign einer Airline, die ein eigenes Sitzdisplay hat (zu
 - Auf dem iPad einmal **START** antippen: Erst dann darf das iPad das Sicherheitsvideo später von selbst mit Ton starten.
 - Die Videos bleiben auf deinem PC und in deinem Heimnetz. Ohne Bridge (GitHub-Version) kannst du unter „Filme“ Videos direkt vom iPad hinzufügen; sie bleiben im Browser des iPads.
 
+## ASL Pad mit GSX und Fenix (neu)
+
+Die Bridge liefert auch das **ASL Pad** aus: `http://<PC-Adresse>:8770/pad/` (die Adresse vom QR-Code plus `/pad/`).
+So geöffnet zeigt das Pad live aus dem Simulator:
+
+- **Turnaround (GSX Pro):** jeder Bodendienst mit Status (bereit, angefordert, läuft, fertig), Passagiere, Fracht, Tankschlauch,
+  Parkbremse – und ein Knopf **„Rufen“**, der den Dienst in GSX bestellt (Boarding, Refuel, Catering, Pushback, Brücke, GPU …).
+  Unter „GSX menu“ beantwortest du GSX-Fragen (z. B. Pushback-Richtung) vom Tablet aus.
+- **Fenix EFB:** ob die Fenix-App läuft, ein Knopf zum Fenix-EFB (läuft auf dem PC auf Port **8083**) und Treibstoff/Gewicht
+  gegenüber dem SimBrief-Plan.
+- In der Statusleiste ein grüner Punkt **SIM**, solange der Simulator verbunden ist.
+
+Was man braucht: MSFS 2020 (ab SU12) oder 2024, GSX Pro und/oder den Fenix A320 – sonst nichts. GSX wird über seine
+Simulator-Variablen (`FSDT_GSX_…`) gelesen, wie es das freie Tool Fenix2GSX macht. Läuft GSX nicht, zeigt das Pad das an.
+Ausprobieren ohne Simulator: `VDGS-Bridge.exe --test-gsx` (ein A320 am Gate in Belgrad, die Dienste laufen von selbst).
+
+Warum über die Bridge und nicht über github.io? Eine https-Seite darf Geräte im Heimnetz (http://192.168…) nicht abfragen.
+Über die Bridge kommt das Pad aus dem Heimnetz – dann klappt es. Windows-Firewall: privaten Netzwerken erlauben.
+
 ## Ausprobieren ohne Simulator
 
 ```bash
